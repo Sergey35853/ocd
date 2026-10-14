@@ -80,6 +80,12 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     url: null,
   })
 
+  // Update flow is three explicit steps, so the view has to remember which one
+  // it is on: checking finds a version, downloading puts it in the updater's
+  // cache, and only then does installing mean anything.
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateReady, setUpdateReady] = useState(false)
+
   useEffect(() => {
     void window.ocd.remote
       .status()
@@ -293,13 +299,48 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             <button
               type="button"
               className="linkbtn"
+              disabled={updateBusy}
               onClick={async () => {
-                const result = await window.ocd.app.checkForUpdates()
-                store.toast(result.message, result.ok ? "info" : "error")
+                setUpdateBusy(true)
+                try {
+                  const result = await window.ocd.app.checkForUpdates()
+                  store.toast(result.message, result.ok ? "info" : "error")
+                } finally {
+                  setUpdateBusy(false)
+                }
               }}
             >
               {t("set.checkUpdate")}
             </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={updateBusy}
+              onClick={async () => {
+                setUpdateBusy(true)
+                try {
+                  const result = await window.ocd.app.downloadUpdate()
+                  store.toast(result.message, result.ok ? "info" : "error")
+                  setUpdateReady(result.ok)
+                } finally {
+                  setUpdateBusy(false)
+                }
+              }}
+            >
+              {t("set.downloadUpdate")}
+            </button>
+            {updateReady && (
+              <button
+                type="button"
+                className="btn"
+                onClick={async () => {
+                  const result = await window.ocd.app.installUpdate()
+                  store.toast(result.message, result.ok ? "info" : "error")
+                }}
+              >
+                {t("set.installUpdate")}
+              </button>
+            )}
           </div>
         </Field>
 

@@ -412,6 +412,8 @@ export const ru = {
   "set.autoUpdate": "Проверять обновления",
   "set.autoUpdateHint": "Скачивание не запускается само — установка после выхода.",
   "set.checkUpdate": "Проверить сейчас",
+  "set.downloadUpdate": "Скачать обновление",
+  "set.installUpdate": "Установить и перезапустить",
   "search.inMessages": "Найдено в сообщениях",
   "search.indexing": "Индексирую беседы…",
   "search.titleOnly": "По названию",

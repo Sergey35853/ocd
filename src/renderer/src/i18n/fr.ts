@@ -391,6 +391,8 @@ export const fr: Dict = {
   "set.autoUpdate": "Rechercher les mises à jour",
   "set.autoUpdateHint": "Rien ne se télécharge tout seul — installation après la fermeture.",
   "set.checkUpdate": "Vérifier maintenant",
+  "set.downloadUpdate": "Télécharger la mise à jour",
+  "set.installUpdate": "Installer et redémarrer",
   "search.inMessages": "Trouvé dans les messages",
   "search.indexing": "Indexation des conversations…",
   "search.titleOnly": "Par titre",

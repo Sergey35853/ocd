@@ -392,6 +392,8 @@ export const de: Dict = {
   "set.autoUpdate": "Nach Updates suchen",
   "set.autoUpdateHint": "Es lädt nichts von allein — Installation nach dem Beenden.",
   "set.checkUpdate": "Jetzt prüfen",
+  "set.downloadUpdate": "Update herunterladen",
+  "set.installUpdate": "Installieren und neu starten",
   "search.inMessages": "In Nachrichten gefunden",
   "search.indexing": "Unterhaltungen werden indiziert…",
   "search.titleOnly": "Nach Titel",

@@ -135,6 +135,27 @@ const STRINGS = {
     fr: "La vérification des mises à jour ne fonctionne que sur une version installée",
     zh: "仅已安装的版本支持检查更新",
   },
+updateReady: {
+    ru: "Обновление скачано",
+    en: "Update downloaded",
+    de: "Update heruntergeladen",
+    fr: "Mise à jour téléchargée",
+    zh: "更新已下载",
+  },
+  updateNoPending: {
+    ru: "Нечего устанавливать — сначала скачайте обновление",
+    en: "Nothing to install — download the update first",
+    de: "Nichts zu installieren — zuerst das Update herunterladen",
+    fr: "Rien à installer — téléchargez la mise à jour",
+    zh: "没有可安装的内容 — 请先下载更新",
+  },
+  updateInstalling: {
+    ru: "Установка обновления, приложение сейчас перезапустится",
+    en: "Installing the update, the app will restart now",
+    de: "Update wird installiert, die App startet neu",
+    fr: "Installation de la mise à jour, l'application redémarre",
+    zh: "正在安装更新，应用即将重启",
+  },
 } as const
 
 export type MainStringKey = keyof typeof STRINGS

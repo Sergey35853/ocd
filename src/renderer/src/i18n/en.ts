@@ -386,6 +386,8 @@ export const en: Dict = {
   "set.autoUpdate": "Check for updates",
   "set.autoUpdateHint": "Nothing downloads on its own — it installs after you quit.",
   "set.checkUpdate": "Check now",
+  "set.downloadUpdate": "Download update",
+  "set.installUpdate": "Install and restart",
   "search.inMessages": "Found in messages",
   "search.indexing": "Indexing conversations…",
   "search.titleOnly": "By title",

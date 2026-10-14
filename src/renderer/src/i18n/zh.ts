@@ -385,6 +385,8 @@ export const zh: Dict = {
   "set.autoUpdate": "检查更新",
   "set.autoUpdateHint": "不会自动下载，退出后安装。",
   "set.checkUpdate": "立即检查",
+  "set.downloadUpdate": "下载更新",
+  "set.installUpdate": "安装并重启",
   "search.inMessages": "在消息中找到",
   "search.indexing": "正在索引对话…",
   "search.titleOnly": "按标题",

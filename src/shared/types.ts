@@ -871,6 +871,10 @@ export interface OcdApi {
     setGlobalHotkey(accelerator: string): Promise<{ ok: boolean; error?: string }>
     setAutoUpdate(enabled: boolean): Promise<boolean>
     checkForUpdates(): Promise<{ ok: boolean; message: string }>
+    /** Fetch an update that `checkForUpdates` reported. Never starts on its own. */
+    downloadUpdate(): Promise<{ ok: boolean; message: string }>
+    /** Install the downloaded update and restart; fails if nothing is staged. */
+    installUpdate(): Promise<{ ok: boolean; message: string }>
     /** System print dialog; the document is the same one the HTML export writes. */
     printConversation(payload: {
       sessionId: string

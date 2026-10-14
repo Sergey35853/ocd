@@ -204,6 +204,8 @@ const api = {
       call<{ ok: boolean; error?: string }>("app:setGlobalHotkey", accelerator),
     setAutoUpdate: (enabled: boolean) => call<boolean>("app:setAutoUpdate", enabled),
     checkForUpdates: () => call<{ ok: boolean; message: string }>("app:checkForUpdates"),
+    downloadUpdate: () => call<{ ok: boolean; message: string }>("app:downloadUpdate"),
+    installUpdate: () => call<{ ok: boolean; message: string }>("app:installUpdate"),
     printConversation: (payload: {
       sessionId: string
       title: string
