@@ -393,18 +393,71 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  /* Centred in the 44px bar rather than stuck to its top edge, where the
+     stretch that gives the window controls their full height left the circle
+     sitting a couple of millimetres high. */
+  align-self: center;
   height: 28px;
+  /* Both bounds, because neither alone works: max-width alone shrinks the
+     circle to the width of the arrow, and width alone cannot open it. */
+  min-width: 28px;
+  max-width: 28px;
+  padding: 0;
   margin-right: 4px;
   border: 0;
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
   cursor: pointer;
+  overflow: hidden;
+  transition:
+    max-width 0.16s ease,
+    padding 0.16s ease,
+    border-radius 0.16s ease;
 }
-.updatebtn:hover:not(:disabled) {
+/*
+ * Hovering opens the circle into a pill with the words in it. `max-width` and
+ * `opacity` are what animate here; `width: auto` would jump, and the label is
+ * kept in the markup rather than in `title` because a tooltip cannot be read at
+ * a glance while the pointer is already on the button.
+ */
+.updatebtn-label {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  /* A translation longer than the pill gets an ellipsis rather than a word cut
+     in half: the label is the only thing saying what the button does. */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 12px/1 var(--font);
+  transition:
+    max-width 0.16s ease,
+    opacity 0.12s ease,
+    margin 0.16s ease;
+}
+.updatebtn:hover:not(:disabled),
+.updatebtn:focus-visible {
+  max-width: 220px;
+  padding: 0 12px;
+  border-radius: 14px;
   background: var(--accent);
   color: #fff;
+}
+.updatebtn:hover:not(:disabled) .updatebtn-label,
+.updatebtn:focus-visible .updatebtn-label {
+  max-width: 180px;
+  opacity: 1;
+  margin-left: 8px;
+}
+/* The arrow turns on hover, clockwise, and stops pointing straight down while
+   it does: the pill reads as an action being offered rather than a state. */
+.updatebtn svg {
+  flex: none;
+  transition: transform 0.2s ease;
+}
+.updatebtn:hover:not(:disabled) svg,
+.updatebtn:focus-visible svg {
+  transform: rotate(90deg);
 }
 .updatebtn:disabled {
   cursor: default;

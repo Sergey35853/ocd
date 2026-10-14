@@ -511,6 +511,12 @@ function Shell() {
             onClick={() => void startUpdate()}
           >
             <IconDownload size={15} />
+            {/* Shown on hover only, and only because the arrow is not the whole
+                meaning: a circle with a down arrow says "something arrived",
+                the words say what it is. */}
+            <span className="updatebtn-label">
+              {update.staged ? t("set.installUpdate") : t("set.downloadUpdate")}
+            </span>
           </button>
         ) : null}
 

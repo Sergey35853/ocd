@@ -210,12 +210,39 @@ function createWindow(): BrowserWindow {
 }
 
 /**
+ * The ICO the taskbar entry should point at, or null when there is none.
+ *
+ * Order matters and the last candidate is not `app.getPath("exe")`. Windows
+ * resolves an AppUserModelID once per shell session, so whatever a *previous*
+ * run registered for this id is what the taskbar keeps showing. A dev run has no
+ * `resources/icon.ico` next to the Electron runtime, and falling back to the
+ * executable wrote `IconUri = electron.exe` under the very id the installed app
+ * uses - after which the installed copy showed the Electron icon until the shell
+ * was restarted. Registering nothing is better than registering a lie.
+ */
+export function taskbarIconPath(resourcesPath: string): string | null {
+  const candidates = [
+    join(resourcesPath, "icon.ico"),
+    // Dev: the same files the repo ships, next to the built main bundle.
+    join(__dirname, "../../resources/icon.ico"),
+  ]
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) return candidate
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  return null
+}
+
+/**
  * Give Windows something to resolve the taskbar entry against.
  *
  * A window declares an AppUserModelID, and Windows then looks that id up to
  * decide the name and icon shown in the taskbar, in Alt-Tab and in the jump
  * list. Nothing registers it automatically: the installer does, for the copy it
- * installs — which is why running straight out of `release/win-unpacked` left
+ * installs - which is why running straight out of `release/win-unpacked` left
  * Windows with no answer and fell back to the Electron runtime's identity, so
  * the app appeared under an Electron icon.
  *
@@ -227,20 +254,31 @@ function createWindow(): BrowserWindow {
  * DisplayName and no icon makes the entry resolvable but iconless, and
  * Windows then has nothing to draw: the taskbar button came up blank or as
  * the Electron runtime's. The id has to name the ICO itself, which is why
- * electron-builder ships `icon.ico` as an extra resource — the icon embedded
+ * electron-builder ships `icon.ico` as an extra resource - the icon embedded
  * in the executable is not addressable as a file.
+ *
+ * Windows resolves an AppUserModelID once per shell session and keeps the
+ * answer, so a wrong entry survives until the shell restarts. That is why the
+ * icon is never a guess: an entry naming the real ICO from either run, or no
+ * entry at all.
  */
 function registerTaskbarIdentity(aumid: string): void {
   if (process.platform !== "win32") return
   const key = `HKCU\\Software\\Classes\\AppUserModelId\\${aumid}`
   const exe = app.getPath("exe")
-  const ico = join(process.resourcesPath, "icon.ico")
-  const iconUri = existsSync(ico) ? ico : exe
+  const ico = taskbarIconPath(process.resourcesPath)
+  // Without an icon there is nothing to point at, and pointing at the executable
+  // is what put the Electron mark on the installed app's taskbar in the first
+  // place. Leave the id to the installer in that case.
+  if (!ico) {
+    log.warn("no taskbar icon found; leaving the taskbar identity to the installer")
+    return
+  }
   // Arguments as an array, never a joined string: the install path routinely
   // contains spaces, and a shell-split argument list would truncate it.
   const writes: string[][] = [
     ["add", key, "/v", "DisplayName", "/t", "REG_SZ", "/d", "OCD", "/f"],
-    ["add", key, "/v", "IconUri", "/t", "REG_SZ", "/d", iconUri, "/f"],
+    ["add", key, "/v", "IconUri", "/t", "REG_SZ", "/d", ico, "/f"],
     ["add", `${key}\\shell\\open\\command`, "/ve", "/t", "REG_SZ", "/d", `"${exe}"`, "/f"],
   ]
   for (const args of writes) {
@@ -250,7 +288,7 @@ function registerTaskbarIdentity(aumid: string): void {
       log.warn(`could not register the taskbar identity: ${String(err)}`)
     }
   }
-  log.info(`taskbar identity registered as ${aumid}`)
+  log.info(`taskbar identity registered as ${aumid} with ${ico}`)
 }
 
 /**
