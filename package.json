@@ -1,10 +1,10 @@
 {
   "name": "ocd",
   "productName": "OCD",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode Deck - acrylic desktop hub for OpenCode: chat, plugins, providers, settings",
   "main": "./out/main/index.js",
-  "author": "link_",
+  "author": "Sergey35853",
   "license": "MIT",
   "private": true,
   "repository": {
@@ -73,6 +73,10 @@
       {
         "from": "resources/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "resources/icon.ico",
+        "to": "icon.ico"
       }
     ],
     "win": {

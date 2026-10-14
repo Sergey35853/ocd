@@ -3,12 +3,30 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 
 /**
- * Prefer the shipped PNG; fall back to a generated disc so the window and tray
- * always have something to show even if the resource is missing.
+ * Preferred size for the window and tray icon.
+ *
+ * Windows asks for 24px at 100% scaling, 32 at 150% and 40 at 200%, and scales
+ * whatever it gets up when it is too small. Handing it exactly 32 - which is
+ * what this used to do - meant every taskbar past 100% upsampled a pre-shrunk
+ * bitmap and showed a blur. 64 covers the highest scaling Windows ships
+ * without bloating the package.
+ */
+const ICON_SIZE = 64
+
+/**
+ * Prefer the shipped ICO; fall back to the PNG, then to a generated disc so
+ * the window and tray always have something to show even if a resource is
+ * missing.
+ *
+ * The ICO carries all nine frames (16 through 256) and is what the taskbar
+ * picks from once the AppUserModelId points at it, so the window icon has to
+ * come from the same file or the two disagree at small sizes.
  */
 export function windowIcon(): Electron.NativeImage {
   const candidates = [
+    process.resourcesPath ? join(process.resourcesPath, "icon.ico") : "",
     process.resourcesPath ? join(process.resourcesPath, "icon.png") : "",
+    join(__dirname, "../../resources/icon.ico"),
     join(__dirname, "../../resources/icon.png"),
   ].filter(Boolean)
 
@@ -16,14 +34,14 @@ export function windowIcon(): Electron.NativeImage {
     try {
       if (candidate && existsSync(candidate)) {
         const image = nativeImage.createFromPath(candidate)
-        if (!image.isEmpty()) return image.resize({ width: 32, height: 32 })
+        if (!image.isEmpty()) return image.resize({ width: ICON_SIZE, height: ICON_SIZE })
       }
     } catch {
       /* try the next candidate */
     }
   }
 
-  const size = 32
+  const size = ICON_SIZE
   const buf = Buffer.alloc(size * size * 4)
   const center = (size - 1) / 2
   const radius = size * 0.46

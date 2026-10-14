@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from "electron"
 import { execFileSync } from "node:child_process"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { registerIpc, broadcastServiceEvents, startAutoSpeech } from "./ipc"
 import { service } from "./service"
@@ -221,15 +222,25 @@ function createWindow(): BrowserWindow {
  * The entry is written per user, under HKCU, and points at the executable
  * actually running. Doing it here rather than only in the installer is what
  * makes the unpacked build show the same thing the installed one does.
+ *
+ * `IconUri` is the part that was missing. Registering the id with a
+ * DisplayName and no icon makes the entry resolvable but iconless, and
+ * Windows then has nothing to draw: the taskbar button came up blank or as
+ * the Electron runtime's. The id has to name the ICO itself, which is why
+ * electron-builder ships `icon.ico` as an extra resource — the icon embedded
+ * in the executable is not addressable as a file.
  */
 function registerTaskbarIdentity(aumid: string): void {
   if (process.platform !== "win32") return
   const key = `HKCU\\Software\\Classes\\AppUserModelId\\${aumid}`
   const exe = app.getPath("exe")
+  const ico = join(process.resourcesPath, "icon.ico")
+  const iconUri = existsSync(ico) ? ico : exe
   // Arguments as an array, never a joined string: the install path routinely
   // contains spaces, and a shell-split argument list would truncate it.
   const writes: string[][] = [
     ["add", key, "/v", "DisplayName", "/t", "REG_SZ", "/d", "OCD", "/f"],
+    ["add", key, "/v", "IconUri", "/t", "REG_SZ", "/d", iconUri, "/f"],
     ["add", `${key}\\shell\\open\\command`, "/ve", "/t", "REG_SZ", "/d", `"${exe}"`, "/f"],
   ]
   for (const args of writes) {
