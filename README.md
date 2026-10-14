@@ -175,7 +175,7 @@ npm run dist     # release/OCD Setup 3.x.x.exe + OCD-portable-3.x.x.exe
 4. В адресной строке настроек можно указать свой адрес сервера.
 
 Адрес можно открыть сразу на нужном экране: `OCD.exe` поддерживает
-`#settings`, `#plugins`, `#providers`, `#capabilities`, `#chat`.
+`#settings`, `#plugins`, `#providers`, `#capabilities`, `#about`, `#chat`.
 
 ---
 

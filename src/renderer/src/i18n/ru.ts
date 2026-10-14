@@ -26,6 +26,7 @@ export const ru = {
   "nav.plugins": "Плагины",
   "nav.providers": "Провайдеры",
   "nav.settings": "Настройки",
+  "nav.about": "О программе",
   "nav.sections": "Разделы",
   "nav.closeTab": "Закрыть вкладку",
   "nav.newSessionTitle": "Новая сессия",
@@ -260,7 +261,18 @@ export const ru = {
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Голос и диктовка",
   "set.dictationTitle": "Диктовка",
-  "set.about": "О программе",
+
+  // ---- about ----
+  "about.build": "Сборка",
+  "about.tagline": "Акриловое desktop-приложение для OpenCode",
+  "about.updates": "Обновления",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.server": "OpenCode",
+  "about.serverUrl": "Адрес сервера",
+  "about.registration": "Регистрация сервиса",
+  "about.config": "Конфигурация",
 
   "set.theme": "Тема",
   "set.themeHint": "«Авто» берёт тему из настроек Windows.",
@@ -343,10 +355,6 @@ export const ru = {
   "set.dictateDeliver": "После диктовки",
   "set.dictateInsert": "Вставить в поле ввода",
   "set.dictateSendNow": "Сразу отправить",
-
-  "set.server": "Сервер: {url} · OpenCode {version}",
-  "set.registration": "Регистрация сервиса: {path}",
-  "set.configPath": "Конфиг: {path}",
   "set.reconnect": "Переподключиться",
 
   // ---- busy animation ----

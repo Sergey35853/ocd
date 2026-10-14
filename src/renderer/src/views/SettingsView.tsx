@@ -67,7 +67,6 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [draft, setDraft] = useState("")
   const [configPath, setConfigPath] = useState("")
-  const [versions, setVersions] = useState<Record<string, string>>({})
 
   // Remote (SSH) block state. Kept local: it is a connection the user opens
   // by hand, not a preference to persist.
@@ -79,12 +78,6 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     active: false,
     url: null,
   })
-
-  // Update flow is three explicit steps, so the view has to remember which one
-  // it is on: checking finds a version, downloading puts it in the updater's
-  // cache, and only then does installing mean anything.
-  const [updateBusy, setUpdateBusy] = useState(false)
-  const [updateReady, setUpdateReady] = useState(false)
 
   useEffect(() => {
     void window.ocd.remote
@@ -126,7 +119,6 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
   }
 
   useEffect(() => {
-    void window.ocd.app.version().then(setVersions)
     void window.ocd.configFile.path().then(setConfigPath)
   }, [])
 
@@ -285,63 +277,6 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             <IconPanel size={14} />
             {t("set.hudToggle")}
           </button>
-        </Field>
-
-        <Field label={t("set.autoUpdate")} hint={t("set.autoUpdateHint")}>
-          <div className="hstack">
-            <Switch
-              on={settings.autoUpdate}
-              onChange={(value) => {
-                void window.ocd.app.setAutoUpdate(value)
-                void store.updateSettings({ autoUpdate: value })
-              }}
-            />
-            <button
-              type="button"
-              className="linkbtn"
-              disabled={updateBusy}
-              onClick={async () => {
-                setUpdateBusy(true)
-                try {
-                  const result = await window.ocd.app.checkForUpdates()
-                  store.toast(result.message, result.ok ? "info" : "error")
-                } finally {
-                  setUpdateBusy(false)
-                }
-              }}
-            >
-              {t("set.checkUpdate")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={updateBusy}
-              onClick={async () => {
-                setUpdateBusy(true)
-                try {
-                  const result = await window.ocd.app.downloadUpdate()
-                  store.toast(result.message, result.ok ? "info" : "error")
-                  setUpdateReady(result.ok)
-                } finally {
-                  setUpdateBusy(false)
-                }
-              }}
-            >
-              {t("set.downloadUpdate")}
-            </button>
-            {updateReady && (
-              <button
-                type="button"
-                className="btn"
-                onClick={async () => {
-                  const result = await window.ocd.app.installUpdate()
-                  store.toast(result.message, result.ok ? "info" : "error")
-                }}
-              >
-                {t("set.installUpdate")}
-              </button>
-            )}
-          </div>
         </Field>
 
         <Field label={t("set.showUsage")} hint={t("set.showUsageHint")}>
@@ -843,34 +778,6 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             <option value="send">{t("set.dictateSendNow")}</option>
           </select>
         </Field>
-      </div>
-
-      <div className="card">
-        <div className="card-head">{t("set.about")}</div>
-        <div className="card-body" style={{ color: "var(--text-dim)", display: "grid", gap: 6 }}>
-          <div>
-            OCD <span className="badge">v{versions.app ?? "—"}</span>{" "}
-            <span className="badge">Electron {versions.electron ?? "—"}</span>{" "}
-            <span className="badge">Chromium {versions.chrome ?? "—"}</span>
-          </div>
-          <div style={{ color: "var(--text-faint)", fontSize: 12 }}>
-            {t("set.server", {
-              url: store.status?.url ?? "—",
-              version: store.status?.version ?? "—",
-            })}
-          </div>
-          <div style={{ color: "var(--text-faint)", fontSize: 12, wordBreak: "break-all" }}>
-            {t("set.registration", { path: store.status?.registrationFile ?? "—" })}
-          </div>
-          <div style={{ color: "var(--text-faint)", fontSize: 12, wordBreak: "break-all" }}>
-            {t("set.configPath", { path: configPath || "—" })}
-          </div>
-          <div>
-            <button type="button" className="btn" onClick={() => void store.connect()}>
-              <IconRefresh size={14} /> {t("set.reconnect")}
-            </button>
-          </div>
-        </div>
       </div>
 
       {editorOpen ? (

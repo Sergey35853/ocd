@@ -20,6 +20,7 @@ export const en: Dict = {
   "nav.plugins": "Plugins",
   "nav.providers": "Providers",
   "nav.settings": "Settings",
+  "nav.about": "About",
   "nav.sections": "Sections",
   "nav.closeTab": "Close tab",
   "nav.newSessionTitle": "New session",
@@ -238,7 +239,18 @@ export const en: Dict = {
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Voice and dictation",
   "set.dictationTitle": "Dictation",
-  "set.about": "About",
+
+  // ---- about ----
+  "about.build": "Build",
+  "about.tagline": "Acrylic desktop app for OpenCode",
+  "about.updates": "Updates",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.server": "OpenCode",
+  "about.serverUrl": "Server address",
+  "about.registration": "Service registration",
+  "about.config": "Configuration",
 
   "set.theme": "Theme",
   "set.themeHint": "“Auto” follows the Windows theme.",
@@ -318,10 +330,6 @@ export const en: Dict = {
   "set.dictateDeliver": "After dictation",
   "set.dictateInsert": "Insert into the input",
   "set.dictateSendNow": "Send straight away",
-
-  "set.server": "Server: {url} · OpenCode {version}",
-  "set.registration": "Service registration: {path}",
-  "set.configPath": "Config: {path}",
   "set.reconnect": "Reconnect",
 
   "anim.title": "Animation while a request runs",

@@ -337,6 +337,17 @@ export const IconTasks = (p: Props) =>
     p,
   )
 
+/** Lowercase i in a circle: the About view. */
+export const IconInfo = (p: Props) =>
+  svg(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 7.6h.01" />
+    </>,
+    p,
+  )
+
 /** Dial with a needle: the request-limit meter. */export const IconGauge = (p: Props) =>
   svg(
     <>

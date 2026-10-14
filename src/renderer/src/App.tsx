@@ -11,6 +11,7 @@ import {
   IconClose,
   IconDownload,
   IconGear,
+  IconInfo,
   IconLayers,
   IconMaximize,
   IconMenu,
@@ -28,11 +29,12 @@ import { PluginsView } from "./views/PluginsView"
 import { ProvidersView } from "./views/ProvidersView"
 import { CapabilitiesView } from "./views/CapabilitiesView"
 import { SettingsView } from "./views/SettingsView"
+import { AboutView } from "./views/AboutView"
 import { useT, type DictKey } from "./i18n"
 
-type ViewId = "chat" | "capabilities" | "plugins" | "providers" | "settings"
+type ViewId = "chat" | "capabilities" | "plugins" | "providers" | "settings" | "about"
 
-const VIEWS: ViewId[] = ["chat", "capabilities", "plugins", "providers", "settings"]
+const VIEWS: ViewId[] = ["chat", "capabilities", "plugins", "providers", "settings", "about"]
 
 const VIEW_KEY = "ocd.view.v1"
 
@@ -66,6 +68,7 @@ const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: stri
   { id: "plugins", label: "nav.plugins", icon: IconPuzzle },
   { id: "providers", label: "nav.providers", icon: IconChip },
   { id: "settings", label: "nav.settings", icon: IconGear },
+  { id: "about", label: "nav.about", icon: IconInfo },
 ]
 
 function Shell() {
@@ -371,6 +374,7 @@ function Shell() {
       { id: "view:plugins", label: t("nav.plugins"), keywords: "плагины расширения", group: "nav", run: () => setView("plugins") },
       { id: "view:providers", label: t("nav.providers"), keywords: "провайдеры модели", group: "nav", run: () => setView("providers") },
       { id: "view:settings", label: t("nav.settings"), keywords: "настройки опции", group: "nav", run: () => setView("settings") },
+      { id: "view:about", label: t("nav.about"), keywords: "о программе версия обновление about version", group: "nav", run: () => setView("about") },
       { id: "hud", label: t("set.hudToggle"), keywords: "панель индикатор hud", group: "app", run: () => void window.ocd.hud.toggle() },
       { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void store.restartService() },
       { id: "sidebar", label: t("chat.toggleSidebar"), keywords: "панель сессий sidebar", group: "app", run: () => setSidebarOpen((value) => !value) },
@@ -634,6 +638,7 @@ function Shell() {
         {view === "plugins" ? <PluginsView onBack={goChat} /> : null}
         {view === "providers" ? <ProvidersView onBack={goChat} /> : null}
         {view === "settings" ? <SettingsView onBack={goChat} /> : null}
+        {view === "about" ? <AboutView onBack={goChat} /> : null}
       </main>
 
       <PermissionPrompt />

@@ -20,6 +20,7 @@ export const fr: Dict = {
   "nav.plugins": "Plugins",
   "nav.providers": "Fournisseurs",
   "nav.settings": "Paramètres",
+  "nav.about": "À propos",
   "nav.sections": "Sections",
   "nav.closeTab": "Fermer l'onglet",
   "nav.newSessionTitle": "Nouvelle session",
@@ -243,7 +244,18 @@ export const fr: Dict = {
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Voix et dictée",
   "set.dictationTitle": "Dictée",
-  "set.about": "À propos",
+
+  // ---- about ----
+  "about.build": "Build",
+  "about.tagline": "Application de bureau acrylique pour OpenCode",
+  "about.updates": "Mises à jour",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.server": "OpenCode",
+  "about.serverUrl": "Adresse du serveur",
+  "about.registration": "Inscription du service",
+  "about.config": "Configuration",
 
   "set.theme": "Thème",
   "set.themeHint": "« Auto » suit le thème de Windows.",
@@ -323,10 +335,6 @@ export const fr: Dict = {
   "set.dictateDeliver": "Après la dictée",
   "set.dictateInsert": "Insérer dans le champ de saisie",
   "set.dictateSendNow": "Envoyer immédiatement",
-
-  "set.server": "Serveur : {url} · OpenCode {version}",
-  "set.registration": "Enregistrement du service : {path}",
-  "set.configPath": "Configuration : {path}",
   "set.reconnect": "Se reconnecter",
 
   "anim.title": "Animation pendant le traitement",

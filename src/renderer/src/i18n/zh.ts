@@ -20,6 +20,7 @@ export const zh: Dict = {
   "nav.plugins": "插件",
   "nav.providers": "提供商",
   "nav.settings": "设置",
+  "nav.about": "关于",
   "nav.sections": "分区",
   "nav.closeTab": "关闭标签页",
   "nav.newSessionTitle": "新建会话",
@@ -236,7 +237,18 @@ export const zh: Dict = {
   "set.opencode": "OpenCode",
   "set.voiceTitle": "语音与听写",
   "set.dictationTitle": "听写",
-  "set.about": "关于",
+
+  // ---- about ----
+  "about.build": "构建",
+  "about.tagline": "OpenCode 的亚克力桌面应用",
+  "about.updates": "更新",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.server": "OpenCode",
+  "about.serverUrl": "服务器地址",
+  "about.registration": "服务注册",
+  "about.config": "配置",
 
   "set.theme": "主题",
   "set.themeHint": "“自动”跟随 Windows 主题。",
@@ -316,10 +328,6 @@ export const zh: Dict = {
   "set.dictateDeliver": "听写完成后",
   "set.dictateInsert": "插入到输入框",
   "set.dictateSendNow": "立即发送",
-
-  "set.server": "服务器：{url} · OpenCode {version}",
-  "set.registration": "服务注册：{path}",
-  "set.configPath": "配置：{path}",
   "set.reconnect": "重新连接",
 
   "anim.title": "请求处理中的动画",

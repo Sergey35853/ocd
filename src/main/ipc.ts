@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from "electron"
+import { BrowserWindow, app, dialog, ipcMain, shell } from "electron"
 import { service } from "./service"
 import { getSettings, setSettings, exportSettings, importSettings } from "./settings"
 import {
@@ -698,7 +698,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<AppSettings>("app:setSettings", (patch: Partial<AppSettings>) => setSettings(patch))
 
   handle("app:version", () => ({
-    app: process.env.npm_package_version ?? "0.0.0",
+    // `app.getVersion()` is the packaged build's own version, read from the
+    // executable. `npm_package_version` only exists when npm started the
+    // process, so asking for it here reported "0.0.0" in every real install -
+    // the About screen and every bug report about the version with it.
+    app: app.getVersion() || process.env.npm_package_version || "0.0.0",
     electron: process.versions.electron,
     node: process.versions.node,
     chrome: process.versions.chrome,

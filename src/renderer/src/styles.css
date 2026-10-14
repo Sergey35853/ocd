@@ -726,7 +726,73 @@ select {
   flex: 1;
 }
 
-/* Provider install form. */
+/* ---- about ---- */
+.about-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.about-title {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.about-tagline {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+/* Label left, value right: a fact list, not prose. Paths are long and have to
+   be selectable, so they get a monospace font and break rather than overflow. */
+.about-rows {
+  margin: 0;
+  display: grid;
+  gap: 5px;
+}
+.about-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.about-row dt,
+.about-label {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.about-row dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.about-hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+/* The result of the check stays on the card: "you are up to date" is the
+   answer, and a toast that disappears leaves nothing to read twice. */
+.about-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+.about-check.ok {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+}
+.about-check.err {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* ---- provider install form ---- */
 .install-form {
   display: grid;
   gap: 10px;
