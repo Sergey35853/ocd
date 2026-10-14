@@ -33,7 +33,7 @@ import { showContextMenu, type ContextTarget } from "./contextMenu"
 import { openPreviewExternal, preparePreview, writePreviewFile } from "./preview"
 import { updateTrayState, currentLanguage } from "./tray"
 import { openSessionWindow, registerGlobalHotkey } from "./windows"
-import { conversationHtml, exportConversation, type ExportPayload } from "./export"
+import { conversationHtml, exportConversation, saveText, type ExportPayload } from "./export"
 import { printConversation } from "./print"
 import {
   checkForUpdates,
@@ -1077,6 +1077,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     messages: number
   }) => {
     const result = await exportConversation(payload, getWindow())
+    if (!result.ok && result.error) throw new Error(result.error)
+    return result
+  })
+
+  handle("app:saveText", async (payload: { name: string; content: string; ext: string }) => {
+    const result = await saveText(payload, getWindow())
     if (!result.ok && result.error) throw new Error(result.error)
     return result
   })

@@ -224,6 +224,12 @@ const api = {
       "app:exportConversation",
       payload,
     ),
+    /** Write app-produced text (a patch) exactly as given, wherever the user says. */
+    saveText: (payload: { name: string; content: string; ext: string }) =>
+      call<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>(
+        "app:saveText",
+        payload,
+      ),
     /** Commands pushed from main: tray items, hotkey, tray language switch. */
     onCommand: (cb: (command: { kind: string; sessionId?: string; language?: string }) => void) => {
       const listener = (

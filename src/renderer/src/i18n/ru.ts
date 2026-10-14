@@ -125,6 +125,31 @@ export const ru = {
   "tool.running": "выполняется",
   "tool.error": "ошибка",
   "tool.done": "готово",
+  "tool.rawInput": "Исходный вызов",
+
+  // ---- diffs and changed files ----
+  "changes.title": "Изменения",
+  "changes.summary": "{files} файлов +{added} −{removed}",
+  "changes.close": "Закрыть",
+  "changes.copy": "патч",
+  "changes.copyAll": "Копировать всё",
+  "changes.openInEditor": "Открыть в редакторе",
+  "changes.exportPatch": "Сохранить .patch",
+  "changes.copied": "Патч скопирован",
+  "changes.copyFailed": "Не удалось скопировать",
+  "changes.exported": "Патч сохранён: {path}",
+  "changes.nothingToExport": "В этой беседе нечего сохранять",
+  "changes.editsHint": "Правок в беседе: {n}",
+  "changes.status.added": "создан",
+  "changes.status.deleted": "удалён",
+  "changes.status.modified": "изменён",
+  "changes.wholeNote":
+    "Файл записан целиком и сервер не прислал дифф: видно, что записано, но не видно удалений.",
+  "changes.brokenChain":
+    "Правки не выстраиваются в один дифф — показан каждая отдельным блоком.",
+  "diff.noChange": "Текст не изменился",
+  "diff.copyPatch": "Копировать патч",
+  "diff.more": "Ещё {n} строк",
 
   // ---- capabilities ----
   "cap.title": "Возможности",

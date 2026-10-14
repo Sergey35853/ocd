@@ -175,7 +175,9 @@ export function toolLabel(block: MessageContent): string {
       if (typeof value === "string" && value.trim()) return value
     }
   }
-  return block.tool ?? translate("tool.fallback")
+  // Two spellings of the same field: the server renamed `tool` to `name`, and
+  // reading only the old one left every tool block unnamed.
+  return block.tool ?? block.name ?? translate("tool.fallback")
 }
 
 export function formatTokens(tokens: TokenUsage | undefined): string {

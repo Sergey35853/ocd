@@ -28,6 +28,9 @@ import { Picker } from "../components/ui"
 import { BusyAnimation } from "../components/BusyAnimation"
 import { ExportMenu } from "../components/ExportMenu"
 import { TasksBoard } from "../components/TasksBoard"
+import { ChangesPanel } from "../components/ChangesPanel"
+import { DiffView } from "../components/DiffView"
+import { sessionChanges, stepsOf, toolName, callKey } from "../lib/diff"
 import { UsageMeter } from "../components/UsageMeter"
 import { LimitMeter } from "../components/LimitMeter"
 import { PinButton, SessionBoard } from "../components/SessionBoard"
@@ -77,6 +80,9 @@ import { useT } from "../i18n"
 
 /** Opens a staged or on-disk document in the pane next to the stream. */
 type OpenPreview = (target: PreviewTarget) => void
+
+/** Tool names that run a command; their output is a shell transcript. */
+const SHELL_TOOLS = new Set(["bash", "shell", "powershell"])
 
 /**
  * Whether a scroller is close enough to its end to count as "at the bottom".
@@ -525,6 +531,8 @@ function ToolBlock({
   const command = commandOf(block)
 
   const files = previewFiles([block])
+  /** What this call changed, when it changed something. */
+  const steps = useMemo(() => stepsOf(block), [block])
   const [busy, setBusy] = useState<string | null>(null)
 
   // Converting a document can take a second or two, so the button waits and the
@@ -590,7 +598,7 @@ function ToolBlock({
         <span className="grow" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
           {form || questions ? questions?.header ?? t("tool.question") : toolLabel(block)}
         </span>
-        {block.tool ? <span className="badge">{block.tool}</span> : null}
+        {toolName(block) ? <span className="badge">{toolName(block)}</span> : null}
       </summary>
 
       {form || questions ? (
@@ -616,7 +624,24 @@ function ToolBlock({
           <span className="badge">{fileName(file.path)}</span>
         </button>
       ))}
-      {block.state?.input !== undefined ? (
+      {/**
+        A call that wrote something has nothing to say as JSON: its diff is the
+        answer, and it is what everyone opens the block to see. One call can
+        touch several files, so every one of them gets its own diff. The raw
+        input stays one click away for the rare case where the diff is not the
+        point.
+      */}
+      {steps.length ? (
+        <>
+          {steps.map((step) => (
+            <DiffView key={step.key} lines={step.lines} />
+          ))}
+          <details className="tool-raw">
+            <summary>{t("tool.rawInput")}</summary>
+            <CodeBlock code={prettyJson(block.state?.input)} language="json" />
+          </details>
+        </>
+      ) : block.state?.input !== undefined ? (
         <CodeBlock
           code={prettyJson(block.state.input)}
           language="json"
@@ -627,7 +652,7 @@ function ToolBlock({
       {output ? (
         <CodeBlock
           code={output}
-          language={block.tool === "bash" ? "bash" : "json"}
+          language={SHELL_TOOLS.has(toolName(block)) ? "bash" : "json"}
           collapsible
           defaultOpen={false}
           maxHeight={340}
@@ -718,7 +743,7 @@ function Turn({
     // A block that is waiting on an answer is never noise: filtering it out is
     // what makes a turn look hung with nothing to click.
     return allTools.filter(
-      (block) => isNotableTool(block) || (block.callID ? formsByTool?.has(block.callID) : false),
+      (block) => isNotableTool(block) || (callKey(block) ? formsByTool?.has(callKey(block)!) : false),
     )
   }, [allTools, toolFilter, formsByTool])
 
@@ -811,11 +836,11 @@ function Turn({
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
           {tools.map((block, index) => (
             <ToolBlock
-              key={block.callID ?? index}
+              key={callKey(block) ?? index}
               block={block}
               openPreview={openPreview}
               onPreparing={onPreparing}
-              form={block.callID ? formsByTool?.get(block.callID) : undefined}
+              form={callKey(block) ? formsByTool?.get(callKey(block)!) : undefined}
               onReply={onReplyForm}
               onCancelForm={onCancelForm}
               onOwnAnswer={onAnswer}
@@ -946,6 +971,15 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * on, otherwise the pane would fight the click that closed it. */
   const dismissedFor = useRef<string | null>(null)
   const [tasksOpen, setTasksOpen] = useState(false)
+  const [changesOpen, setChangesOpen] = useState(false)
+  /**
+   * Every file the agent touched in this conversation.
+   *
+   * Derived from the transcript rather than kept in state: the history reloads
+   * on every session switch and after every turn, and a cache here would have to
+   * be invalidated by hand to stay in step with it.
+   */
+  const changes = useMemo(() => sessionChanges(messages), [messages])
 
   /**
    * Attachments of prompts sent in this session, keyed by the prompt text.
@@ -993,6 +1027,36 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     setPreviewPinned(false)
     setPreview(undefined)
   }, [session?.id])
+
+  /**
+   * Stage a file for the preview pane and open it there.
+   *
+   * Shared by the changes panel so that "look at what it wrote" lands on the
+   * same converter, the same spinner and the same pane as every other file the
+   * user asks to see.
+   */
+  const openPreviewPath = useCallback(
+    async (path: string) => {
+      dismissedFor.current = null
+      setPreparing(path)
+      try {
+        const prepared = await window.ocd.preview.open(path)
+        openPreview({
+          url: prepared.url,
+          title: path.split(/[\\/]/).pop() ?? path,
+          origin: path,
+          kind: prepared.kind,
+          route: prepared.route,
+          error: prepared.error,
+        })
+      } catch (err) {
+        store.toast(err instanceof Error ? err.message : String(err), "error")
+      } finally {
+        setPreparing(null)
+      }
+    },
+    [openPreview, store],
+  )
 
   /** Header button: bring the pane back, or hide it when it is already up. */
   const togglePreview = useCallback(() => {
@@ -1346,7 +1410,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     const onScreen = new Set<string>()
     for (const message of turns) {
       for (const block of message.content ?? []) {
-        if (block.type === "tool" && block.callID) onScreen.add(block.callID)
+        if (block.type !== "tool") continue
+        const call = callKey(block)
+        if (call) onScreen.add(call)
       }
     }
 
@@ -1814,6 +1880,14 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         />
 
         <TasksBoard messages={turns} open={tasksOpen} onToggle={() => setTasksOpen((v) => !v)} />
+
+        <ChangesPanel
+          changes={changes}
+          open={changesOpen}
+          onToggle={() => setChangesOpen((v) => !v)}
+          onOpenFile={(path) => void openPreviewPath(path)}
+          onToast={store.toast}
+        />
 
         <LimitMeter
           model={`${sessionModel?.providerID ?? store.settings?.defaultProvider ?? "opencode"}/${sessionModel?.id ?? store.settings?.defaultModel ?? ""}`}

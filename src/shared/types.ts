@@ -292,8 +292,12 @@ export interface SessionInfo {
 export interface MessageContent {
   type: "text" | "reasoning" | "tool" | string
   text?: string
+  /** Tool name. Older servers spelled it `tool`, current ones `name`. */
   tool?: string
+  name?: string
+  /** Tool call id; `callID` on older servers, `id` on current ones. */
   callID?: string
+  id?: string
   state?: {
     status?: string
     title?: string
@@ -305,11 +309,35 @@ export interface MessageContent {
      * why the stream reads the command's printing from here.
      */
     content?: unknown
+    /**
+     * What the call did, in the server's own words. A call that touched files
+     * carries `files`, each with a real unified `patch` — the authoritative
+     * diff, deletions included, which no client can reconstruct afterwards.
+     */
+    metadata?: ToolMetadata
     error?: string
     time?: { created?: number; completed?: number }
     [k: string]: unknown
   }
   metadata?: Record<string, unknown>
+}
+
+/** `state.metadata.files` as the server writes it. */
+export interface ToolMetadata {
+  files?: FileDiffInfo[]
+  /** The server gave up on a very long patch; what is here is all there is. */
+  truncated?: boolean
+  [k: string]: unknown
+}
+
+/** One file a call changed, with the patch that changed it. */
+export interface FileDiffInfo {
+  file: string
+  /** Unified diff, headers included, as the server computed it. */
+  patch: string
+  status?: "added" | "deleted" | "modified" | string
+  additions?: number
+  deletions?: number
 }
 
 export interface TokenUsage {
@@ -898,6 +926,12 @@ export interface OcdApi {
       markdown: string
       format: "markdown" | "html" | "pdf"
       messages: number
+    }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /** Write app-produced text (a patch) exactly as given, wherever the user says. */
+    saveText(payload: {
+      name: string
+      content: string
+      ext: string
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
     /** Commands pushed from main: tray entries, hotkey, tray language switch. */
     onCommand(cb: (command: { kind: string; sessionId?: string; language?: string }) => void): () => void

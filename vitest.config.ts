@@ -14,8 +14,12 @@ export default defineConfig({
       "@shared": fileURLToPath(new URL("./src/shared", import.meta.url)),
     },
   },
+  // The renderer is built by Vite with the automatic runtime; the tests import
+  // components directly, so they need the same transform rather than the
+  // classic one they would get by default.
+  esbuild: { jsx: "automatic" },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
   },
 })

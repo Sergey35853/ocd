@@ -33,6 +33,34 @@ function safeName(title: string, fallback: string): string {
 }
 
 /**
+ * Write text the app produced itself — a patch, today — where the user says.
+ *
+ * Separate from the conversation export because nothing here is Markdown to be
+ * wrapped in a document: a patch has to reach the disk byte for byte or `git
+ * apply` refuses it. The extension is checked against a plain pattern rather
+ * than trusted, because it ends up in a file filter and in a default path.
+ */
+export async function saveText(
+  payload: { name: string; content: string; ext: string },
+  parent: BrowserWindow | null,
+): Promise<ExportResult> {
+  const ext = /^[a-z0-9]{1,8}$/i.test(payload.ext) ? payload.ext.toLowerCase() : "txt"
+  try {
+    const name = safeName(payload.name, "changes")
+    const filters = [{ name: ext.toUpperCase(), extensions: [ext] }]
+    const result = parent
+      ? await dialog.showSaveDialog(parent, { defaultPath: `${name}.${ext}`, filters })
+      : await dialog.showSaveDialog({ defaultPath: `${name}.${ext}`, filters })
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+
+    await writeFile(result.filePath, payload.content, "utf8")
+    return { ok: true, path: result.filePath }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/**
  * Inline stylesheet for the HTML/PDF export.
  *
  * Deliberately self-contained: the file has to render correctly in a browser

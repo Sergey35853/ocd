@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:live": "set OCD_LIVE=1&& vitest run diff.live",
     "check": "npm run typecheck && npm run lint && npm run test",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
