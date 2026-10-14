@@ -27,6 +27,28 @@ let foundVersion = ""
 let listenersReady = false
 
 /**
+ * How many updater calls we started ourselves are still running.
+ *
+ * Every caller reports the outcome on its own: the renderer turns the reply of
+ * a check or a download into a toast, and the automatic check on startup wants
+ * nothing but the icon badge. The listeners below sit underneath all of them,
+ * so without this counter they repeated what the caller had already said - and
+ * the loudest case was a modal "you are up to date" dialog on every launch,
+ * every single time, for a check that found nothing.
+ */
+let quiet = 0
+
+/** Run an updater call with the dialog notifications muted. */
+async function quietly<T>(action: () => Promise<T>): Promise<T> {
+  quiet += 1
+  try {
+    return await action()
+  } finally {
+    quiet -= 1
+  }
+}
+
+/**
  * Opt-in update checks.
  *
  * Three deliberate limits:
@@ -36,6 +58,10 @@ let listenersReady = false
  *  - `autoDownload` is off — a 110 MB download has to be the user's decision;
  *  - `autoInstallOnAppQuit` is on, so once the file is staged the install
  *    happens on the next normal quit instead of interrupting a session.
+ *
+ * The check itself is silent: a version that turns up shows up as the arrow on
+ * the window and tray icons and as the button in the header, and a check that
+ * finds nothing has nothing to say.
  */
 export function startAutoUpdate(): void {
   if (!app.isPackaged) return
@@ -43,7 +69,7 @@ export function startAutoUpdate(): void {
   configure()
   ensureListeners()
 
-  void autoUpdater.checkForUpdates().catch((err) => {
+  void quietly(() => autoUpdater.checkForUpdates()).catch((err) => {
     console.error("Update check failed:", err)
   })
 }
@@ -74,6 +100,11 @@ function ensureListeners(): void {
   const t = (key: Parameters<typeof mainText>[0]) => mainText(key, language())
 
   const notify = (message: string) => {
+    // Muted while one of our own calls is in flight: the caller says the same
+    // thing in a place where it belongs, and the startup check has no caller
+    // to say it for it. What is left here is the case nobody asked for -
+    // electron-updater deciding on its own to fetch something.
+    if (quiet > 0) return
     const parent = BrowserWindow.getAllWindows()[0]
     if (parent) {
       void dialog.showMessageBox(parent, { message, buttons: [t("ok") as string] }).catch(() => undefined)
@@ -93,8 +124,9 @@ function ensureListeners(): void {
   })
 
   autoUpdater.on("update-not-available", () => {
-    // Clears the badge as well as reporting: a check that finds nothing after
-    // an earlier hit means the badge is now lying about the state.
+    // Clears the badge: a check that finds nothing after an earlier hit means
+    // the badge is now lying about the state. Silence is the reply to the
+    // caller - it shows what the check found.
     clearUpdateBadge()
     notify(t("updateNone"))
   })
@@ -111,7 +143,9 @@ export async function checkForUpdates(): Promise<{ ok: boolean; message: string 
   try {
     configure()
     ensureListeners()
-    const result = await autoUpdater.checkForUpdates()
+    // The dialog underneath is muted: the button that asked turns this reply
+    // into a toast, and a modal on top of it said everything twice.
+    const result = await quietly(() => autoUpdater.checkForUpdates())
     const version = result?.updateInfo?.version
     return { ok: true, message: version ? `${t("updateFound")} ${version}` : t("updateNone") }
   } catch (err) {
@@ -184,7 +218,7 @@ export async function downloadUpdate(): Promise<{ ok: boolean; message: string }
     staged = false
     // downloadUpdate resolves with the cached file paths, not the metadata, so
     // the version to report comes from the update-available event above.
-    await autoUpdater.downloadUpdate()
+    await quietly(() => autoUpdater.downloadUpdate())
     staged = true
     return { ok: true, message: foundVersion ? `${t("updateReady")} ${foundVersion}` : t("updateReady") }
   } catch (err) {
