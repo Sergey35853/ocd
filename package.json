@@ -55,7 +55,8 @@
     "publish": {
       "provider": "github",
       "owner": "Sergey35853",
-      "repo": "ocd"
+      "repo": "ocd",
+      "releaseType": "release"
     },
     "directories": {
       "output": "release"
