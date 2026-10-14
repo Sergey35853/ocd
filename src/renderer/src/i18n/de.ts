@@ -346,6 +346,8 @@ export const de: Dict = {
   "preview.kindDocument": "Dokument",
   "preview.kindSheet": "Tabelle",
   "preview.kindSlides": "Präsentation",
+  "preview.kindDrawing": "Visio-Zeichnung",
+  "preview.visioFailed": "Visio-Zeichnung konnte nicht gelesen werden",
   "preview.convertedHint": "Die Datei wurde für die Anzeige konvertiert",
   "preview.officeMissing": "LibreOffice nicht gefunden",
   "preview.officeFailed": "Dokument konnte nicht konvertiert werden",

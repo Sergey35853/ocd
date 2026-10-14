@@ -21,6 +21,8 @@ export type PreviewKind =
   | "sheet"
   /** Slide decks: .ppt/.pptx/.odp */
   | "slides"
+  /** Vector drawings rendered by the app itself: Visio .vsdx/.vsdm. */
+  | "drawing"
 
 /** How a file becomes something the pane can render. */
 export type PreviewRoute =
@@ -30,6 +32,8 @@ export type PreviewRoute =
   | "office"
   /** ffmpeg rasterises it into a still. */
   | "raster"
+  /** The app reads the file's own geometry and emits SVG. */
+  | "visio"
 
 interface Spec {
   kind: PreviewKind
@@ -85,6 +89,14 @@ const SPECS: Record<string, Spec> = {
   pptx: { kind: "slides", route: "office" },
   pptm: { kind: "slides", route: "office" },
   odp: { kind: "slides", route: "office" },
+
+  // ---- Visio, read directly ----
+  // LibreOffice ships no Visio importer, so these cannot go through the office
+  // route; the app renders their geometry itself. .vsd is the pre-2003 binary
+  // format and is deliberately absent — it is not a package and cannot be read
+  // this way.
+  vsdx: { kind: "drawing", route: "visio" },
+  vsdm: { kind: "drawing", route: "visio" },
 
   // ---- ffmpeg ----
   tif: { kind: "image", route: "raster" },
@@ -157,5 +169,6 @@ export interface PreparedPreview {
     | "office-failed"
     | "raster-missing"
     | "raster-failed"
+    | "visio-failed"
     | "unsupported"
 }

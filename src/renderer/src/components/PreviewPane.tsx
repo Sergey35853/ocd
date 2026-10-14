@@ -19,6 +19,7 @@ const KIND_LABEL: Record<PreviewKind, DictKey> = {
   document: "preview.kindDocument",
   sheet: "preview.kindSheet",
   slides: "preview.kindSlides",
+  drawing: "preview.kindDrawing",
 }
 
 /** Why the pane could not show the file, when the converter is to blame. */
@@ -28,6 +29,7 @@ const ERROR_TEXT: Record<string, DictKey> = {
   "office-failed": "preview.officeFailed",
   "raster-missing": "preview.rasterMissing",
   "raster-failed": "preview.rasterFailed",
+  "visio-failed": "preview.visioFailed",
   unsupported: "preview.unsupported",
 }
 
@@ -50,7 +52,7 @@ export interface PreviewTarget {
   /** Human-readable origin of the content: a file path or "ответ модели". */
   origin: string
   kind: PreviewKind
-  route: "native" | "office" | "raster"
+  route: "native" | "office" | "raster" | "visio"
   error?: string
 }
 

@@ -1,4 +1,4 @@
-import type { MessageContent } from "@shared/types"
+import type { Attachment, MessageContent } from "@shared/types"
 import { previewSpec, type PreviewKind, type PreviewRoute } from "@shared/preview"
 
 export type { PreviewKind, PreviewRoute }
@@ -173,6 +173,41 @@ export function mentionedFiles(text: string): PreviewFile[] {
   const seen = new Set<string>()
   for (const candidate of candidates) {
     const path = candidate.trim().replace(/[.,;:]+$/, "")
+    if (!path || seen.has(path)) continue
+    const spec = previewSpec(path)
+    if (!spec) continue
+    seen.add(path)
+    found.push({ path, kind: spec.kind, route: spec.route })
+  }
+  return found
+}
+
+/**
+ * Turn an attachment's file:// URI back into a path the main process can open.
+ *
+ * Images travel as data URLs and never come back; anything else is a
+ * `file://` URL, and `preview.open` wants the plain path behind it.
+ */
+export function attachmentPath(uri: string): string | null {
+  if (!uri.startsWith("file://")) return null
+  const rest = uri.slice("file://".length)
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(rest)
+    } catch {
+      return rest
+    }
+  })()
+  const path = decoded.startsWith("/") ? decoded.slice(1) : decoded
+  return path || null
+}
+
+/** Files the user attached to their own prompt, in a form the pane can open. */
+export function attachedFiles(items: Attachment[]): PreviewFile[] {
+  const found: PreviewFile[] = []
+  const seen = new Set<string>()
+  for (const item of items) {
+    const path = attachmentPath(item.uri)
     if (!path || seen.has(path)) continue
     const spec = previewSpec(path)
     if (!spec) continue

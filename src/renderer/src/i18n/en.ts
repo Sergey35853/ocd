@@ -340,6 +340,8 @@ export const en: Dict = {
   "preview.kindDocument": "Document",
   "preview.kindSheet": "Spreadsheet",
   "preview.kindSlides": "Presentation",
+  "preview.kindDrawing": "Visio drawing",
+  "preview.visioFailed": "Could not read the Visio drawing",
   "preview.convertedHint": "The file was converted for viewing",
   "preview.officeMissing": "LibreOffice not found",
   "preview.officeFailed": "Could not convert the document",

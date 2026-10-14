@@ -339,6 +339,8 @@ export const zh: Dict = {
   "preview.kindDocument": "文档",
   "preview.kindSheet": "表格",
   "preview.kindSlides": "演示文稿",
+  "preview.kindDrawing": "Visio 图纸",
+  "preview.visioFailed": "无法读取 Visio 图纸",
   "preview.convertedHint": "文件已转换为可预览格式",
   "preview.officeMissing": "未找到 LibreOffice",
   "preview.officeFailed": "无法转换文档",

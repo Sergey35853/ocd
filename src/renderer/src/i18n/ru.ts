@@ -366,6 +366,8 @@ export const ru = {
   "preview.kindDocument": "Документ",
   "preview.kindSheet": "Таблица",
   "preview.kindSlides": "Презентация",
+  "preview.kindDrawing": "Чертёж Visio",
+  "preview.visioFailed": "Не удалось прочитать чертёж Visio",
   "preview.convertedHint": "Файл конвертирован для просмотра",
   "preview.officeMissing": "Не найден LibreOffice",
   "preview.officeFailed": "Не удалось конвертировать документ",

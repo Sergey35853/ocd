@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync
 import { basename, extname, join } from "node:path"
 import { promisify } from "node:util"
 import { previewKind, previewRoute, type PreparedPreview } from "@shared/preview"
+import { renderVsdx } from "./vsdx"
+import { log } from "./log"
 
 const run = promisify(execFile)
 
@@ -275,6 +277,31 @@ async function rasterise(path: string): Promise<string> {
 }
 
 /**
+ * Render a Visio drawing to SVG and stage it as a file.
+ *
+ * Same cache discipline as the converters: the drawing is re-read only when
+ * the source's timestamp moves.
+ */
+async function renderVisio(path: string): Promise<string> {
+  const hit = cachedOutput(path)
+  if (hit) return hit
+
+  const outDir = join(previewDir(), "visio")
+  mkdirSync(outDir, { recursive: true })
+  const stem = `${basename(path, extname(path))}-${randomBytes(4).toString("hex")}`
+  const out = join(outDir, `${stem}.svg`)
+
+  const rendered = renderVsdx(path)
+  writeFileSync(out, rendered.svg, "utf8")
+  log.info(
+    `visio page "${rendered.pageName}" of ${rendered.pageCount}: ` +
+      `${rendered.shapes} shapes${rendered.truncated ? " (capped)" : ""}`,
+  )
+  remember(path, out)
+  return out
+}
+
+/**
  * Resolve a file into something the pane can display.
  *
  * Markup, pictures, video and PDF go to Chromium untouched. Office documents go
@@ -305,6 +332,13 @@ export async function preparePreview(path: string): Promise<PreparedPreview> {
       const pdf = await convertWithSoffice(path)
       return { url: toFileUrl(pdf), kind: "pdf", route: "office" }
     }
+    if (route === "visio") {
+      if (!existsSync(path)) {
+        return { url: toFileUrl(path), kind: "drawing", route, error: "missing" }
+      }
+      const svg = await renderVisio(path)
+      return { url: toFileUrl(svg), kind: "drawing", route }
+    }
     const png = await rasterise(path)
     return { url: toFileUrl(png), kind: "image", route: "raster" }
   } catch (err) {
@@ -321,7 +355,7 @@ export async function preparePreview(path: string): Promise<PreparedPreview> {
       url: toFileUrl(path),
       kind,
       route: "native",
-      error: route === "office" ? "office-failed" : "raster-failed",
+      error: route === "office" ? "office-failed" : route === "visio" ? "visio-failed" : "raster-failed",
     }
   }
 }

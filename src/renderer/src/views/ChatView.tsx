@@ -62,7 +62,14 @@ import { ContextRing } from "../components/ContextRing"
 import { PreviewPane, type PreviewTarget } from "../components/PreviewPane"
 import { CodeBlock } from "../components/CodeBlock"
 import { attachmentIcon } from "../components/AttachmentIcon"
-import { htmlSnippets, mentionedFiles, previewFiles, type HtmlSnippet } from "../lib/previewTargets"
+import {
+  htmlSnippets,
+  mentionedFiles,
+  previewFiles,
+  attachedFiles,
+  type HtmlSnippet,
+  type PreviewFile,
+} from "../lib/previewTargets"
 import { useMarkdown } from "../lib/markdown"
 import { cleanText, isUnreadable } from "../lib/text"
 import { stripAnsi } from "../lib/ansi"
@@ -927,6 +934,15 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const [tasksOpen, setTasksOpen] = useState(false)
   /** Path being converted for the pane; non-null while LibreOffice runs. */
   const [preparing, setPreparing] = useState<string | null>(null)
+
+  /**
+   * Files the user attached to the last prompt they sent.
+   *
+   * The composer clears its chips the moment a prompt goes out, so without this
+   * the pane had no way back to them: it only ever looked at what the assistant
+   * wrote. A file you attached yourself is the most likely thing to want to see.
+   */
+  const [attached, setAttached] = useState<PreviewFile[]>([])
   const [toolFilter, setToolFilter] = useState<ToolFilter>("notable")
   const [pinsOpen, setPinsOpen] = useState(false)
   /** Set by SessionBoard; the pin buttons in the stream call it. */
@@ -1362,12 +1378,22 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     // Files the turn wrote come first; a path it merely mentions is the
     // fallback, and both are tried in order because the first candidate may
     // not exist on disk (a model often lists several files and writes one).
+    // What the user attached leads, since that is the file they are asking
+    // about and the agent's output is only a fallback for it.
     const written = previewFiles(newest.content ?? []).filter((entry) => entry.kind === "markup")
     const mentioned = mentionedFiles(body).filter(
       (entry) => !written.some((file) => file.path === entry.path),
     )
 
-    const candidates = [...written, ...mentioned]
+    const candidates = [
+      ...attached,
+      ...written.filter((file) => !attached.some((mine) => mine.path === file.path)),
+      ...mentioned.filter(
+        (file) =>
+          !attached.some((mine) => mine.path === file.path) &&
+          !written.some((other) => other.path === file.path),
+      ),
+    ]
     if (candidates.length) {
       void (async () => {
         setPreparing(candidates[0].path)
@@ -1411,7 +1437,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         setPreview(lastPreview.current)
       })
       .catch(() => undefined)
-  }, [newestIsFresh, newest, preview, previewPinned, sessionId])
+  }, [newestIsFresh, newest, preview, previewPinned, sessionId, attached])
 
   /** Newest assistant reply, used by the speaker button in the composer. */
   const lastReply = useMemo(() => {
@@ -1577,6 +1603,10 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     if (!body && files.length === 0) return
     setDraft("")
     writeDraft(sessionId, "")
+    // Remember what was attached before the chips go: this is what feeds the
+    // preview pane for the turn that is about to run.
+    const sentFiles = attachedFiles(attachments)
+    if (sentFiles.length) setAttached(sentFiles)
     setAttachments([])
     // Sending the text on its own ends the edit: it is a follow-up now, not a
     // correction waiting to be applied to an earlier turn.
