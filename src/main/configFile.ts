@@ -78,18 +78,33 @@ function edit(mutator: (text: string) => Edit[]): { ok: boolean; error?: string 
   }
 }
 
+/**
+ * The key the server reads plugins from.
+ *
+ * Singular, and the schema says so: https://opencode.ai/config.json has "plugin".
+ * The app used to write "plugins", which is a perfectly good key that the server
+ * never looks at — every install from the Plugins window landed in a file the
+ * server ignored, and the plugin only appeared after somebody edited the config
+ * by hand.
+ */
+const PLUGIN_KEY = "plugin"
+
+/** The wrong spelling, still honoured on read so a hand-written list survives. */
+const LEGACY_PLUGIN_KEY = "plugins"
+
 export function configPlugins(text: string): string[] {
   const cfg = parseConfig(text)
-  const plugins = cfg.plugins
-  if (!Array.isArray(plugins)) return []
-  return plugins.filter((item): item is string => typeof item === "string")
+  const list = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+  const current = list(cfg[PLUGIN_KEY])
+  return current.length ? current : list(cfg[LEGACY_PLUGIN_KEY])
 }
 
 export function addPlugin(spec: string): { ok: boolean; error?: string } {
   return edit((text) => {
     const existing = configPlugins(text)
     if (existing.includes(spec)) return []
-    return modify(text, ["plugins"], [...existing, spec], {
+    return modify(text, [PLUGIN_KEY], [...existing, spec], {
       formattingOptions: { insertSpaces: true, tabSize: 2 },
     })
   })
@@ -98,10 +113,22 @@ export function addPlugin(spec: string): { ok: boolean; error?: string } {
 export function removePlugin(spec: string): { ok: boolean; error?: string } {
   return edit((text) => {
     const existing = configPlugins(text)
-    if (!existing.includes(spec)) return []
-    return modify(text, ["plugins"], existing.filter((item) => item !== spec), {
+    const kept = existing.filter((item) => item !== spec)
+    if (kept.length === existing.length) return []
+    const edits = modify(text, [PLUGIN_KEY], kept, {
       formattingOptions: { insertSpaces: true, tabSize: 2 },
     })
+    // The key the old builds wrote has to go as well: leaving it behind means a
+    // list that goes on claiming the plugin is installed while the one the
+    // server reads says otherwise.
+    if (Array.isArray(parseConfig(text)[LEGACY_PLUGIN_KEY])) {
+      edits.push(
+        ...modify(text, [LEGACY_PLUGIN_KEY], undefined, {
+          formattingOptions: { insertSpaces: true, tabSize: 2 },
+        }),
+      )
+    }
+    return edits
   })
 }
 

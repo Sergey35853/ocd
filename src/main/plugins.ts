@@ -17,7 +17,7 @@ function classify(entry: string): { kind: PluginSourceKind; path: string | null 
 
 /**
  * Managed plugin list = union of
- *   - entries in opencode.jsonc "plugins" (enabled/disabled intent)
+ *   - entries in the opencode.jsonc "plugin" array (enabled/disabled intent)
  *   - plugins the running server reports (runtime truth)
  */
 export async function listPlugins(): Promise<ManagedPlugin[]> {
