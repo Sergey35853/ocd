@@ -22,12 +22,12 @@ const ICON_SIZE = 64
  * picks from once the AppUserModelId points at it, so the window icon has to
  * come from the same file or the two disagree at small sizes.
  */
-export function windowIcon(): Electron.NativeImage {
+function loadIcon(stem: string): Electron.NativeImage | null {
   const candidates = [
-    process.resourcesPath ? join(process.resourcesPath, "icon.ico") : "",
-    process.resourcesPath ? join(process.resourcesPath, "icon.png") : "",
-    join(__dirname, "../../resources/icon.ico"),
-    join(__dirname, "../../resources/icon.png"),
+    process.resourcesPath ? join(process.resourcesPath, `${stem}.ico`) : "",
+    process.resourcesPath ? join(process.resourcesPath, `${stem}.png`) : "",
+    join(__dirname, `../../resources/${stem}.ico`),
+    join(__dirname, `../../resources/${stem}.png`),
   ].filter(Boolean)
 
   for (const candidate of candidates) {
@@ -40,7 +40,11 @@ export function windowIcon(): Electron.NativeImage {
       /* try the next candidate */
     }
   }
+  return null
+}
 
+/** Last resort when no icon resource is on disk at all: a flat gradient disc. */
+function generatedDisc(): Electron.NativeImage {
   const size = ICON_SIZE
   const buf = Buffer.alloc(size * size * 4)
   const center = (size - 1) / 2
@@ -59,6 +63,21 @@ export function windowIcon(): Electron.NativeImage {
     }
   }
   return nativeImage.createFromBitmap(buf, { width: size, height: size })
+}
+
+export function windowIcon(): Electron.NativeImage {
+  return loadIcon("icon") ?? generatedDisc()
+}
+
+/**
+ * The variant stamped with an arrow while an update is waiting.
+ *
+ * Falls back to the plain icon rather than to the generated disc: a missing
+ * badge file is a packaging mistake, and showing no badge at all is a much
+ * smaller problem than showing the fallback gradient in the taskbar.
+ */
+export function updateIcon(): Electron.NativeImage {
+  return loadIcon("icon-update") ?? windowIcon()
 }
 
 /** Tooltip shown on the taskbar and in the Alt-Tab switcher. */

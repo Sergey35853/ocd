@@ -134,6 +134,16 @@ export function trayExists(): boolean {
   return Boolean(tray && !tray.isDestroyed())
 }
 
+/** Swap the tray image in place; used to badge the icon once an update lands. */
+export function setTrayIcon(image: Electron.NativeImage): void {
+  if (!tray || tray.isDestroyed()) return
+  try {
+    tray.setImage(image)
+  } catch (err) {
+    console.error("Tray icon update failed:", err)
+  }
+}
+
 /** Read the language the app is currently running in. */
 export function currentLanguage(): UiLanguage {
   const value = getSettings().uiLanguage

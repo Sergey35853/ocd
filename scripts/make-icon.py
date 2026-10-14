@@ -13,6 +13,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 PNG = ROOT / "resources" / "icon.png"
 ICO = ROOT / "resources" / "icon.ico"
+PNG_UPDATE = ROOT / "resources" / "icon-update.png"
+ICO_UPDATE = ROOT / "resources" / "icon-update.ico"
 
 SS = 4  # supersampling factor
 SIZE = 512
@@ -97,6 +99,52 @@ def fit_font(text, max_w_ratio=0.70, max_h_ratio=0.44):
         else:
             hi = mid - 1
     return ImageFont.truetype(FONT_PATH, best)
+
+
+ICO_SIZES = [(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48), (64, 64), (128, 128), (256, 256)]
+
+# Badge shown while an update is waiting. Pale disc with a blue arrow, which
+# is how OpenCode marks the same state in its own header - and on the dark tile
+# a pale disc reads as "something changed" where a saturated one just looks
+# like a different app. The dark rim keeps it off the chrome "C" underneath.
+BADGE_RGB = (214, 226, 255)
+BADGE_ARROW = (37, 99, 235)
+
+
+def add_update_badge(tile):
+    """Stamp a downward-arrow badge onto the bottom-right of a finished tile.
+
+    Drawn at supersampled resolution like everything else here, and kept large
+    enough to survive the 16px frame - a badge sized for a 256px icon disappears
+    completely at the sizes the taskbar actually uses.
+    """
+    img = tile.copy()
+    d = ImageDraw.Draw(img)
+
+    cx = int(S * 0.735)
+    cy = int(S * 0.735)
+    r = int(S * 0.205)
+
+    # Dark rim first: it separates the badge from the chrome "C" underneath,
+    # which is bright silver and would otherwise swallow the blue.
+    d.ellipse([cx - r - int(S * 0.012), cy - r - int(S * 0.012), cx + r + int(S * 0.012), cy + r + int(S * 0.012)], fill=(8, 9, 11, 255))
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BADGE_RGB + (255,))
+
+    # Arrow: a thick stem and a wide head, both oversized so the 16px frame
+    # still shows an arrow rather than a dot.
+    stem = int(r * 0.26)
+    top = cy - int(r * 0.52)
+    knee = cy + int(r * 0.08)
+    d.rectangle([cx - stem, top, cx + stem, knee], fill=BADGE_ARROW + (255,))
+    d.polygon(
+        [
+            (cx - int(r * 0.62), knee),
+            (cx + int(r * 0.62), knee),
+            (cx, cy + int(r * 0.66)),
+        ],
+        fill=BADGE_ARROW + (255,),
+    )
+    return img
 
 
 def main() -> None:
@@ -202,8 +250,12 @@ def main() -> None:
     composed = Image.alpha_composite(composed, at(shadow_rgba))
     composed = Image.alpha_composite(composed, at(letters))
 
-    # Downsample: supersampling is what keeps the glyph edges clean.
+    # Downsample: supersampling is what keeps the glyph edges clean. The badge
+    # goes on before this step so it is anti-aliased by the same downsample as
+    # the rest of the artwork; drawn afterwards it lands on already-scaled
+    # pixels and its edges go jagged at the sizes the taskbar uses.
     out = composed.resize((SIZE, SIZE), Image.LANCZOS)
+    update = add_update_badge(composed).resize((SIZE, SIZE), Image.LANCZOS)
 
     if ROTATE_CW % 360:
         # PIL counts counter-clockwise, so a clockwise turn is ROTATE_270.
@@ -214,14 +266,20 @@ def main() -> None:
             3: Image.Transpose.ROTATE_90,
         }
         out = out.transpose(table[turns])
+        update = update.transpose(table[turns])
 
     PNG.parent.mkdir(parents=True, exist_ok=True)
     out.save(PNG, "PNG")
 
-    out.save(ICO, format="ICO", sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48), (64, 64), (128, 128), (256, 256)])
+    out.save(ICO, format="ICO", sizes=ICO_SIZES)
+
+    update.save(PNG_UPDATE, "PNG")
+    update.save(ICO_UPDATE, format="ICO", sizes=ICO_SIZES)
 
     print(f"saved {PNG} ({PNG.stat().st_size} bytes)")
     print(f"saved {ICO} ({ICO.stat().st_size} bytes)")
+    print(f"saved {PNG_UPDATE} ({PNG_UPDATE.stat().st_size} bytes)")
+    print(f"saved {ICO_UPDATE} ({ICO_UPDATE.stat().st_size} bytes)")
 
 
 def ImageChops_subtract(a: Image.Image, b: Image.Image) -> Image.Image:
