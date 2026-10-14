@@ -149,6 +149,26 @@ function setIconEverywhere(image: Electron.NativeImage): void {
   setTrayIcon(image)
 }
 
+/** What the header button needs to decide whether to show itself. */
+export interface UpdateState {
+  /** A version has been found and nothing has been installed over it yet. */
+  available: boolean
+  version: string
+  /** Downloaded and sitting in the updater cache, ready to install. */
+  staged: boolean
+}
+
+/**
+ * Current update state for the renderer.
+ *
+ * Polled rather than pushed: the only thing the header does with it is decide
+ * whether to show a button, so a second too late costs nothing and no event
+ * channel has to survive a window that was closed when the update arrived.
+ */
+export function updateState(): UpdateState {
+  return { available: Boolean(foundVersion), version: foundVersion, staged }
+}
+
 /**
  * Fetch an update that `checkForUpdates` already found.
  *

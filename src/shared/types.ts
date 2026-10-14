@@ -883,6 +883,8 @@ export interface OcdApi {
     downloadUpdate(): Promise<{ ok: boolean; message: string }>
     /** Install the downloaded update and restart; fails if nothing is staged. */
     installUpdate(): Promise<{ ok: boolean; message: string }>
+    /** What the header's update button shows itself from. */
+    updateState(): Promise<{ available: boolean; version: string; staged: boolean }>
     /** System print dialog; the document is the same one the HTML export writes. */
     printConversation(payload: {
       sessionId: string

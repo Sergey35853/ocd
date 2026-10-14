@@ -35,7 +35,13 @@ import { updateTrayState, currentLanguage } from "./tray"
 import { openSessionWindow, registerGlobalHotkey } from "./windows"
 import { conversationHtml, exportConversation, type ExportPayload } from "./export"
 import { printConversation } from "./print"
-import { checkForUpdates, downloadUpdate, installUpdate, setAutoUpdate } from "./updater"
+import {
+  checkForUpdates,
+  downloadUpdate,
+  installUpdate,
+  setAutoUpdate,
+  updateState,
+} from "./updater"
 import { clearIndex, ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
 import { clear as clearRequestLedger, countRequest, markRateLimited, setLimit, snapshot } from "./limits"
 import { log } from "./log"
@@ -1054,6 +1060,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<{ ok: boolean; message: string }>("app:downloadUpdate", () => downloadUpdate())
 
   handle<{ ok: boolean; message: string }>("app:installUpdate", () => installUpdate())
+
+  handle("app:updateState", () => updateState())
 
   handle("app:setAutoUpdate", (enabled: boolean) => {
     setSettings({ autoUpdate: enabled })

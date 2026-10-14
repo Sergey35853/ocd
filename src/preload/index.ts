@@ -206,6 +206,8 @@ const api = {
     checkForUpdates: () => call<{ ok: boolean; message: string }>("app:checkForUpdates"),
     downloadUpdate: () => call<{ ok: boolean; message: string }>("app:downloadUpdate"),
     installUpdate: () => call<{ ok: boolean; message: string }>("app:installUpdate"),
+    updateState: () =>
+      call<{ available: boolean; version: string; staged: boolean }>("app:updateState"),
     printConversation: (payload: {
       sessionId: string
       title: string

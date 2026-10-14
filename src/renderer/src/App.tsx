@@ -9,6 +9,7 @@ import {
   IconChat,
   IconChip,
   IconClose,
+  IconDownload,
   IconGear,
   IconLayers,
   IconMaximize,
@@ -69,6 +70,57 @@ const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: stri
 
 function Shell() {
   const store = useStore()
+
+  /**
+   * The header's update button.
+   *
+   * Polled rather than pushed: this only decides whether a button is on screen,
+   * so a check that lands a moment after the window opens costs nothing. The
+   * focus refresh is what makes it appear promptly while the app has been
+   * sitting open in the background.
+   */
+  const [update, setUpdate] = useState<{
+    available: boolean
+    version: string
+    staged: boolean
+  } | null>(null)
+  const [updating, setUpdating] = useState(false)
+
+  const refreshUpdate = useCallback(() => {
+    void window.ocd.app
+      .updateState()
+      .then(setUpdate)
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    refreshUpdate()
+    const timer = window.setInterval(refreshUpdate, 60_000)
+    window.addEventListener("focus", refreshUpdate)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refreshUpdate)
+    }
+  }, [refreshUpdate])
+
+  /** One click does the whole job: fetch, then install and restart. */
+  const startUpdate = async () => {
+    setUpdating(true)
+    try {
+      if (!update?.staged) {
+        const fetched = await window.ocd.app.downloadUpdate()
+        if (!fetched.ok) {
+          store.toast(fetched.message, "error")
+          refreshUpdate()
+          return
+        }
+      }
+      const installed = await window.ocd.app.installUpdate()
+      if (!installed.ok) store.toast(installed.message, "error")
+    } finally {
+      setUpdating(false)
+    }
+  }
   const t = useT()
   const [view, setView] = useState<ViewId>(initialView)
   const [query, setQuery] = useState("")
@@ -442,6 +494,25 @@ function Shell() {
             <IconPlus size={15} />
           </button>
         </div>
+
+        {/* Update arrow: only when there is something to install, and it does
+            the whole job in one click so it never leaves the user halfway. */}
+        {update?.available ? (
+          <button
+            type="button"
+            className={cx("updatebtn", updating && "busy")}
+            title={
+              update.staged
+                ? t("set.installUpdate")
+                : `${t("set.downloadUpdate")} ${update.version}`
+            }
+            aria-label={t("set.downloadUpdate")}
+            disabled={updating}
+            onClick={() => void startUpdate()}
+          >
+            <IconDownload size={15} />
+          </button>
+        ) : null}
 
         <div className="winctl">
           <button type="button" title={t("win.minimize")} onClick={() => void window.ocd.app.minimize()}>
