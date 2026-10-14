@@ -21,7 +21,13 @@ S = SIZE * SS
 # Whole-tile rotation before saving, clockwise in degrees; 0 disables it.
 # The tile is square with symmetric corners, so rotating the finished image is
 # equivalent to rotating the artwork and keeps the code simple.
-ROTATE_CW = 90
+#
+# This stays 0. Rotated a quarter turn, the "C" sits above the "O" and the pair
+# stops reading as letters at any size the taskbar uses - at 16-24px it becomes
+# an indistinct blob, and at 32px it is indistinguishable from the generic
+# user-avatar glyph Windows ships itself. Upright, "OC" stays legible down to
+# 16px, which is the whole point of rendering at 4x above.
+ROTATE_CW = 0
 
 FONT_PATH = r"C:\Windows\Fonts\seguibl.ttf"  # Segoe UI Black
 
