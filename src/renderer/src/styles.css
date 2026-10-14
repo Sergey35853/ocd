@@ -3584,6 +3584,41 @@ body:has(.m-app) {
 }
 
 /* ---- question asked by a tool while the turn is blocked ---- */
+/*
+ * The zone lives at the end of the stream rather than inside the tool call that
+ * asked, so it is marked as something that has to be answered before the chat
+ * continues: a heading, a rule above, and an accent edge. The card used to sit
+ * wherever the tool block happened to be, three turns above the one asking it.
+ */
+.questions {
+  position: relative;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--accent-line);
+}
+.questions-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.questions .tool.open {
+  border-color: var(--accent-line);
+}
+/* The mark left in the tool block that asked, now that the card is elsewhere. */
+.ask-pointer {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--accent);
+}
 .ask {
   padding: 9px 10px 8px;
   border-radius: 8px;

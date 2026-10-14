@@ -88,6 +88,7 @@ export const ru = {
   "chat.modelOf": "Модель: {provider}/{model}",
   "chat.modelMismatchHint": "Модель этой сессии отличается от выбранной по умолчанию",
   "chat.composing": "Формирую ответ…",
+  "chat.questionsTitle": "Модель ждёт вашего ответа",
   "chat.changeDir": "Сменить рабочую папку",
   "chat.stopRecording": "Остановить запись",
   "chat.dictate": "Диктовка (Ctrl+Shift+V)",
@@ -126,6 +127,7 @@ export const ru = {
   "tool.error": "ошибка",
   "tool.done": "готово",
   "tool.rawInput": "Исходный вызов",
+  "tool.questionBelow": "Вопрос ждёт ответа — он в конце чата, над полем ввода.",
 
   // ---- diffs and changed files ----
   "changes.title": "Изменения",

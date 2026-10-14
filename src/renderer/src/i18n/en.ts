@@ -79,6 +79,7 @@ export const en: Dict = {
   "chat.modelOf": "Model: {provider}/{model}",
   "chat.modelMismatchHint": "This session uses a different model than the default one",
   "chat.composing": "Composing the reply…",
+  "chat.questionsTitle": "The model is waiting for your answer",
   "chat.changeDir": "Change the working folder",
   "chat.stopRecording": "Stop recording",
   "chat.dictate": "Dictation (Ctrl+Shift+V)",
@@ -114,6 +115,7 @@ export const en: Dict = {
   "tool.error": "error",
   "tool.done": "done",
   "tool.rawInput": "Raw call",
+  "tool.questionBelow": "This question is waiting — it is at the end of the chat, above the composer.",
 
   "changes.title": "Changes",
   "changes.summary": "{files} files +{added} −{removed}",

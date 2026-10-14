@@ -31,6 +31,12 @@ import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
 import { DiffView } from "../components/DiffView"
 import { sessionChanges, stepsOf, toolName, callKey } from "../lib/diff"
+import {
+  formsByCall,
+  pendingQuestions,
+  questionOf,
+  type ToolQuestion,
+} from "../lib/questions"
 import { UsageMeter } from "../components/UsageMeter"
 import { LimitMeter } from "../components/LimitMeter"
 import { PinButton, SessionBoard } from "../components/SessionBoard"
@@ -145,58 +151,6 @@ function writeDraft(sessionId: string, text: string): void {
 /** A tool call worth showing when the log is filtered: anything not clean. */
 function isNotableTool(block: MessageContent): boolean {
   return block.state?.status !== "completed"
-}
-
-interface ToolQuestion {
-  header?: string
-  question: string
-  /** `value` is what the server expects; the tool input has no separate one. */
-  options: Array<{ label: string; description?: string; value: string }>
-}
-interface ToolQuestion {
-  header?: string
-  question: string
-  /** `value` is what the server expects; the tool input has no separate one. */
-  options: Array<{ label: string; description?: string; value: string }>
-}
-
-/**
- * Read a question out of a tool call.
- *
- * Matched on shape rather than on a tool name: the server reports these
- * calls with an empty `tool` field, so keying on the name would match nothing.
- */
-function questionOf(block: MessageContent): ToolQuestion | null {
-  const input = block.state?.input
-  if (!input || typeof input !== "object") return null
-  const list = (input as Record<string, unknown>).questions
-  if (!Array.isArray(list) || list.length === 0) return null
-
-  const first = list[0] as Record<string, unknown>
-  const question = typeof first.question === "string" ? first.question : null
-  if (!question) return null
-
-  const options: Array<{ label: string; description?: string; value: string }> = []
-  if (Array.isArray(first.options)) {
-    for (const raw of first.options) {
-      const record = raw as Record<string, unknown>
-      const label = typeof record.label === "string" ? record.label : ""
-      if (!label) continue
-      options.push({
-        label,
-        // No form means no authoritative value, so the label doubles as the
-        // answer the user would type.
-        value: typeof record.value === "string" ? record.value : label,
-        description: typeof record.description === "string" ? record.description : undefined,
-      })
-    }
-  }
-
-  return {
-    header: typeof first.header === "string" ? first.header : undefined,
-    question,
-    options,
-  }
 }
 
 /**
@@ -487,23 +441,20 @@ function ToolBlock({
   openPreview,
   onPreparing,
   form,
-  onReply,
-  onCancelForm,
-  onOwnAnswer,
 }: {
   block: MessageContent
   openPreview: OpenPreview
   onPreparing?: (path: string | null) => void
-  /** The waiting question this block spawned, when there is one. */
+  /**
+   * Set when the question this call asked is still unanswered.
+   *
+   * Only the fact, not the card: the question itself is rendered at the end of
+   * the stream, where the composer and the answer are, and this block can be
+   * anywhere in a long conversation.
+   */
   form?: PendingForm
-  /** Submits an answer, which is what releases the blocked turn. */
-  onReply?: (formId: string, answer: FormAnswer) => void
-  /** Dismisses the question without answering it. */
-  onCancelForm?: (formId: string) => void
   /** How long the turn this prompt started took, in ms. */
   turnMs?: number
-  /** Hands the composer over for a free-text answer. */
-  onOwnAnswer?: (label: string) => void
 }) {
   const store = useStore()
   const t = useT()
@@ -602,13 +553,11 @@ function ToolBlock({
       </summary>
 
       {form || questions ? (
-        <QuestionCard
-          form={form}
-          fallback={questions}
-          onReply={onReply}
-          onCancel={onCancelForm}
-          onOwnAnswer={onOwnAnswer}
-        />
+        // The card itself lives at the end of the stream, next to the composer:
+        // this block can be anywhere in a long conversation, and a question
+        // about the format of a deck was once answered three turns above the
+        // one asking it. What stays here is the mark that it is waiting.
+        <p className="ask-pointer">{t("tool.questionBelow")}</p>
       ) : null}
       {files.map((file) => (
         <button
@@ -684,11 +633,8 @@ function Turn({
   stopTargetId,
   onStop,
   onPin,
-  onAnswer,
   formsByTool,
-  onReplyForm,
   turnMs,
-  onCancelForm,
 }: {
   message: MessageInfo
   showThinking: boolean
@@ -705,14 +651,14 @@ function Turn({
   onStop?: () => void
   /** Adds this answer to the conversation's pinned list. */
   onPin?: (text: string) => void
-  /** Hands the composer over for a free-text answer. */
-  onAnswer?: (label: string) => void
-  /** Waiting questions, keyed by the tool call that asked. */
+  /**
+   * Waiting questions, keyed by the call that asked.
+   *
+   * Used to decide whether a block survives the "hide clean calls" filter and to
+   * mark the block as waiting; the question itself is rendered once, at the end
+   * of the stream.
+   */
   formsByTool?: Map<string, PendingForm>
-  /** Submits an answer, releasing the blocked turn. */
-  onReplyForm?: (formId: string, answer: FormAnswer) => void
-  /** Dismisses a question without answering it. */
-  onCancelForm?: (formId: string) => void
   /** How long the turn this prompt started took, in ms. */
   turnMs?: number
 }) {
@@ -841,9 +787,6 @@ function Turn({
               openPreview={openPreview}
               onPreparing={onPreparing}
               form={callKey(block) ? formsByTool?.get(callKey(block)!) : undefined}
-              onReply={onReplyForm}
-              onCancelForm={onCancelForm}
-              onOwnAnswer={onAnswer}
             />
           ))}
         </div>
@@ -1399,43 +1342,21 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * call reports an empty name, so matching on the tool name would put every
    * question on every row of the turn.
    */
-  const formsByTool = useMemo(() => {
-    const waiting = store.forms[sessionId] ?? []
-    const map = new Map<string, PendingForm>()
-    if (!waiting.length) return map
-
-    // A form names the call that asked, but a call that is not in the loaded
-    // history has nowhere to sit: keeping it in this map would hide it from the
-    // loose list below and leave an invisible, unanswerable question.
-    const onScreen = new Set<string>()
-    for (const message of turns) {
-      for (const block of message.content ?? []) {
-        if (block.type !== "tool") continue
-        const call = callKey(block)
-        if (call) onScreen.add(call)
-      }
-    }
-
-    for (const form of waiting) {
-      const callId = form.metadata?.tool?.id
-      if (callId && onScreen.has(callId)) map.set(callId, form)
-    }
-    return map
-  }, [sessionId, store.forms, turns])
+  const formsByTool = useMemo(
+    () => formsByCall(turns, store.forms[sessionId] ?? []),
+    [sessionId, store.forms, turns],
+  )
 
   /**
-   * Questions whose tool block is not on screen.
+   * Questions to answer, in the order they were asked.
    *
-   * Usually empty, but a question asked in another window, or one whose tool
-   * row is scrolled out of the loaded history, would otherwise be invisible —
-   * and an invisible question is the same as a hung turn.
+   * Rendered as one block at the end of the stream rather than inside the tool
+   * call that asked: the call can sit anywhere in the conversation, and the user
+   * reads from the bottom, where the composer and the answer both are.
    */
-  const looseForms = useMemo(
-    () =>
-      (store.forms[sessionId] ?? []).filter(
-        (form) => !formsByTool.has(form.metadata?.tool?.id ?? ""),
-      ),
-    [sessionId, store.forms, formsByTool],
+  const questions = useMemo(
+    () => pendingQuestions(turns, store.forms[sessionId] ?? []),
+    [sessionId, store.forms, turns],
   )
 
   /**
@@ -1977,29 +1898,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   toolFilter={toolFilter}
                   onToolFilterChange={setToolFilter}
                   onEditPrompt={editPrompt}
-                  onAnswer={answerQuestion}
                   onPin={pinMessage}
                   formsByTool={formsByTool}
-                  onReplyForm={replyForm}
-                  onCancelForm={cancelForm}
                   turnMs={finishedTurns[message.id]}
                   stopTargetId={stopTargetId}
                   onStop={() => void store.abort(sessionId)}
                 />
-              ))}
-
-              {/* Questions with no tool row on screen. Rendered at the end
-                  because that is where the turn is waiting, and an unshown
-                  question reads as a hung turn. */}
-              {looseForms.map((form) => (
-                <div className="tool open" key={form.id} style={{ marginBottom: 8 }}>
-                  <QuestionCard
-                    form={form}
-                    onReply={replyForm}
-                    onCancel={cancelForm}
-                    onOwnAnswer={answerQuestion}
-                  />
-                </div>
               ))}
 
               {live && (live.text || live.reasoning || live.tools.length) ? (
@@ -2082,6 +1986,29 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                     <div style={{ color: "var(--text-faint)" }}>{t("chat.composing")}</div>
                   ) : null}
                 </div>
+              ) : null}
+
+              {/* The questions, last: below the live turn, right above the
+                  composer. Where the tool call sits in the history is an accident
+                  of the stream; where the answer goes is not. */}
+              {questions.length ? (
+                <section className="questions" aria-label={t("chat.questionsTitle")}>
+                  <div className="questions-head">
+                    <IconAlert size={13} />
+                    {t("chat.questionsTitle")}
+                  </div>
+                  {questions.map((item) => (
+                    <div className="tool open" key={item.key} style={{ marginBottom: 8 }}>
+                      <QuestionCard
+                        form={item.form}
+                        fallback={item.fallback}
+                        onReply={replyForm}
+                        onCancel={cancelForm}
+                        onOwnAnswer={answerQuestion}
+                      />
+                    </div>
+                  ))}
+                </section>
               ) : null}
             </div>
           </div>

@@ -79,6 +79,7 @@ export const fr: Dict = {
   "chat.modelOf": "Modèle : {provider}/{model}",
   "chat.modelMismatchHint": "Cette session utilise un modèle différent du modèle par défaut",
   "chat.composing": "Rédaction de la réponse…",
+  "chat.questionsTitle": "Le modèle attend votre réponse",
   "chat.changeDir": "Changer de dossier de travail",
   "chat.stopRecording": "Arrêter l'enregistrement",
   "chat.dictate": "Dictée (Ctrl+Maj+V)",
@@ -114,6 +115,7 @@ export const fr: Dict = {
   "tool.error": "erreur",
   "tool.done": "terminé",
   "tool.rawInput": "Appel brut",
+  "tool.questionBelow": "Cette question attend — elle est en bas de la conversation, au-dessus du champ de saisie.",
 
   "changes.title": "Modifications",
   "changes.summary": "{files} fichiers +{added} −{removed}",

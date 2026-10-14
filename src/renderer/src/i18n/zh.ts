@@ -79,6 +79,7 @@ export const zh: Dict = {
   "chat.modelOf": "模型：{provider}/{model}",
   "chat.modelMismatchHint": "此会话使用的模型与默认模型不同",
   "chat.composing": "正在组织回答…",
+  "chat.questionsTitle": "模型正在等待你的回答",
   "chat.changeDir": "更换工作目录",
   "chat.stopRecording": "停止录音",
   "chat.dictate": "听写（Ctrl+Shift+V）",
@@ -115,6 +116,7 @@ export const zh: Dict = {
   "tool.error": "错误",
   "tool.done": "完成",
   "tool.rawInput": "原始调用",
+  "tool.questionBelow": "此问题正在等待回答，位于对话末尾、输入框上方。",
 
   "changes.title": "改动",
   "changes.summary": "{files} 个文件 +{added} −{removed}",
