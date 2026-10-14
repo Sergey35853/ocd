@@ -1,0 +1,39 @@
+name: Release
+
+# Тег вида v0.1.1 -> сборка установщика -> релиз на GitHub с latest.yml.
+# electron-updater читает эти файлы из релизов, поэтому публиковать релиз
+# вручную через вкладку Releases нельзя: без latest.yml и .blockmap
+# установленная копия не найдёт обновление.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check
+        run: npm run check
+
+      - name: Build and publish
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # На раннере винты не подписан сертификат Windows - искать нечего.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
