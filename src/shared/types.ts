@@ -326,6 +326,14 @@ export interface MessageInfo {
   time?: { created?: number; streamed?: number; completed?: number }
   /** Present on user turns. */
   text?: string
+  /**
+   * Files the user attached to this turn.
+   *
+   * Never set by the server — a prompt carries its attachments by name, not by
+   * content — so this is filled in by the app that sent it. Optional for that
+   * reason, and because history loaded from disk has no way to recover them.
+   */
+  attachments?: Attachment[]
   /** Present on assistant turns. */
   content?: MessageContent[]
   agent?: string

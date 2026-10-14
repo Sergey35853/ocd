@@ -3431,6 +3431,21 @@ body:has(.m-app) {
 }
 
 /* Prompt row: edit and stop sit side by side under the bubble. */
+/* Files sent with this prompt. Above the text, because they were part of the
+   request before the words were: the order the user attached them in is the
+   order they are shown in. */
+.msg-user-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.msg-user-files .chip {
+  max-width: 260px;
+  pointer-events: auto;
+}
+
 .msg-user-actions {
   display: flex;
   align-items: center;

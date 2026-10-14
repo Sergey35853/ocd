@@ -726,6 +726,20 @@ function Turn({
     const body = message.text ?? ""
     return (
       <div className="msg-user">
+        {message.attachments?.length ? (
+          <div className="msg-user-files">
+            {message.attachments.map((item) => (
+              <span className="chip" key={item.id} title={`${item.name} · ${formatBytes(item.size)}`}>
+                {item.kind === "image" && item.preview ? (
+                  <img src={item.preview} alt="" />
+                ) : (
+                  attachmentIcon(item)
+                )}
+                <span className="grow">{item.name}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="msg-user-text">{body}</div>
         <div className="msg-user-actions">
           {/* What the turn actually cost, once it is over. Placed with the
@@ -932,6 +946,17 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * on, otherwise the pane would fight the click that closed it. */
   const dismissedFor = useRef<string | null>(null)
   const [tasksOpen, setTasksOpen] = useState(false)
+
+  /**
+   * Attachments of prompts sent in this session, keyed by the prompt text.
+   *
+   * A prompt carries its files to the model by name only, so neither the reply
+   * nor a reload of the history can bring their display state back. Keeping
+   * them here is what lets a sent file stay visible in the message that carries
+   * it. Scoped to the session on purpose: it is display state for one sitting,
+   * not something to persist to disk.
+   */
+  const sentFiles = useRef(new Map<string, Attachment[]>())
   /** Path being converted for the pane; non-null while LibreOffice runs. */
   const [preparing, setPreparing] = useState<string | null>(null)
 
@@ -1110,7 +1135,16 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     try {
       const list = await window.ocd.api.messages(sessionId)
       const fresh = Array.isArray(list) ? list : []
-      setMessages(fresh)
+      // Re-attach what was sent with each prompt: the history the server hands
+      // back names the files but carries none of their display state, so
+      // without this a sent attachment vanishes the moment the turn lands.
+      setMessages(
+        fresh.map((message) => {
+          if (message.type !== "user" || !message.text) return message
+          const files = sentFiles.current.get(message.text)
+          return files ? { ...message, attachments: files } : message
+        }),
+      )
 
       // Once the server has the turn, its copy replaces the optimistic one.
       // Matched on the exact body: the same sentence twice in a row would
@@ -1363,6 +1397,64 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const newest = turns.length ? turns[turns.length - 1] : null
   const newestIsFresh = newest?.type === "assistant" && newest.id !== autoOpenKey.current
 
+  /** Load the first candidate that opens, and leave the pane as it was if none do. */
+  const showFirstUsable = useCallback(
+    (candidates: PreviewFile[]) => {
+      if (!candidates.length) return
+      void (async () => {
+        setPreparing(candidates[0].path)
+        for (const file of candidates) {
+          try {
+            const prepared = await window.ocd.preview.open(file.path)
+            if (prepared.error) continue
+            lastPreview.current = {
+              url: prepared.url,
+              title: file.path.split(/[\\/]/).pop() ?? file.path,
+              origin: file.path,
+              kind: prepared.kind,
+              route: prepared.route,
+            }
+            setPreview(lastPreview.current)
+            setPreparing(null)
+            return
+          } catch {
+            // Try the next candidate rather than leaving the pane shut.
+          }
+        }
+        // Nothing usable among the candidates: drop back to the empty pane.
+        setPreparing(null)
+        if (preview === undefined) setPreview(null)
+      })()
+    },
+    [preview],
+  )
+
+  /**
+   * Open the pane on a file the moment it is attached.
+   *
+   * The auto-open effect below only reacts to the assistant's reply, so a file
+   * pinned in the composer showed nothing on the right until the model had
+   * answered — and if that answer mentioned no file, nothing ever appeared.
+   *
+   * Deliberately unconditional: an attachment is the file the user is asking
+   * about, so it replaces whatever the pane was showing and re-opens the pane
+   * if it was closed. Re-opening only when the pane happened to be empty made
+   * the feature feel broken — the file was there, and pressing send did nothing
+   * visible with it.
+   *
+   * The path key is what stops this from looping: showFirstUsable sets the
+   * pane, which changes its identity, which re-runs this effect — and the same
+   * path is already recorded, so nothing opens twice.
+   */
+  const attachKey = useRef("")
+  useEffect(() => {
+    const candidates = attachedFiles(attachments)
+    const latest = candidates[candidates.length - 1]
+    if (!latest || latest.path === attachKey.current) return
+    attachKey.current = latest.path
+    showFirstUsable([latest])
+  }, [attachments, showFirstUsable])
+
   useEffect(() => {
     if (!newestIsFresh || !newest) return
     autoOpenKey.current = newest.id
@@ -1395,30 +1487,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       ),
     ]
     if (candidates.length) {
-      void (async () => {
-        setPreparing(candidates[0].path)
-        for (const file of candidates) {
-          try {
-            const prepared = await window.ocd.preview.open(file.path)
-            if (prepared.error) continue
-            lastPreview.current = {
-              url: prepared.url,
-              title: file.path.split(/[\\/]/).pop() ?? file.path,
-              origin: file.path,
-              kind: prepared.kind,
-              route: prepared.route,
-            }
-            setPreview(lastPreview.current)
-            setPreparing(null)
-            return
-          } catch {
-            // Try the next candidate rather than leaving the pane shut.
-          }
-        }
-        // Nothing usable among the candidates: drop back to the empty pane.
-        setPreparing(null)
-        if (preview === undefined) setPreview(null)
-      })()
+      showFirstUsable(candidates)
       return
     }
 
@@ -1437,7 +1506,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         setPreview(lastPreview.current)
       })
       .catch(() => undefined)
-  }, [newestIsFresh, newest, preview, previewPinned, sessionId, attached])
+  }, [newestIsFresh, newest, preview, previewPinned, sessionId, attached, showFirstUsable])
 
   /** Newest assistant reply, used by the speaker button in the composer. */
   const lastReply = useMemo(() => {
@@ -1605,8 +1674,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     writeDraft(sessionId, "")
     // Remember what was attached before the chips go: this is what feeds the
     // preview pane for the turn that is about to run.
-    const sentFiles = attachedFiles(attachments)
-    if (sentFiles.length) setAttached(sentFiles)
+    const previewable = attachedFiles(attachments)
+    if (previewable.length) setAttached(previewable)
     setAttachments([])
     // Sending the text on its own ends the edit: it is a follow-up now, not a
     // correction waiting to be applied to an earlier turn.
@@ -1621,7 +1690,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         type: "user",
         text: body,
         time: { created: Date.now() },
+        attachments: attachments.length ? [...attachments] : undefined,
       })
+      // The server's copy of this turn arrives without attachments, so they are
+      // remembered here and re-attached when it lands. Keyed by the prompt body
+      // because that is what the server message is matched on anyway.
+      if (attachments.length) sentFiles.current.set(body, [...attachments])
     }
     void store.send(sessionId ?? "", body, store.settings?.defaultAgent, files)
   }
