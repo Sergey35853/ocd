@@ -5,6 +5,7 @@ import { getSettings } from "./settings"
 import { updateIcon, windowIcon } from "./icon"
 import { setTrayIcon } from "./tray"
 import { isNewer } from "./version"
+import { log } from "./log"
 
 /**
  * True once an update has been fetched and is sitting in the updater cache.
@@ -70,9 +71,23 @@ export function startAutoUpdate(): void {
   configure()
   ensureListeners()
 
-  void quietly(() => autoUpdater.checkForUpdates()).catch((err) => {
-    console.error("Update check failed:", err)
-  })
+  // Every step of the check is written to the log. An update that fails to
+  // announce itself looks exactly like an update that does not exist, and the
+  // only place that difference can be told apart is here: the updater's own
+  // errors go to a console nobody is watching.
+  log.info(`update check started for ${app.getVersion()}`)
+  void quietly(() => autoUpdater.checkForUpdates())
+    .then((result) => {
+      const found = result?.updateInfo?.version
+      log.info(
+        foundIsNewer(found)
+          ? `update found: ${found}`
+          : `no update: channel holds ${found ?? "nothing"}, running ${app.getVersion()}`,
+      )
+    })
+    .catch((err) => {
+      log.warn(`update check failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
 }
 
 /** Shared updater settings; both entry points need the same three values. */
@@ -115,6 +130,7 @@ function ensureListeners(): void {
   autoUpdater.on("update-available", (info) => {
     staged = false
     foundVersion = info.version
+    log.info(`update available: ${info.version}`)
     badgeUpdatePending()
     notify(`${t("updateFound")} ${info.version}`)
   })
@@ -133,7 +149,7 @@ function ensureListeners(): void {
   })
 
   autoUpdater.on("error", (err) => {
-    console.error("Update check failed:", err.message)
+    log.warn(`update error: ${err.message}`)
   })
 }
 
