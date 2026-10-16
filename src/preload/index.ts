@@ -384,6 +384,14 @@ const api = {
       ipcRenderer.on("ocd:status", listener)
       return () => ipcRenderer.off("ocd:status", listener)
     },
+    onUpdate: (cb: (state: { available: boolean; version: string; staged: boolean }) => void) => {
+      const listener = (
+        _event: unknown,
+        state: { available: boolean; version: string; staged: boolean },
+      ) => cb(state)
+      ipcRenderer.on("ocd:update", listener)
+      return () => ipcRenderer.off("ocd:update", listener)
+    },
   },
 }
 

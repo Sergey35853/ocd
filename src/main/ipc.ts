@@ -40,6 +40,7 @@ import {
   downloadUpdate,
   installUpdate,
   setAutoUpdate,
+  updateEvents,
   updateState,
 } from "./updater"
 import { clearIndex, ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
@@ -90,6 +91,7 @@ import type {
   InboxItem,
   PermissionDecision,
   PermissionRequest,
+  UpdateState,
 } from "@shared/types"
 
 /** Some endpoints answer with a bare array, others with { all | data | models }. */
@@ -1105,11 +1107,21 @@ export function broadcastServiceEvents(getWindows: () => BrowserWindow[]): () =>
       if (!win.isDestroyed()) win.webContents.send("ocd:status", status)
     }
   }
+  // The update arrow follows the state, not the other way round: main learns
+  // about a new version the moment the check finds one, and the header should
+  // not have to wait out a poll interval to show it.
+  const onUpdate = (state: UpdateState) => {
+    for (const win of getWindows()) {
+      if (!win.isDestroyed()) win.webContents.send("ocd:update", state)
+    }
+  }
   service.on("event", onEvent)
   service.on("status", onStatus)
+  updateEvents.on("state", onUpdate)
   return () => {
     service.off("event", onEvent)
     service.off("status", onStatus)
+    updateEvents.off("state", onUpdate)
   }
 }
 

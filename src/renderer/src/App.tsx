@@ -106,6 +106,28 @@ function Shell() {
     }
   }, [refreshUpdate])
 
+  // Pushed by main the moment the state changes, so the arrow does not wait out
+  // the poll above. The poll stays as the floor under a window that was open
+  // when an update arrived and closed before the next one did.
+  useEffect(() => window.ocd.events.onUpdate(setUpdate), [])
+
+  /**
+   * One line in the log per version, the first time the arrow shows.
+   *
+   * Whether the header actually shows it is the one part of updating that
+   * cannot be checked from outside the app, and "the arrow never appeared" was
+   * unanswerable from the log alone.
+   */
+  const announcedUpdate = useRef("")
+  useEffect(() => {
+    if (!update?.available || announcedUpdate.current === update.version) return
+    announcedUpdate.current = update.version
+    void window.ocd.diag.report({
+      kind: "update",
+      message: `update arrow shown: ${update.version}`,
+    })
+  }, [update])
+
   /** One click does the whole job: fetch, then install and restart. */
   const startUpdate = async () => {
     setUpdating(true)

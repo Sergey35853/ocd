@@ -15,6 +15,15 @@ export interface ServiceStatus {
   registrationFile: string | null
 }
 
+/** What the header's update arrow shows itself from. */
+export interface UpdateState {
+  /** A version has been found and nothing has been installed over it yet. */
+  available: boolean
+  version: string
+  /** Downloaded and sitting in the updater cache, ready to install. */
+  staged: boolean
+}
+
 export interface ProjectInfo {
   id: string
   canonical: string
@@ -912,7 +921,7 @@ export interface OcdApi {
     /** Install the downloaded update and restart; fails if nothing is staged. */
     installUpdate(): Promise<{ ok: boolean; message: string }>
     /** What the header's update button shows itself from. */
-    updateState(): Promise<{ available: boolean; version: string; staged: boolean }>
+    updateState(): Promise<UpdateState>
     /** System print dialog; the document is the same one the HTML export writes. */
     printConversation(payload: {
       sessionId: string
@@ -1021,6 +1030,8 @@ export interface OcdApi {
     subscribe(): Promise<{ ok: boolean; error?: string }>
     onEvent(cb: (event: ServerEvent) => void): () => void
     onStatus(cb: (status: ServiceStatus) => void): () => void
+    /** Push of the update state, so the header arrow follows the finding. */
+    onUpdate(cb: (state: UpdateState) => void): () => void
   }
   voice: {
     /** Defaults inherited from the oc-voice / oc-dictate plugin configs. */

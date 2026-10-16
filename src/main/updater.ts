@@ -1,11 +1,23 @@
 import { BrowserWindow, app, dialog } from "electron"
 import { autoUpdater } from "electron-updater"
+import { EventEmitter } from "node:events"
+import type { UpdateState } from "@shared/types"
 import { mainText, MAIN_LANGUAGES, type UiLanguage } from "./i18n"
 import { getSettings } from "./settings"
 import { updateIcon, windowIcon } from "./icon"
 import { setTrayIcon } from "./tray"
 import { isNewer } from "./version"
 import { log } from "./log"
+
+/**
+ * Fires whenever the state the header button shows changes.
+ *
+ * The renderer used to find out by polling, which left up to a minute between
+ * an update turning up and the arrow turning with it — and a minute that is
+ * invisible to whoever is waiting for it. Pushing the state costs one message
+ * and makes the arrow appear in the same moment as the event that caused it.
+ */
+export const updateEvents = new EventEmitter()
 
 /**
  * True once an update has been fetched and is sitting in the updater cache.
@@ -65,16 +77,31 @@ async function quietly<T>(action: () => Promise<T>): Promise<T> {
  * the window and tray icons and as the button in the header, and a check that
  * finds nothing has nothing to say.
  */
+
+/** How often an app that is already running asks GitHub again. */
+const RECHECK_MS = 60 * 60 * 1000
+
+/** Set once the repeat timer is armed, whichever entry point armed it. */
+let scheduled = false
+
 export function startAutoUpdate(): void {
   if (!app.isPackaged) return
 
   configure()
   ensureListeners()
+  runCheck()
+  schedule()
+}
 
-  // Every step of the check is written to the log. An update that fails to
-  // announce itself looks exactly like an update that does not exist, and the
-  // only place that difference can be told apart is here: the updater's own
-  // errors go to a console nobody is watching.
+/**
+ * Ask the channel what it holds, and write down what came back.
+ *
+ * Every step goes to the log: an update that fails to announce itself looks
+ * exactly like an update that does not exist, and the only place the two can be
+ * told apart is here, because the updater's own errors go to a console nobody
+ * is watching.
+ */
+function runCheck(): void {
   log.info(`update check started for ${app.getVersion()}`)
   void quietly(() => autoUpdater.checkForUpdates())
     .then((result) => {
@@ -88,6 +115,26 @@ export function startAutoUpdate(): void {
     .catch((err) => {
       log.warn(`update check failed: ${err instanceof Error ? err.message : String(err)}`)
     })
+}
+
+/**
+ * Keep checking for as long as the app is open.
+ *
+ * Without this the app asks exactly once, at launch, and that is what makes an
+ * update look like it never arrived: OCD checked at 15:32, the release went out
+ * at 15:41, and the app sat there — open, in the foreground, hours later — still
+ * certain there was nothing new. An hour is cheap enough for GitHub and quick
+ * enough that the arrow is there before anyone goes looking for it.
+ */
+function schedule(): void {
+  if (scheduled) return
+  scheduled = true
+  const timer = setInterval(() => {
+    if (!getSettings().autoUpdate) return
+    runCheck()
+  }, RECHECK_MS)
+  // Never the reason the app refuses to exit.
+  timer.unref?.()
 }
 
 /** Shared updater settings; both entry points need the same three values. */
@@ -132,11 +179,14 @@ function ensureListeners(): void {
     foundVersion = info.version
     log.info(`update available: ${info.version}`)
     badgeUpdatePending()
+    publish()
     notify(`${t("updateFound")} ${info.version}`)
   })
 
   autoUpdater.on("update-downloaded", (info) => {
     staged = true
+    log.info(`update downloaded: ${info.version}`)
+    publish()
     notify(`${t("updateReady")} ${info.version}`)
   })
 
@@ -145,6 +195,7 @@ function ensureListeners(): void {
     // the badge is now lying about the state. Silence is the reply to the
     // caller - it shows what the check found.
     clearUpdateBadge()
+    publish()
     notify(t("updateNone"))
   })
 
@@ -212,15 +263,6 @@ function setIconEverywhere(image: Electron.NativeImage): void {
   setTrayIcon(image)
 }
 
-/** What the header button needs to decide whether to show itself. */
-export interface UpdateState {
-  /** A version has been found and nothing has been installed over it yet. */
-  available: boolean
-  version: string
-  /** Downloaded and sitting in the updater cache, ready to install. */
-  staged: boolean
-}
-
 /**
  * Current update state for the renderer.
  *
@@ -230,6 +272,11 @@ export interface UpdateState {
  */
 export function updateState(): UpdateState {
   return { available: Boolean(foundVersion), version: foundVersion, staged }
+}
+
+/** Hand the current state to every window listening for it. */
+function publish(): void {
+  updateEvents.emit("state", updateState())
 }
 
 /**
