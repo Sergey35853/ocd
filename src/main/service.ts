@@ -212,6 +212,45 @@ export class OpenCodeService extends EventEmitter {
     }
   }
 
+  /**
+   * Move onto whatever address the server is on now.
+   *
+   * The registration file is rewritten on every server restart and the server
+   * picks a fresh port each time, so the address remembered at connect time
+   * goes stale the moment OpenCode restarts — and a stale address looks exactly
+   * like a healthy one, because nothing about the failure is visible from here:
+   * `status()` keeps reporting `connected` while every request fails. Re-probing
+   * the remembered address cannot fix that; the file is the only thing that
+   * knows where the server went.
+   */
+  private async recover(): Promise<boolean> {
+    if (!this.overrideUrl) {
+      const reg = readRegistration()
+      const stale = this.endpoint
+      const moved =
+        reg !== null &&
+        (reg.url !== stale?.url ||
+          (reg.password ?? "") !== (stale?.auth?.password ?? ""))
+      if (moved) {
+        log.info(`service moved: ${stale?.url ?? "nothing"} -> ${reg.url}`)
+        this.endpoint = null
+        this.version = null
+        if (
+          await this.probe({
+            url: reg.url,
+            auth: reg.password
+              ? { type: "basic", username: "opencode", password: reg.password }
+              : undefined,
+          })
+        ) {
+          return true
+        }
+      }
+    }
+    // No move on record: the address is right and the failure was transient.
+    return this.endpoint !== null && (await this.probe(this.endpoint))
+  }
+
   /** Spawn `opencode serve --service` and wait for a fresh registration. */
   private async startService(): Promise<Registration | null> {
     const before = readRegistration()
@@ -284,32 +323,44 @@ export class OpenCodeService extends EventEmitter {
     path: string,
     options: { query?: Record<string, string | number | undefined>; body?: unknown } = {},
   ): Promise<T> {
-    const endpoint = this.requireEndpoint()
-    const url = new URL(path, endpoint.url)
-    for (const [key, value] of Object.entries(options.query ?? {})) {
-      if (value !== undefined) url.searchParams.set(key, String(value))
+    // Two attempts at most. A fetch that fails on the connection is the one
+    // error worth retrying, and only after the registration has been read
+    // again: without that second look a moved server turns every request into
+    // a failure and the window into an empty app.
+    for (let attempt = 0; ; attempt++) {
+      const endpoint = this.requireEndpoint()
+      const url = new URL(path, endpoint.url)
+      for (const [key, value] of Object.entries(options.query ?? {})) {
+        if (value !== undefined) url.searchParams.set(key, String(value))
+      }
+      const init: RequestInit = {
+        method,
+        headers: {
+          ...authHeader(endpoint),
+          ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+        },
+        signal: AbortSignal.timeout(120_000),
+      }
+      if (options.body !== undefined) init.body = JSON.stringify(options.body)
+      let res: Response
+      try {
+        res = await fetch(url, init)
+      } catch (err) {
+        if (attempt === 0 && (await this.recover())) continue
+        throw err
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        throw new Error(`HTTP ${res.status} ${method} ${path}${text ? `: ${text.slice(0, 400)}` : ""}`)
+      }
+      if (res.status === 204) return undefined as T
+      const type = res.headers.get("content-type") ?? ""
+      if (type.includes("application/json")) {
+        const body = await res.json()
+        return unwrapEnvelope(body) as T
+      }
+      return (await res.text()) as unknown as T
     }
-    const init: RequestInit = {
-      method,
-      headers: {
-        ...authHeader(endpoint),
-        ...(options.body === undefined ? {} : { "content-type": "application/json" }),
-      },
-      signal: AbortSignal.timeout(120_000),
-    }
-    if (options.body !== undefined) init.body = JSON.stringify(options.body)
-    const res = await fetch(url, init)
-    if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      throw new Error(`HTTP ${res.status} ${method} ${path}${text ? `: ${text.slice(0, 400)}` : ""}`)
-    }
-    if (res.status === 204) return undefined as T
-    const type = res.headers.get("content-type") ?? ""
-    if (type.includes("application/json")) {
-      const body = await res.json()
-      return unwrapEnvelope(body) as T
-    }
-    return (await res.text()) as unknown as T
   }
 
   get<T>(path: string, query?: Record<string, string | number | undefined>): Promise<T> {
@@ -404,7 +455,10 @@ export class OpenCodeService extends EventEmitter {
       await new Promise((r) => setTimeout(r, this.reconnectDelay))
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10_000)
       if (!this.endpoint) return
-      await this.probe(this.endpoint).catch(() => false)
+      // Not just the same address again: the server may have restarted onto a
+      // new port since the last attempt, and that is the case this loop exists
+      // for.
+      await this.recover()
     }
   }
 

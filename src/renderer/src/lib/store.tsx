@@ -412,6 +412,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * again — which is exactly what the "+" button was doing.
    */
   const sessionsFetchRef = useRef(0)
+  /**
+   * Address of the service the window last heard from.
+   *
+   * A server that restarts comes back on another port, and the moment it does
+   * is the one moment the lists on screen are worth refetching — by then every
+   * request made against the old address has failed.
+   */
+  const serviceUrlRef = useRef<string | null>(null)
   const busyRef = useRef<Record<string, boolean>>({})
   /** Start of the running turn; read by the completion handler, not rendered. */
   const turnStartRef = useRef<Record<string, number>>({})
@@ -436,10 +444,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSessions(list)
       // Only a list that really arrived makes older tabs judgeable.
       sessionsFetchRef.current += 1
-    } catch {
-      setSessions([])
+    } catch (err) {
+      // The old list stays. Writing an empty one here is what makes a dead
+      // connection look like deleted history: same screen, no way to tell, and
+      // no word about why. The main process recovers the connection on its own,
+      // so saying what failed is enough.
+      toast(
+        translate("toast.sessionsFailed", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+        "error",
+      )
     }
-  }, [])
+  }, [toast])
 
   const refreshCatalog = useCallback(async () => {
     const dir = directoryRef.current || undefined
@@ -1084,7 +1101,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const offStatus = window.ocd.events.onStatus((payload) => {
-      setStatus(payload as unknown as ServiceStatus)
+      const next = payload as unknown as ServiceStatus
+      setStatus(next)
+      const url = next.url ?? null
+      const moved = url !== serviceUrlRef.current
+      serviceUrlRef.current = url
+      if (next.connected && moved) {
+        void refreshCatalog()
+        void refreshSessions()
+      }
     })
 
     const offEvent = window.ocd.events.onEvent((event: ServerEvent) => {
