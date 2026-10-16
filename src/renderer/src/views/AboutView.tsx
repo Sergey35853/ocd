@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { FeedbackKind } from "@shared/types"
 import { useStore } from "../lib/store"
 import { Switch } from "../components/ui"
-import { IconCheck, IconDownload, IconRefresh, IconAlert } from "../components/Icon"
+import { IconCheck, IconDownload, IconLink, IconRefresh, IconSend, IconAlert } from "../components/Icon"
 import { ViewBack } from "../components/ViewBack"
 import { useT } from "../i18n"
+
+/** Where a person goes when the app has nowhere to send a note. */
+const AUTHOR_URL = "https://github.com/Sergey35853"
+
+/** Matches the caps in main/feedback.ts, so a pasted wall of text is cut, not refused. */
+const MAX_MESSAGE = 4000
+const MAX_CONTACT = 200
 
 /**
  * What this build is, and how to make it a newer one.
@@ -22,10 +30,19 @@ export function AboutView({ onBack }: { onBack: () => void }) {
   const [ready, setReady] = useState(false)
   /** What the last check said, kept on the card rather than in a toast. */
   const [updateCheck, setUpdateCheck] = useState<{ ok: boolean; message: string } | null>(null)
+  /** null until main answers: a build without a backend has to say so itself. */
+  const [canSend, setCanSend] = useState<boolean | null>(null)
+  const [kind, setKind] = useState<FeedbackKind>("wish")
+  const [message, setMessage] = useState("")
+  const [contact, setContact] = useState("")
+  const [tech, setTech] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
 
   useEffect(() => {
     void window.ocd.app.version().then(setVersions)
     void window.ocd.configFile.path().then(setConfigPath)
+    void window.ocd.feedback.configured().then(setCanSend).catch(() => setCanSend(false))
   }, [])
 
   /**
@@ -76,6 +93,31 @@ export function AboutView({ onBack }: { onBack: () => void }) {
   const install = async () => {
     const result = await window.ocd.app.installUpdate()
     store.toast(result.message, result.ok ? "info" : "error")
+  }
+
+  /**
+   * Send what was typed, then clear it.
+   *
+   * The fields are emptied only after the send is answered, so a network that
+   * said no leaves the text where it was: losing a paragraph to a toast that
+   * said "не отправлено" would be the worst possible answer to "что-то не так".
+   */
+  const sendFeedback = async () => {
+    if (!message.trim()) {
+      store.toast(t("about.feedbackEmpty"), "error")
+      return
+    }
+    setSending(true)
+    try {
+      await window.ocd.feedback.send({ kind, message, contact, tech })
+      setSent(true)
+      setMessage("")
+      setContact("")
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setSending(false)
+    }
   }
 
   const rows: Array<[string, string]> = [
@@ -158,6 +200,118 @@ export function AboutView({ onBack }: { onBack: () => void }) {
               </button>
             ) : null}
           </div>
+        </div>
+      </div>
+
+      {/*
+        The way back to whoever ships this.
+
+        The card is on the About screen rather than in Settings because a note
+        about the app is not a preference, and because the screen already holds
+        the two facts a report is asked for: the build and the paths.
+      */}
+      <div className="card">
+        <div className="card-head">{t("about.feedback")}</div>
+        <div className="card-body" style={{ display: "grid", gap: 10 }}>
+          <p className="about-hint">{t("about.feedbackHint")}</p>
+
+          <div className="about-row">
+            <span className="about-label">{t("about.author")}</span>
+            <div className="hstack">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void window.ocd.app.openExternal(AUTHOR_URL)}
+              >
+                <IconLink size={14} /> {t("about.authorGitHub")}
+              </button>
+            </div>
+          </div>
+
+          {canSend === null ? null : canSend ? (
+            <>
+              <div className="fb-form">
+                <label className="fb-field">
+                  <span>{t("about.kind")}</span>
+                  <select
+                    className="select"
+                    value={kind}
+                    onChange={(event) => {
+                      setKind(event.target.value as FeedbackKind)
+                      setSent(false)
+                    }}
+                  >
+                    <option value="wish">{t("about.kind.wish")}</option>
+                    <option value="complaint">{t("about.kind.complaint")}</option>
+                    <option value="problem">{t("about.kind.problem")}</option>
+                    <option value="other">{t("about.kind.other")}</option>
+                  </select>
+                </label>
+
+                <label className="fb-field">
+                  <span>{t("about.message")}</span>
+                  <textarea
+                    className="fb-text"
+                    rows={4}
+                    maxLength={MAX_MESSAGE}
+                    value={message}
+                    placeholder={t("about.messagePlaceholder")}
+                    onChange={(event) => {
+                      setMessage(event.target.value)
+                      setSent(false)
+                    }}
+                  />
+                </label>
+
+                <label className="fb-field">
+                  <span>{t("about.contact")}</span>
+                  <input
+                    className="input"
+                    maxLength={MAX_CONTACT}
+                    value={contact}
+                    placeholder={t("about.contactPlaceholder")}
+                    onChange={(event) => setContact(event.target.value)}
+                  />
+                </label>
+
+                {/*
+                  The log holds paths and window titles, so it goes only when
+                  this is ticked — and the label names what is attached, because
+                  a box that says "больше данных" and a box that sends a log are
+                  not the same promise.
+                */}
+                <label className="fb-check">
+                  <input
+                    type="checkbox"
+                    checked={tech}
+                    onChange={(event) => setTech(event.target.checked)}
+                  />
+                  <span>{t("about.attachTech", { version: versions.app ?? "—" })}</span>
+                </label>
+              </div>
+
+              {sent ? (
+                <p className="about-check ok">
+                  <IconCheck size={14} /> {t("about.feedbackSent")}
+                </p>
+              ) : null}
+
+              <div className="hstack">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={sending}
+                  onClick={() => void sendFeedback()}
+                >
+                  <IconSend size={14} /> {t("about.send")}
+                </button>
+              </div>
+            </>
+          ) : (
+            // Neutral rather than an error: nothing failed, this build simply
+            // has nowhere to send to, and the link above is the way out.
+            <p className="about-hint">{t("about.feedbackOff")}</p>
+          )}
         </div>
       </div>
     </div>

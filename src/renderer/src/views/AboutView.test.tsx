@@ -32,8 +32,12 @@ vi.mock("../lib/store", () => ({
 
 let checked = 0
 
+/** Flipped per test: whether this build has anywhere to send a note to. */
+let sendConfigured = false
+
 beforeEach(() => {
   checked = 0
+  sendConfigured = false
   // The test environment is node, so there is no window to hang the stub off.
   ;(globalThis as unknown as Record<string, unknown>).window = {
     ocd: {
@@ -46,8 +50,13 @@ beforeEach(() => {
         downloadUpdate: async () => ({ ok: true, message: "Обновление скачано" }),
         installUpdate: async () => ({ ok: true, message: "Установка" }),
         setAutoUpdate: async () => true,
+        openExternal: async () => true,
       },
       configFile: { path: async () => "C:\\Users\\link_\\.config\\opencode\\opencode.jsonc" },
+      feedback: {
+        configured: async () => sendConfigured,
+        send: async () => true,
+      },
     },
   }
 })
@@ -86,4 +95,27 @@ describe("AboutView", () => {
 
   // The check on open is an effect, and a server render runs no effects. It is
   // one line of code above the fold rather than behaviour worth a jsdom install.
+})
+
+describe("AboutView feedback", () => {
+  it("offers a way to reach the author, whether or not the form is there", async () => {
+    // The link is the part that must not depend on a backend: a build with no
+    // endpoint still has to leave someone somewhere to go.
+    for (const configured of [true, false]) {
+      sendConfigured = configured
+      const markup = await render()
+      expect(markup).toContain("Обратная связь")
+      expect(markup).toContain("Профиль на GitHub")
+      expect(markup).toContain("Автор")
+    }
+  })
+
+  it("says what the form is for", async () => {
+    const markup = await render()
+    expect(markup).toContain("Пожелания, претензии и сообщения об ошибках")
+  })
+
+  // The form itself is behind a promise — main is asked whether this build has
+  // an endpoint, and a server render never waits for one. Rendering it would
+  // mean installing jsdom for a screen whose layout is already covered above.
 })

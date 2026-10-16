@@ -62,6 +62,7 @@ import {
   type PullProgress,
 } from "./modelPull"
 import { probeHardware, type HardwareFacts } from "./hardware"
+import { backendConfigured, sendFeedback, type FeedbackInput } from "./feedback"
 import { repoFiles, searchRepos, type FileGroup, type RepoHit } from "./hfBrowse"
 import type {
   AgentInfo,
@@ -620,6 +621,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    */
   handle<boolean>("diag:report", (payload: { message: string; stack?: string; kind?: string }) => {
     log.error(`renderer ${payload.kind ?? "error"}: ${payload.message}`, payload.stack)
+    return true
+  })
+
+  // ---------- feedback ----------
+
+  /**
+   * Whether this build has somewhere to send to.
+   *
+   * Asked once by the About screen so it can either show the form or say that
+   * there is none, rather than offering a button that fails when it is pressed.
+   */
+  handle<boolean>("feedback:configured", () => backendConfigured())
+
+  /**
+   * What someone typed into the feedback card.
+   *
+   * The rejection is the sentence to show: `sendFeedback` throws with wording
+   * meant for the screen, and the envelope below carries it through untouched.
+   */
+  handle<boolean>("feedback:send", async (input: FeedbackInput) => {
+    await sendFeedback(input)
     return true
   })
 

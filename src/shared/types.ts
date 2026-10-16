@@ -126,6 +126,15 @@ export type ReplyLanguage = "ru" | "en" | "auto"
 /** Interface language of the app itself. */
 export type UiLanguage = "ru" | "en" | "de" | "fr" | "zh"
 
+/**
+ * What a note on the About screen is about.
+ *
+ * A wish and a complaint arrive at the author differently: the first is a
+ * request for work, the second is something already broken. Everything else
+ * falls into "other" rather than growing a new kind nobody reads.
+ */
+export type FeedbackKind = "wish" | "complaint" | "problem" | "other"
+
 /** Native names — the picker stays readable whatever the current language is. */
 export const UI_LANGUAGES: ReadonlyArray<{ code: UiLanguage; label: string }> = [
   { code: "ru", label: "Русский" },
@@ -1073,6 +1082,26 @@ export interface OcdApi {
   /** The renderer's failures, so they land in the same log as main's. */
   diag: {
     report(payload: { message: string; stack?: string; kind?: string }): Promise<boolean>
+  }
+  /**
+   * The way back to whoever ships this.
+   *
+   * `configured` is asked once by the About screen: a build without a backend
+   * says so instead of offering a button that fails. `send` rejects with a
+   * sentence meant to be shown.
+   */
+  feedback: {
+    configured(): Promise<boolean>
+    send(input: {
+      kind: FeedbackKind
+      message: string
+      /** Where to answer, if the sender wants to be answered. */
+      contact?: string
+      /** Attach the version and OS. Off means the text arrives on its own. */
+      tech?: boolean
+      /** The app's own log; sent only together with `tech`. */
+      log?: string
+    }): Promise<boolean>
   }
   /** Settings as a file, for moving the configuration to another machine. */
   settings: {

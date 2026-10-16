@@ -14,6 +14,7 @@ import { repairLegacyLanguageInstruction } from "./configFile"
 import { initLog, log } from "./log"
 import { hasTailscale, startMobileGateway } from "./mobile"
 import { refreshShellAssociations } from "./shellNotify"
+import { reportInstall } from "./feedback"
 
 let mainWindow: BrowserWindow | null = null
 let quitting = false
@@ -384,6 +385,11 @@ if (!app.requestSingleInstanceLock()) {
     createWindow()
     if (getSettings().startMinimized) createTray()
     applyGlobalHotkey()
+
+    // A single mark per installed version, asked for by every launch and given
+    // once. It waits for nothing and is told about nothing: a machine that
+    // cannot reach the backend loses one row and no more. See main/feedback.ts.
+    void reportInstall()
 
     void service
       .connect(getSettings().serverUrlOverride || undefined)

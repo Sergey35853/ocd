@@ -792,6 +792,54 @@ select {
   background: var(--danger-soft);
 }
 
+/* ---- feedback form on the About screen ---- */
+/* Stacked rather than in the .field rows used by Settings: this is a form to
+   write into, not a row of switches, and the label sits above what it names
+   so a paragraph of text has somewhere to go. */
+.fb-form {
+  display: grid;
+  gap: 10px;
+}
+.fb-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.fb-field .select,
+.fb-field .input {
+  width: 100%;
+}
+.fb-text {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text);
+  outline: none;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 84px;
+}
+.fb-text:focus {
+  border-color: var(--accent-line);
+}
+.fb-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.fb-check input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
 /* ---- provider install form ---- */
 .install-form {
   display: grid;

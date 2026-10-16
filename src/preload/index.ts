@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron"
 import type {
   AppSettings,
   AttemptStatus,
+  FeedbackKind,
   FinishNotice,
   ConfigProviderSummary,
   IntegrationAttempt,
@@ -360,6 +361,23 @@ const api = {
   diag: {
     report: (payload: { message: string; stack?: string; kind?: string }) =>
       call<boolean>("diag:report", payload),
+  },
+  /**
+   * The way back to whoever ships this.
+   *
+   * Two calls, both from the About screen: whether this build has anywhere to
+   * send to, and the note itself. A rejection carries a sentence meant to be
+   * shown rather than a code to translate.
+   */
+  feedback: {
+    configured: () => call<boolean>("feedback:configured"),
+    send: (input: {
+      kind: FeedbackKind
+      message: string
+      contact?: string
+      tech?: boolean
+      log?: string
+    }) => call<boolean>("feedback:send", input),
   },
   settings: {
     export: () => call<string>("settings:export"),
