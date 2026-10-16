@@ -80,6 +80,18 @@ export function updateIcon(): Electron.NativeImage {
   return loadIcon("icon-update") ?? windowIcon()
 }
 
+/**
+ * The arrow alone, for the taskbar overlay.
+ *
+ * A separate file from `icon-update` on purpose: Windows draws an overlay in
+ * the corner of the taskbar button at 16px, and handing it the full tile puts a
+ * shrunken second copy of the app icon there instead of the sign it is supposed
+ * to carry. Falls back to the badge icon, which at least ends in an arrow.
+ */
+export function updateOverlayIcon(): Electron.NativeImage {
+  return loadIcon("icon-overlay") ?? updateIcon()
+}
+
 /** Tooltip shown on the taskbar and in the Alt-Tab switcher. */
 export function appTitle(): string {
   return app.getName() || "OCD"

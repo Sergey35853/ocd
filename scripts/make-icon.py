@@ -15,6 +15,7 @@ PNG = ROOT / "resources" / "icon.png"
 ICO = ROOT / "resources" / "icon.ico"
 PNG_UPDATE = ROOT / "resources" / "icon-update.png"
 ICO_UPDATE = ROOT / "resources" / "icon-update.ico"
+PNG_OVERLAY = ROOT / "resources" / "icon-overlay.png"
 
 SS = 4  # supersampling factor
 SIZE = 512
@@ -118,23 +119,11 @@ BADGE_RGB = (214, 226, 255)
 BADGE_ARROW = (37, 99, 235)
 
 
-def add_update_badge(tile):
-    """Stamp a downward-arrow badge onto the bottom-right of a finished tile.
-
-    Drawn at supersampled resolution like everything else here, and kept large
-    enough to survive the 16px frame - a badge sized for a 256px icon disappears
-    completely at the sizes the taskbar actually uses.
-    """
-    img = tile.copy()
-    d = ImageDraw.Draw(img)
-
-    cx = int(S * 0.735)
-    cy = int(S * 0.735)
-    r = int(S * 0.205)
-
+def stamp_arrow(d, cx, cy, r, rim):
+    """Pale disc, dark rim, blue downward arrow, centred on (cx, cy)."""
     # Dark rim first: it separates the badge from the chrome "C" underneath,
     # which is bright silver and would otherwise swallow the blue.
-    d.ellipse([cx - r - int(S * 0.012), cy - r - int(S * 0.012), cx + r + int(S * 0.012), cy + r + int(S * 0.012)], fill=(8, 9, 11, 255))
+    d.ellipse([cx - r - rim, cy - r - rim, cx + r + rim, cy + r + rim], fill=(8, 9, 11, 255))
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BADGE_RGB + (255,))
 
     # Arrow: a thick stem and a wide head, both oversized so the 16px frame
@@ -151,7 +140,34 @@ def add_update_badge(tile):
         ],
         fill=BADGE_ARROW + (255,),
     )
+
+
+def add_update_badge(tile):
+    """Stamp a downward-arrow badge onto the bottom-right of a finished tile.
+
+    Drawn at supersampled resolution like everything else here, and kept large
+    enough to survive the 16px frame - a badge sized for a 256px icon disappears
+    completely at the sizes the taskbar actually uses.
+    """
+    img = tile.copy()
+    d = ImageDraw.Draw(img)
+    stamp_arrow(d, int(S * 0.735), int(S * 0.735), int(S * 0.205), int(S * 0.012))
     return img
+
+
+def update_overlay():
+    """The taskbar overlay: the arrow on its own, nothing behind it.
+
+    Windows draws an overlay over the corner of the taskbar button at 16px, and
+    handing it the full tile puts a shrunken second copy of the app icon in the
+    corner - a grey smudge where the point of the mark was to be legible. The
+    badge alone is what reads at that size.
+    """
+    size = 32
+    big = size * SS
+    canvas = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    stamp_arrow(ImageDraw.Draw(canvas), big // 2, big // 2, int(big * 0.46), int(big * 0.05))
+    return canvas.resize((size, size), Image.LANCZOS)
 
 
 def main() -> None:
@@ -280,10 +296,13 @@ def main() -> None:
     update.save(PNG_UPDATE, "PNG")
     update.save(ICO_UPDATE, format="ICO", sizes=ICO_SIZES)
 
+    update_overlay().save(PNG_OVERLAY, "PNG")
+
     print(f"saved {PNG} ({PNG.stat().st_size} bytes)")
     print(f"saved {ICO} ({ICO.stat().st_size} bytes)")
     print(f"saved {PNG_UPDATE} ({PNG_UPDATE.stat().st_size} bytes)")
     print(f"saved {ICO_UPDATE} ({ICO_UPDATE.stat().st_size} bytes)")
+    print(f"saved {PNG_OVERLAY} ({PNG_OVERLAY.stat().st_size} bytes)")
 
 
 def ImageChops_subtract(a: Image.Image, b: Image.Image) -> Image.Image:

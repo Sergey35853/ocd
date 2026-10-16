@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events"
 import type { UpdateState } from "@shared/types"
 import { mainText, MAIN_LANGUAGES, type UiLanguage } from "./i18n"
 import { getSettings } from "./settings"
-import { updateIcon, windowIcon } from "./icon"
+import { updateIcon, updateOverlayIcon, windowIcon } from "./icon"
 import { setTrayIcon } from "./tray"
 import { isNewer } from "./version"
 import { log } from "./log"
@@ -241,14 +241,51 @@ export async function checkForUpdates(): Promise<{ ok: boolean; message: string 
  * change you can only discover by opening Settings is a change most people
  * never find. Installing restarts the process, so the plain icon comes back on
  * its own and nothing has to un-set this.
+ *
+ * The taskbar is the one place the arrow cannot simply replace the icon, and it
+ * is worth knowing why rather than rediscovering it: a window that declares an
+ * AppUserModelID gets its taskbar button drawn from the id's registry entry,
+ * resolved once when the button is created. Both ways around it were tried and
+ * measured on a running window - `BrowserWindow.setIcon` (WM_SETICON) and
+ * rewriting `IconUri` followed by `SHChangeNotify(SHCNE_ASSOCCHANGED)` - and
+ * neither moved the button. The registry change does land, but only for windows
+ * created afterwards, which means it is also worse than useless: it leaves the
+ * entry claiming an update that the next launch overwrites anyway.
+ *
+ * So the taskbar gets an overlay instead, which is the interface Windows keeps
+ * live for exactly this: a small mark on the corner of the button rather than a
+ * different icon for it.
  */
 function badgeUpdatePending(): void {
   setIconEverywhere(updateIcon())
+  const overlay = updateOverlayIcon()
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed()) continue
+    try {
+      win.setOverlayIcon(overlay, updateOverlayDescription())
+    } catch {
+      /* a window that refuses the overlay is not worth failing a check over */
+    }
+  }
 }
 
 /** Put the plain icon back, for when a later check finds nothing. */
 function clearUpdateBadge(): void {
   setIconEverywhere(windowIcon())
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed()) continue
+    try {
+      win.setOverlayIcon(null, "")
+    } catch {
+      /* same as above */
+    }
+  }
+}
+
+/** What the overlay's tooltip says; empty when there is no overlay. */
+function updateOverlayDescription(): string {
+  const t = (key: Parameters<typeof mainText>[0]) => mainText(key, language())
+  return `${t("updateFound")} ${foundVersion}`.trim()
 }
 
 function setIconEverywhere(image: Electron.NativeImage): void {
