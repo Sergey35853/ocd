@@ -24,12 +24,19 @@ S = SIZE * SS
 # The tile is square with symmetric corners, so rotating the finished image is
 # equivalent to rotating the artwork and keeps the code simple.
 #
-# This stays 0. Rotated a quarter turn, the "C" sits above the "O" and the pair
-# stops reading as letters at any size the taskbar uses - at 16-24px it becomes
-# an indistinct blob, and at 32px it is indistinguishable from the generic
-# user-avatar glyph Windows ships itself. Upright, "OC" stays legible down to
-# 16px, which is the whole point of rendering at 4x above.
-ROTATE_CW = 0
+# 90, clockwise: the mark reads with "C" above "O". It stood at 0 because a
+# quarter turn turns the two letters into something that no longer reads as
+# letters at 16-24px, and a taskbar entry is mostly 16px. The owner asked for
+# it that way, so that is what it is - and the supersampled render below is what
+# keeps the rotated glyphs from turning to mush at those sizes.
+ROTATE_CW = 90
+
+# PIL rotates counter-clockwise, so a clockwise quarter turn is ROTATE_270.
+CLOCKWISE = {
+    1: Image.Transpose.ROTATE_270,
+    2: Image.Transpose.ROTATE_180,
+    3: Image.Transpose.ROTATE_90,
+}
 
 FONT_PATH = r"C:\Windows\Fonts\seguibl.ttf"  # Segoe UI Black
 
@@ -247,8 +254,16 @@ def main() -> None:
         return tmp
 
     composed = body
-    composed = Image.alpha_composite(composed, at(shadow_rgba))
-    composed = Image.alpha_composite(composed, at(letters))
+    mark = Image.alpha_composite(at(shadow_rgba), at(letters))
+
+    if ROTATE_CW % 360:
+        # The mark only, not the tile: the update badge is a separate sign with
+        # its own meaning, and a quarter turn would put it over the "C" and
+        # point its arrow sideways, which reads as "go back" rather than
+        # "install what was downloaded".
+        mark = mark.transpose(CLOCKWISE[ROTATE_CW // 90 % 4])
+
+    composed = Image.alpha_composite(composed, mark)
 
     # Downsample: supersampling is what keeps the glyph edges clean. The badge
     # goes on before this step so it is anti-aliased by the same downsample as
@@ -256,17 +271,6 @@ def main() -> None:
     # pixels and its edges go jagged at the sizes the taskbar uses.
     out = composed.resize((SIZE, SIZE), Image.LANCZOS)
     update = add_update_badge(composed).resize((SIZE, SIZE), Image.LANCZOS)
-
-    if ROTATE_CW % 360:
-        # PIL counts counter-clockwise, so a clockwise turn is ROTATE_270.
-        turns = (ROTATE_CW // 90) % 4
-        table = {
-            1: Image.Transpose.ROTATE_270,
-            2: Image.Transpose.ROTATE_180,
-            3: Image.Transpose.ROTATE_90,
-        }
-        out = out.transpose(table[turns])
-        update = update.transpose(table[turns])
 
     PNG.parent.mkdir(parents=True, exist_ok=True)
     out.save(PNG, "PNG")

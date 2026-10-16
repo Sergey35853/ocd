@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useStore } from "../lib/store"
 import { Switch } from "../components/ui"
 import { IconCheck, IconDownload, IconRefresh, IconAlert } from "../components/Icon"
@@ -31,26 +31,32 @@ export function AboutView({ onBack }: { onBack: () => void }) {
   /**
    * Check, and say what came back here rather than in a toast.
    *
-   * The check is the one place where "nothing" is a real answer: a person who
-   * opened this screen wants to see that the app looked, not to have it say so
-   * and then vanish.
+   * Nothing is toasted: the answer is on the card, and a toast says the same
+   * thing a second time in a place that disappears.
    */
   const check = useCallback(async () => {
     setBusy(true)
     try {
-      const result = await window.ocd.app.checkForUpdates()
-      setUpdateCheck(result)
-      store.toast(result.message, result.ok ? "info" : "error")
+      setUpdateCheck(await window.ocd.app.checkForUpdates())
     } catch (err) {
-      store.toast(err instanceof Error ? err.message : String(err), "error")
+      setUpdateCheck({ ok: false, message: err instanceof Error ? err.message : String(err) })
     } finally {
       setBusy(false)
     }
-  }, [store])
+  }, [])
 
+  /**
+   * Check once, when the screen is opened.
+   *
+   * Not keyed on the store: adding a toast changes the store, which would
+   * re-create this callback, which would run this effect again, which would add
+   * another toast - the screen checked four times for one visit and filled the
+   * corner with the same sentence.
+   */
+  const opened = useRef(false)
   useEffect(() => {
-    // Open the screen and look: the whole point of the button is not having to
-    // wonder whether the build is current.
+    if (opened.current) return
+    opened.current = true
     void check()
   }, [check])
 

@@ -4,6 +4,7 @@ import { mainText, MAIN_LANGUAGES, type UiLanguage } from "./i18n"
 import { getSettings } from "./settings"
 import { updateIcon, windowIcon } from "./icon"
 import { setTrayIcon } from "./tray"
+import { isNewer } from "./version"
 
 /**
  * True once an update has been fetched and is sitting in the updater cache.
@@ -136,7 +137,19 @@ function ensureListeners(): void {
   })
 }
 
-/** Manual "check now" from Settings; resolves to a human-readable outcome. */
+/**
+ * Whether `found` is a version worth installing.
+ *
+ * `checkForUpdates()` answers with what the release channel holds, not with
+ * whether that is newer than the copy being run: on a machine already at the
+ * latest it comes back with the same version, and the screen then says a new
+ * version is available while announcing that version as the running one.
+ */
+function foundIsNewer(found: string | undefined): boolean {
+  return isNewer(found, app.getVersion())
+}
+
+/** Manual "check now" from About; resolves to a human-readable outcome. */
 export async function checkForUpdates(): Promise<{ ok: boolean; message: string }> {
   const t = (key: Parameters<typeof mainText>[0]) => mainText(key, language())
   if (!app.isPackaged) return { ok: false, message: t("updateDevOnly") }
@@ -146,8 +159,8 @@ export async function checkForUpdates(): Promise<{ ok: boolean; message: string 
     // The dialog underneath is muted: the button that asked turns this reply
     // into a toast, and a modal on top of it said everything twice.
     const result = await quietly(() => autoUpdater.checkForUpdates())
-    const version = result?.updateInfo?.version
-    return { ok: true, message: version ? `${t("updateFound")} ${version}` : t("updateNone") }
+    const found = result?.updateInfo?.version
+    return { ok: true, message: foundIsNewer(found) ? `${t("updateFound")} ${found}` : t("updateNone") }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }

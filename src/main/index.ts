@@ -13,6 +13,7 @@ import { type UiLanguage } from "./i18n"
 import { repairLegacyLanguageInstruction } from "./configFile"
 import { initLog, log } from "./log"
 import { hasTailscale, startMobileGateway } from "./mobile"
+import { refreshShellAssociations } from "./shellNotify"
 
 let mainWindow: BrowserWindow | null = null
 let quitting = false
@@ -289,6 +290,9 @@ function registerTaskbarIdentity(aumid: string): void {
     }
   }
   log.info(`taskbar identity registered as ${aumid} with ${ico}`)
+  // The entry is only half of it: Windows resolved this id once, when the
+  // shell started, and keeps that answer until something says otherwise.
+  refreshShellAssociations()
 }
 
 /**
