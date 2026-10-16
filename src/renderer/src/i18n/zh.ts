@@ -240,7 +240,7 @@ export const zh: Dict = {
 
   // ---- about ----
   "about.build": "构建",
-  "about.tagline": "OpenCode 的亚克力桌面应用",
+  "about.tagline": "OpenCode 的桌面应用",
   "about.updates": "更新",
   "about.electron": "Electron",
   "about.chromium": "Chromium",
@@ -355,6 +355,7 @@ export const zh: Dict = {
   "toast.modelDefault": "默认模型：{provider}/{model}",
   "toast.pluginRemoved": "插件 {name} 已移除",
   "toast.serverDown": "OpenCode 服务器不可用：{error}",
+  "toast.sessionsFailed": "会话列表加载失败：{error}",
   "toast.noResponse": "无响应",
   "toast.turnStuck": "回答未正常结束 — 状态已重置",
   "toast.dictateFailed": "无法开始录音",

@@ -264,7 +264,7 @@ export const ru = {
 
   // ---- about ----
   "about.build": "Сборка",
-  "about.tagline": "Акриловое desktop-приложение для OpenCode",
+  "about.tagline": "Desktop-приложение для OpenCode",
   "about.updates": "Обновления",
   "about.electron": "Electron",
   "about.chromium": "Chromium",
@@ -384,6 +384,7 @@ export const ru = {
   "toast.modelDefault": "Модель по умолчанию: {provider}/{model}",
   "toast.pluginRemoved": "Плагин {name} убран",
   "toast.serverDown": "Сервер OpenCode недоступен: {error}",
+  "toast.sessionsFailed": "Список сеансов не загрузился: {error}",
   "toast.noResponse": "нет ответа",
   "toast.turnStuck": "Ответ не завершился — состояние сброшено",
   "toast.dictateFailed": "Не удалось начать запись",

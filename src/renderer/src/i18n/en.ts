@@ -242,7 +242,7 @@ export const en: Dict = {
 
   // ---- about ----
   "about.build": "Build",
-  "about.tagline": "Acrylic desktop app for OpenCode",
+  "about.tagline": "Desktop app for OpenCode",
   "about.updates": "Updates",
   "about.electron": "Electron",
   "about.chromium": "Chromium",
@@ -357,6 +357,7 @@ export const en: Dict = {
   "toast.modelDefault": "Default model: {provider}/{model}",
   "toast.pluginRemoved": "Plugin {name} removed",
   "toast.serverDown": "OpenCode server unavailable: {error}",
+  "toast.sessionsFailed": "Session list failed to load: {error}",
   "toast.noResponse": "no response",
   "toast.turnStuck": "The reply never finished — state reset",
   "toast.dictateFailed": "Could not start recording",
