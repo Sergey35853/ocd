@@ -3975,3 +3975,537 @@ select.input {
 .lfile .badge {
   font-size: 10px;
 }
+/* ---- restored after the phone cleanup ----
+   Removing the phone client cut a contiguous run out of this file, and the
+   desktop rules that lived in the same run went with it: the prompt bubble,
+   the message meta line, the question callouts, the tool blocks, the divider,
+   the thinking label, the composer with its drop zone, chips and send button,
+   the typing hands and the aurora/scanlines/pulse/dots busy animations. Not
+   phone styles: without them the transcript renders as bare text and the
+   composer loses its shape. Kept together, in their original order, and at
+   the end because the sections above were reorganized in the same commit. */
+
+.think-label {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.think-peek {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.tab .typing {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  flex: 0 0 auto;
+  animation: typing-pulse 2.4s ease-in-out infinite;
+}
+
+.tab .typing .typing-hand {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: typing-press 0.5s ease-in-out infinite;
+}
+
+.tab .typing .typing-hand--right {
+  /* Negative delay, not a second keyframe set: same motion, opposite phase. */
+  animation-delay: -0.25s;
+}
+
+.tab .typing .typing-palm {
+  fill: currentColor;
+  stroke: none;
+}
+
+.busyanim--aurora {
+  display: grid;
+  place-items: center;
+}
+
+.ba-blob {
+  position: absolute;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(70px);
+  mix-blend-mode: multiply;
+  animation: ba-drift calc(var(--ba-speed) * 14) ease-in-out infinite alternate;
+}
+
+.ba-blob--1 {
+  background: hsl(var(--ba-hue) 85% 62%);
+  top: -18%;
+  left: 6%;
+}
+
+.ba-blob--2 {
+  background: hsl(calc(var(--ba-hue) + 48) 85% 64%);
+  bottom: -22%;
+  right: 4%;
+  animation-delay: -4s;
+}
+
+.ba-blob--3 {
+  background: hsl(calc(var(--ba-hue) - 42) 80% 66%);
+  top: 26%;
+  left: 34%;
+  animation-delay: -8s;
+}
+
+.busyanim--scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    hsl(var(--ba-hue) 40% 40% / 0.5) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.ba-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    hsl(var(--ba-hue) 90% 60% / 0.55),
+    transparent
+  );
+  animation: ba-sweep calc(var(--ba-speed) * 2.6) linear infinite;
+}
+
+.busyanim--pulse {
+  display: grid;
+  place-items: center;
+}
+
+.ba-pulse {
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    hsl(var(--ba-hue) 90% 60% / 0.9),
+    hsl(var(--ba-hue) 90% 60% / 0) 68%
+  );
+  animation: ba-breathe calc(var(--ba-speed) * 2.2) ease-in-out infinite;
+}
+
+.busyanim--dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ba-dots i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: hsl(var(--ba-hue) 80% 48%);
+  animation: ba-bounce calc(var(--ba-speed) * 1.1) ease-in-out infinite;
+}
+
+.ba-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.ba-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.stream-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.msg-user {
+  align-self: flex-end;
+  max-width: 86%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--you-line);
+  background: var(--you-soft);
+  /* The bar on the inner edge is what separates the two sides of the
+     conversation when a long prompt and a long answer sit next to each other. */
+  box-shadow: inset 3px 0 0 var(--you);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-assistant {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.callout {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 10px 12px;
+}
+
+.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.callout-body {
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.callout-hint {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.callout-hint.mono {
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+
+.tool {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.tool summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-dim);
+  list-style: none;
+}
+
+.tool summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool summary .caret {
+  transition: transform 0.15s ease;
+}
+
+.tool[open] summary .caret {
+  transform: rotate(90deg);
+}
+
+.tool pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.composer-wrap {
+  flex: none;
+  padding: 10px 24px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px 2px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  padding: 5px 8px 5px 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+}
+
+.chip img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex: none;
+  background: var(--surface-1);
+}
+
+.chip-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+  flex: none;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.chip-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chip-name {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-size {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.chip-x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.chip-x:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+.dropzone {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(var(--tint), 0.72);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.dropzone-inner {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 26px 40px;
+  border-radius: var(--radius);
+  border: 2px dashed var(--accent-line);
+  color: var(--text);
+  text-align: center;
+}
+
+.dropzone-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.composer {
+  max-width: 900px;
+  margin: 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+  /* Above the busy animation overlay. */
+  position: relative;
+  z-index: 2;
+}
+
+.composer textarea {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+  resize: none;
+  padding: 12px 14px 4px;
+  min-height: 52px;
+  max-height: 220px;
+  line-height: 1.5;
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 8px 8px;
+}
+
+.composer-bar .spacer {
+  flex: 1;
+}
+
+.send {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.iconbtn.stop {
+  color: var(--danger);
+}
+
+.iconbtn.stop:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.hintbar {
+  max-width: 900px;
+  margin: 6px auto 0;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-align: right;
+}
+
+@keyframes typing-press {
+  0% {
+    transform: translateY(-2.1px);
+  }
+
+  55% {
+    transform: translateY(0.7px);
+  }
+
+  100% {
+    transform: translateY(-2.1px);
+  }
+}
+
+@keyframes typing-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab .typing,
+  .tab .typing .typing-hand {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
+@keyframes ba-drift {
+  from {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(8%, 6%, 0) scale(1.18);
+  }
+}
+
+@keyframes ba-sweep {
+  from {
+    transform: translateY(-120%);
+  }
+
+  to {
+    transform: translateY(560%);
+  }
+}
+
+@keyframes ba-breathe {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes ba-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: translateY(-11px);
+    opacity: 1;
+  }
+}
+

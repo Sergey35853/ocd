@@ -1723,6 +1723,24 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     }
   }, [addPicked])
 
+  // The server retires models, and a session keeps the one it was pinned to. A
+  // prompt sent to a model the server no longer has is accepted and then never
+  // answered — no error, no reply, nothing on screen to explain it. The catalog
+  // is the authority, so a session whose model is missing from it is moved to a
+  // live one on the way out rather than left to hang.
+  const liveFallback = () =>
+    store.models.find(
+      (model) =>
+        model.providerID === store.settings?.defaultProvider &&
+        model.id === store.settings?.defaultModel,
+    ) ?? store.models[0]
+  const sessionModelGone =
+    Boolean(sessionModel?.id) &&
+    store.models.length > 0 &&
+    !store.models.some(
+      (model) => model.providerID === sessionModel?.providerID && model.id === sessionModel?.id,
+    )
+
   const submit = () => {
     // Read from the element, not from state. An input method holds a word in
     // composition and never hands it over until something ends it, so at the
@@ -1794,7 +1812,33 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       if (attachments.length) sentFiles.current.set(body, [...attachments])
     }
     // A session always exists by this point: the branch above returns otherwise.
-    void store.send(sessionId, body, store.settings?.defaultAgent, files)
+    const fire = async () => {
+      if (sessionModelGone) {
+        const live = liveFallback()
+        if (live) {
+          const providerID = live.providerID ?? ""
+          try {
+            // The session, not the default: only this conversation was pinned
+            // to the retired model.
+            await window.ocd.api.setSessionModel(sessionId, { providerID, id: live.id })
+            setSessionModel({ providerID, id: live.id })
+            store.toast(
+              t("chat.modelGone", { model: sessionModel?.id ?? "", next: live.id }),
+              "info",
+            )
+          } catch (err) {
+            // Sending anyway would be the silent hang this guard exists to
+            // prevent, so the words go back into the field instead.
+            applyDraft(body)
+            setPendingUser(null)
+            store.toast(err instanceof Error ? err.message : String(err), "error")
+            return
+          }
+        }
+      }
+      await store.send(sessionId, body, store.settings?.defaultAgent, files)
+    }
+    void fire()
     // The keyboard is still up, holding its own idea of what the field says, and
     // the text must not stay there either — the next send would post it twice.
     // So the keyboard goes first: the field is emptied by `flushPending` once the
@@ -2007,7 +2051,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
 
         <span className="badge">{t("session.ago", { time: shortAge(session?.time?.created) })}</span>
 
-        {modelMismatch ? (
+        {sessionModelGone ? (
+          <span className="badge err" title={t("chat.modelGoneHint")}>
+            <IconAlert size={12} /> {t("chat.sessionModelGone", { model: sessionModel?.id ?? "" })}
+          </span>
+        ) : modelMismatch ? (
           <span className="badge warn" title={t("chat.modelMismatchHint")}>
             <IconAlert size={12} /> {t("chat.sessionModelMismatch", { model: sessionModel?.id ?? "" })}
           </span>

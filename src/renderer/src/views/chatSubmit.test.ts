@@ -95,3 +95,52 @@ describe("submitting without a session", () => {
   })
 })
 
+/**
+ * A session pinned to a model the server has retired.
+ *
+ * The server accepts the prompt for `space-bunny-free` even after the model is
+ * gone, stores the user message, and then never answers: no error message, no
+ * assistant reply, nothing on screen to explain the silence. The catalog is the
+ * only thing that knows the model is dead, so the catalog decides.
+ */
+describe("a session pinned to a retired model", () => {
+  it("moves the session to a live model before prompting", () => {
+    const submit = submitBody()
+    const guard = submit.indexOf("if (sessionModelGone)")
+    expect(guard).toBeGreaterThan(-1)
+    const repair = submit.indexOf("setSessionModel", guard)
+    const send = submit.indexOf("store.send(", guard)
+    expect(repair).toBeGreaterThan(guard)
+    expect(send).toBeGreaterThan(repair)
+    // A send fired before the repair lands would go to the retired model.
+    expect(submit).toMatch(/await window\.ocd\.api\.setSessionModel\(/)
+  })
+
+  it("calls a model gone only when the catalog has loaded", () => {
+    // An empty catalog means the server has not answered yet, not that every
+    // model is dead: repairing on that would move a healthy session for nothing.
+    expect(source).toMatch(/store\.models\.length > 0/)
+    expect(source).toMatch(/!store\.models\.some\(/)
+  })
+
+  it("does not send when the session cannot be moved", () => {
+    // Sending to the retired model anyway is the silent hang this guard exists
+    // to prevent. The catch puts the words back and returns before the send.
+    const submit = submitBody()
+    const guard = submit.indexOf("if (sessionModelGone)")
+    const block = submit.slice(guard, submit.indexOf("await store.send(", guard))
+    expect(block).toMatch(/applyDraft\(body\)/)
+    expect(block).toMatch(/return/)
+  })
+
+  it("marks the model as gone, not merely different from the default", () => {
+    // The mismatch badge reads "session model: X" and sounds informational. A
+    // retired model is a failure and has to say so before anything is sent.
+    const gone = source.indexOf("sessionModelGone ? (")
+    const mismatch = source.indexOf("modelMismatch ? (")
+    expect(gone).toBeGreaterThan(-1)
+    expect(mismatch).toBeGreaterThan(gone)
+    expect(source).toContain('t("chat.sessionModelGone"')
+  })
+})
+
