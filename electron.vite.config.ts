@@ -48,8 +48,6 @@ export default defineConfig({
           hud: resolve("src/renderer/hud.html"),
           // The finished-reply card that appears in the bottom-right corner.
           notice: resolve("src/renderer/notice.html"),
-          // The phone client, served by the gateway to a phone on Tailscale.
-          mobile: resolve("src/renderer/mobile.html"),
         },
       },
     },

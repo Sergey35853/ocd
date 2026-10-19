@@ -30,10 +30,6 @@ const DEFAULTS: AppSettings = {
   // which the server can fold into the running turn. Queueing is the rarer
   // intent, so it has to be asked for.
   busySendMode: "steer",
-  // Phone access: a port and a token, kept rather than generated per launch so
-  // the bookmark on the phone keeps working across restarts.
-  mobilePort: 4777,
-  mobileToken: "",
   sendOnEnter: true,
   autoUpdatePlugins: false,
   serverUrlOverride: "",

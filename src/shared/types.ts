@@ -465,10 +465,6 @@ export interface AppSettings {
    * reads it and changes course. "queue" waits for the turn to finish first.
    */
   busySendMode: PromptDelivery
-  /** Port the phone gateway listens on, on the Tailscale address only. */
-  mobilePort: number
-  /** Shared secret every phone request must carry. Empty until first use. */
-  mobileToken: string
   sendOnEnter: boolean
   autoUpdatePlugins: boolean
   /** Manual override for the OpenCode server URL. */

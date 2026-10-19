@@ -12,7 +12,6 @@ import { closeAllSessionWindows, registerGlobalHotkey, unregisterHotkeys } from 
 import { type UiLanguage } from "./i18n"
 import { repairLegacyLanguageInstruction } from "./configFile"
 import { initLog, log } from "./log"
-import { hasTailscale, startMobileGateway } from "./mobile"
 import { refreshShellAssociations } from "./shellNotify"
 import { reportInstall } from "./feedback"
 
@@ -407,15 +406,6 @@ if (!app.requestSingleInstanceLock()) {
         }
       })
 
-    // Phone access, only when there is a private network to reach it over.
-    // Without Tailscale there is nowhere safe to bind, so the gateway stays off
-    // rather than listening somewhere it should not.
-    if (hasTailscale()) {
-      const gateway = startMobileGateway()
-      if (gateway) log.info(`open this on the phone: ${gateway.url}`)
-    } else {
-      log.info("phone gateway off: no Tailscale address on this machine")
-    }
     // One line per actual change of state. The status arrives more than once
     // per connection — once from the probe, once from the stream's own greeting
     // — and writing all of them made the log look like the app was flapping
