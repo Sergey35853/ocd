@@ -61,6 +61,7 @@ export const fr: Dict = {
   "chat.agent": "Agent",
   "chat.sessionModelMismatch": "modèle de session : {model}",
   "chat.enterSends": "Entrée — envoyer",
+  "chat.sendNoSession": "Impossible de démarrer la conversation. Réessayez.",
   "chat.ctrlEnterSends": "Ctrl+Entrée — envoyer",
   "chat.speak": "Lire à voix haute",
   "chat.speakLast": "Lire la dernière réponse",
@@ -240,10 +241,43 @@ export const fr: Dict = {
   "set.title": "Paramètres",
   "set.editConfig": "Modifier opencode.jsonc",
   "set.appearance": "Apparence",
-  "set.behaviour": "Comportement",
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Voix et dictée",
   "set.dictationTitle": "Dictée",
+  "set.secWindow": "Fenêtre",
+  "set.secChat": "Conversation",
+  "set.secData": "Données",
+  "set.ttsTitle": "Lecture",
+
+  // ---- settings: what each section is for ----
+  "set.noteLook": "Thème, transparence et couleurs de la fenêtre.",
+  "set.noteWindow":
+    "Le comportement de l'application dans le système : au-dessus des autres, dans la zone de notification, au démarrage.",
+  "set.noteChat": "Ce qu'affiche une conversation, et comment l'application envoie les messages.",
+  "set.noteVoice": "Lecture des réponses et reconnaissance vocale pour la dictée.",
+  "set.noteAnim": "L'effet qui remplit la zone des messages pendant que le modèle réfléchit.",
+  "set.noteOpencode":
+    "Dossier du projet, modèle et agent par défaut, adresse du serveur OpenCode.",
+  "set.noteLanguage": "La langue de l'interface et celle dans laquelle le modèle répond.",
+  "set.noteRemote": "Joindre OpenCode sur une autre machine en SSH.",
+  "set.noteData": "Transférer vos réglages sur un autre ordinateur et les ramener.",
+
+  // ---- settings: hints that were missing ----
+  "set.acrylicDensityHint": "Plus haut est plus transparent",
+  "set.tintBackdropHint": "Couleur du fond derrière la fenêtre",
+  "set.accentHint": "Accents : sélections, liens, éléments actifs",
+  "set.fontScaleHint": "Taille du texte dans toute l'application",
+  "set.alwaysOnTopHint": "La fenêtre reste au-dessus des autres",
+  "set.closeToTrayHint": "Fermer met l'application dans la zone de notification au lieu de l'arrêter",
+  "set.startMinimizedHint": "Démarrer caché dans la zone de notification au lancement de Windows",
+  "set.showThinkingHint": "Le bloc de raisonnement au-dessus de la réponse",
+  "set.ttsEngineHint": "edge-tts sonne plus naturel ; SAPI fonctionne hors ligne",
+  "set.ttsVoiceHint": "Pour le moteur edge-tts",
+  "set.dictateDeliverHint": "Que faire du texte reconnu",
+  "set.defaultModelHint": "Choisi dans la liste fournie par le serveur",
+  "set.defaultAgentHint": "Qui répond dans une nouvelle conversation",
+  "set.restartServerHint":
+    "Redémarre le service OpenCode en arrière-plan ; les conversations en cours ne sont pas coupées",
 
   // ---- about ----
   "about.build": "Build",
@@ -258,7 +292,7 @@ export const fr: Dict = {
   "about.config": "Configuration",
   "about.feedback": "Retour",
   "about.feedbackHint": "Souhaits, réclamations et rapports de bogues arrivent ici",
-  "about.author": "Auteur",
+  "about.author": "Auteur",
   "about.authorGitHub": "Profil GitHub",
   "about.kind": "Sujet",
   "about.kind.wish": "Souhait",
@@ -273,7 +307,7 @@ export const fr: Dict = {
   "about.send": "Envoyer",
   "about.feedbackSent": "Envoyé, merci",
   "about.feedbackEmpty": "Décrivez ce qui s'est passé",
-  "about.feedbackOff": "L'envoi n'est pas configuré dans cette version — écrivez à l'auteur sur GitHub",
+  "about.feedbackOff": "L'envoi n'est pas configuré dans cette version — écrivez à l'auteur sur Telegram ou GitHub",
 
   "set.theme": "Thème",
   "set.themeHint": "« Auto » suit le thème de Windows.",
@@ -306,6 +340,10 @@ export const fr: Dict = {
   "set.directoryNone": "non choisi",
   "set.choose": "Choisir",
   "set.defaultModel": "Modèle par défaut",
+  "set.pickModel": "Choisir un modèle",
+  "set.modelRefreshed": "Liste des modèles actualisée",
+  "set.modelRefreshHint": "Redemander la liste des modèles au serveur",
+  "set.modelEmpty": "La liste est vide : pas de connexion au serveur",
   "set.defaultAgent": "Agent par défaut",
   "set.serverUrl": "Adresse du serveur",
   "set.serverUrlHint": "Laisser vide pour utiliser le service OpenCode partagé en arrière-plan.",
@@ -461,7 +499,7 @@ export const fr: Dict = {
   "set.remoteConnect": "Se connecter",
   "set.remoteConnecting": "Connexion…",
   "set.remoteDisconnect": "Se déconnecter",
-  "set.remoteActive": "Tunnel ouvert : {url}",
+  "set.remoteActive": "Tunnel ouvert : {url}",
   "notify.done": "Terminé — la réponse est dans le chat",
   "notify.failed": "Échec — le tour n’est pas terminé",
   "usage.detail": "Consommation de la conversation",

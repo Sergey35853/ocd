@@ -61,6 +61,7 @@ export const en: Dict = {
   "chat.agent": "Agent",
   "chat.sessionModelMismatch": "session model: {model}",
   "chat.enterSends": "Enter — send",
+  "chat.sendNoSession": "Could not start the conversation. Try again.",
   "chat.ctrlEnterSends": "Ctrl+Enter — send",
   "chat.speak": "Read aloud",
   "chat.speakLast": "Read the last reply aloud",
@@ -235,10 +236,43 @@ export const en: Dict = {
   "set.title": "Settings",
   "set.editConfig": "Edit opencode.jsonc",
   "set.appearance": "Appearance",
-  "set.behaviour": "Behaviour",
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Voice and dictation",
   "set.dictationTitle": "Dictation",
+  "set.secWindow": "Window",
+  "set.secChat": "Conversation",
+  "set.secData": "Data",
+  "set.ttsTitle": "Speech",
+
+  // ---- settings: what each section is for ----
+  "set.noteLook": "Theme, transparency and the colours of the window.",
+  "set.noteWindow":
+    "How the app behaves in the system: above other windows, in the tray, at launch.",
+  "set.noteChat": "What a conversation shows, and how the app sends messages.",
+  "set.noteVoice": "Speaking replies aloud, and speech recognition for dictation.",
+  "set.noteAnim": "The effect that fills the message area while the model is thinking.",
+  "set.noteOpencode":
+    "Project folder, default model and agent, and the OpenCode server address.",
+  "set.noteLanguage": "The language of the app's own labels, and the one the model answers in.",
+  "set.noteRemote": "Reaching OpenCode on another machine over SSH.",
+  "set.noteData": "Moving your settings to another computer and back.",
+
+  // ---- settings: hints that were missing ----
+  "set.acrylicDensityHint": "Higher is more transparent",
+  "set.tintBackdropHint": "Colour of the backdrop behind the window",
+  "set.accentHint": "Accents: highlights, links, active controls",
+  "set.fontScaleHint": "Text size across the whole app",
+  "set.alwaysOnTopHint": "The window stays above the others",
+  "set.closeToTrayHint": "Closing puts the app in the tray instead of quitting it",
+  "set.startMinimizedHint": "Start hidden in the tray when Windows launches",
+  "set.showThinkingHint": "The Reasoning block above the reply",
+  "set.ttsEngineHint": "edge-tts sounds more natural; SAPI works offline",
+  "set.ttsVoiceHint": "For the edge-tts engine",
+  "set.dictateDeliverHint": "What to do with the recognised text",
+  "set.defaultModelHint": "Chosen from the list the server reports",
+  "set.defaultAgentHint": "Who answers in a new conversation",
+  "set.restartServerHint":
+    "Restarts the OpenCode service in the background; running conversations are not cut off",
 
   // ---- about ----
   "about.build": "Build",
@@ -253,7 +287,7 @@ export const en: Dict = {
   "about.config": "Configuration",
   "about.feedback": "Feedback",
   "about.feedbackHint": "Wishes, complaints and bug reports all land here",
-  "about.author": "Author",
+  "about.author": "Author",
   "about.authorGitHub": "GitHub profile",
   "about.kind": "Topic",
   "about.kind.wish": "Wish",
@@ -268,7 +302,7 @@ export const en: Dict = {
   "about.send": "Send",
   "about.feedbackSent": "Sent, thank you",
   "about.feedbackEmpty": "Write what happened",
-  "about.feedbackOff": "Sending is not configured in this build — write to the author on GitHub",
+  "about.feedbackOff": "Sending is not configured in this build — write to the author on Telegram or GitHub",
 
   "set.theme": "Theme",
   "set.themeHint": "“Auto” follows the Windows theme.",
@@ -301,6 +335,10 @@ export const en: Dict = {
   "set.directoryNone": "not selected",
   "set.choose": "Choose",
   "set.defaultModel": "Default model",
+  "set.pickModel": "Pick a model",
+  "set.modelRefreshed": "Model list refreshed",
+  "set.modelRefreshHint": "Ask the server for the model list again",
+  "set.modelEmpty": "The list is empty: no connection to the server",
   "set.defaultAgent": "Default agent",
   "set.serverUrl": "Server address",
   "set.serverUrlHint": "Leave empty to use the shared background OpenCode service.",
@@ -456,7 +494,7 @@ export const en: Dict = {
   "set.remoteConnect": "Connect",
   "set.remoteConnecting": "Connecting…",
   "set.remoteDisconnect": "Disconnect",
-  "set.remoteActive": "Tunnel open: {url}",
+  "set.remoteActive": "Tunnel open: {url}",
   "notify.done": "Done — the reply is in the chat",
   "notify.failed": "Failed — the turn did not finish",
   "usage.detail": "Conversation spend",

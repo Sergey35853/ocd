@@ -70,6 +70,7 @@ export const ru = {
   "chat.agent": "Агент",
   "chat.sessionModelMismatch": "модель сессии: {model}",
   "chat.enterSends": "Enter — отправить",
+  "chat.sendNoSession": "Не удалось начать беседу. Попробуйте ещё раз.",
   "chat.ctrlEnterSends": "Ctrl+Enter — отправить",
   "chat.speak": "Озвучить",
   "chat.speakLast": "Озвучить последний ответ",
@@ -257,10 +258,44 @@ export const ru = {
   "set.title": "Настройки",
   "set.editConfig": "Редактировать opencode.jsonc",
   "set.appearance": "Внешний вид",
-  "set.behaviour": "Поведение",
   "set.opencode": "OpenCode",
   "set.voiceTitle": "Голос и диктовка",
   "set.dictationTitle": "Диктовка",
+  "set.secWindow": "Окно",
+  "set.secChat": "Общение",
+  "set.secData": "Данные",
+  "set.ttsTitle": "Озвучка",
+
+  // ---- settings: what each section is for ----
+  // A list of toggles says what can be changed, not which of them you wanted.
+  "set.noteLook": "Тема, прозрачность и цвета окна.",
+  "set.noteWindow":
+    "Как приложение ведёт себя в системе: поверх других окон, в трее, при запуске.",
+  "set.noteChat": "Что видно в переписке и как приложение отправляет сообщения.",
+  "set.noteVoice": "Озвучка ответов и распознавание речи для диктовки.",
+  "set.noteAnim": "Эффект, который занимает область сообщений, пока модель думает.",
+  "set.noteOpencode":
+    "Папка проекта, модель и агент по умолчанию, адрес сервера OpenCode.",
+  "set.noteLanguage": "Язык надписей приложения и язык, на котором отвечает модель.",
+  "set.noteRemote": "Подключение к OpenCode на другой машине по SSH.",
+  "set.noteData": "Перенос настроек на другой компьютер и обратно.",
+
+  // ---- settings: hints that were missing ----
+  "set.acrylicDensityHint": "Больше — прозрачнее",
+  "set.tintBackdropHint": "Цвет подложки под окном",
+  "set.accentHint": "Акценты: выделения, ссылки, активные элементы",
+  "set.fontScaleHint": "Размер текста во всём приложении",
+  "set.alwaysOnTopHint": "Окно не уходит под другие",
+  "set.closeToTrayHint": "Кнопка закрытия сворачивает приложение в трей, а не завершает его",
+  "set.startMinimizedHint": "Открываться свёрнутым в трей при запуске Windows",
+  "set.showThinkingHint": "Блок «Размышления» над ответом",
+  "set.ttsEngineHint": "edge-tts звучит естественнее, SAPI работает без интернета",
+  "set.ttsVoiceHint": "Для движка edge-tts",
+  "set.dictateDeliverHint": "Что делать с распознанным текстом",
+  "set.defaultModelHint": "Выбирается из списка моделей сервера",
+  "set.defaultAgentHint": "Кто отвечает в новой сессии",
+  "set.restartServerHint":
+    "Перезапускает фоновый сервис OpenCode; активные сессии не обрываются",
 
   // ---- about ----
   "about.build": "Сборка",
@@ -275,7 +310,7 @@ export const ru = {
   "about.config": "Конфигурация",
   "about.feedback": "Обратная связь",
   "about.feedbackHint": "Пожелания, претензии и сообщения об ошибках — всё сюда",
-  "about.author": "Автор",
+  "about.author": "Автор",
   "about.authorGitHub": "Профиль на GitHub",
   "about.kind": "Тема",
   "about.kind.wish": "Пожелание",
@@ -290,7 +325,7 @@ export const ru = {
   "about.send": "Отправить",
   "about.feedbackSent": "Отправлено, спасибо",
   "about.feedbackEmpty": "Напишите, что случилось",
-  "about.feedbackOff": "В этой сборке отправка не настроена — напишите автору на GitHub",
+  "about.feedbackOff": "В этой сборке отправка не настроена — напишите автору в Telegram или на GitHub",
 
   "set.theme": "Тема",
   "set.themeHint": "«Авто» берёт тему из настроек Windows.",
@@ -325,6 +360,10 @@ export const ru = {
   "set.directoryNone": "не выбрана",
   "set.choose": "Выбрать",
   "set.defaultModel": "Модель по умолчанию",
+  "set.pickModel": "Выбрать модель",
+  "set.modelRefreshed": "Список моделей обновлён",
+  "set.modelRefreshHint": "Запросить у сервера список моделей заново",
+  "set.modelEmpty": "Список пуст: нет связи с сервером",
   "set.defaultAgent": "Агент по умолчанию",
   "set.serverUrl": "Адрес сервера",
   "set.serverUrlHint": "Пусто — использовать общий фоновый сервис OpenCode.",
@@ -483,7 +522,7 @@ export const ru = {
   "set.remoteConnect": "Подключиться",
   "set.remoteConnecting": "Подключаю…",
   "set.remoteDisconnect": "Отключиться",
-  "set.remoteActive": "Туннель открыт: {url}",
+  "set.remoteActive": "Туннель открыт: {url}",
   "notify.done": "Готово — ответ в беседе",
   "notify.failed": "Ошибка — беседа не завершена",
   "usage.detail": "Расход по беседе",

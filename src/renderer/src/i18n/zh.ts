@@ -61,6 +61,7 @@ export const zh: Dict = {
   "chat.agent": "智能体",
   "chat.sessionModelMismatch": "会话模型：{model}",
   "chat.enterSends": "Enter — 发送",
+  "chat.sendNoSession": "无法开始对话。请重试。",
   "chat.ctrlEnterSends": "Ctrl+Enter — 发送",
   "chat.speak": "朗读",
   "chat.speakLast": "朗读上一条回答",
@@ -233,10 +234,40 @@ export const zh: Dict = {
   "set.title": "设置",
   "set.editConfig": "编辑 opencode.jsonc",
   "set.appearance": "外观",
-  "set.behaviour": "行为",
   "set.opencode": "OpenCode",
   "set.voiceTitle": "语音与听写",
   "set.dictationTitle": "听写",
+  "set.secWindow": "窗口",
+  "set.secChat": "对话",
+  "set.secData": "数据",
+  "set.ttsTitle": "朗读",
+
+  // ---- settings: what each section is for ----
+  "set.noteLook": "窗口的主题、透明度和颜色。",
+  "set.noteWindow": "应用在系统中的行为：置顶、收进托盘、开机启动方式。",
+  "set.noteChat": "对话中显示什么，以及应用如何发送消息。",
+  "set.noteVoice": "朗读回复，以及听写所用的语音识别。",
+  "set.noteAnim": "模型思考时填充消息区的效果。",
+  "set.noteOpencode": "项目文件夹、默认模型与智能体，以及 OpenCode 服务地址。",
+  "set.noteLanguage": "界面文字的语言，以及模型回答所用的语言。",
+  "set.noteRemote": "通过 SSH 连接另一台机器上的 OpenCode。",
+  "set.noteData": "把设置迁移到另一台电脑，或迁回来。",
+
+  // ---- settings: hints that were missing ----
+  "set.acrylicDensityHint": "数值越大越透明",
+  "set.tintBackdropHint": "窗口背后底层的颜色",
+  "set.accentHint": "强调色：选中项、链接、可用控件",
+  "set.fontScaleHint": "整个应用的文字大小",
+  "set.alwaysOnTopHint": "窗口始终在其他窗口之上",
+  "set.closeToTrayHint": "关闭按钮把应用收进托盘，而不是退出",
+  "set.startMinimizedHint": "Windows 启动时隐藏在托盘打开",
+  "set.showThinkingHint": "回复上方的「思考」区块",
+  "set.ttsEngineHint": "edge-tts 更自然；SAPI 可离线使用",
+  "set.ttsVoiceHint": "用于 edge-tts 引擎",
+  "set.dictateDeliverHint": "识别出的文字怎么处理",
+  "set.defaultModelHint": "从服务器提供的列表中选择",
+  "set.defaultAgentHint": "新会话中由谁作答",
+  "set.restartServerHint": "在后台重启 OpenCode 服务；进行中的会话不会中断",
 
   // ---- about ----
   "about.build": "构建",
@@ -251,7 +282,7 @@ export const zh: Dict = {
   "about.config": "配置",
   "about.feedback": "反馈",
   "about.feedbackHint": "建议、意见和故障报告都会发到这里",
-  "about.author": "作者",
+  "about.author": "作者",
   "about.authorGitHub": "GitHub 主页",
   "about.kind": "主题",
   "about.kind.wish": "建议",
@@ -266,7 +297,7 @@ export const zh: Dict = {
   "about.send": "发送",
   "about.feedbackSent": "已发送，谢谢",
   "about.feedbackEmpty": "请写明发生了什么",
-  "about.feedbackOff": "此版本未配置发送功能 — 请在 GitHub 上联系作者",
+  "about.feedbackOff": "此版本未配置发送功能 — 请通过 Telegram 或 GitHub 联系作者",
 
   "set.theme": "主题",
   "set.themeHint": "“自动”跟随 Windows 主题。",
@@ -299,6 +330,10 @@ export const zh: Dict = {
   "set.directoryNone": "未选择",
   "set.choose": "选择",
   "set.defaultModel": "默认模型",
+  "set.pickModel": "选择模型",
+  "set.modelRefreshed": "模型列表已更新",
+  "set.modelRefreshHint": "重新向服务器获取模型列表",
+  "set.modelEmpty": "列表为空：未连接服务器",
   "set.defaultAgent": "默认智能体",
   "set.serverUrl": "服务器地址",
   "set.serverUrlHint": "留空则使用共享的 OpenCode 后台服务。",
@@ -453,7 +488,7 @@ export const zh: Dict = {
   "set.remoteConnect": "连接",
   "set.remoteConnecting": "正在连接…",
   "set.remoteDisconnect": "断开",
-  "set.remoteActive": "隧道已打开：{url}",
+  "set.remoteActive": "隧道已打开：{url}",
   "notify.done": "完成 — 回复已在对话中",
   "notify.failed": "失败 — 本轮未完成",
   "usage.detail": "对话消耗",

@@ -156,7 +156,14 @@ select {
 
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  /* minmax(0, …), not a bare 1fr. A `1fr` track is `minmax(auto, 1fr)`, and that
+     `auto` minimum is the track's biggest width — it refuses to shrink below the
+     content's min-content size, so one wide child pushes the whole column past
+     the window and the shell's own `overflow: hidden` clips the result. On a
+     phone that showed up as every message bubble hanging off the right edge,
+     with its text cut off, because nothing inside the transcript could name a
+     minimum that small. Used elsewhere in this file already; applied here too. */
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: var(--titlebar-h) 1fr;
   grid-template-areas:
     "titlebar titlebar"
@@ -170,7 +177,7 @@ select {
 
 /* Sidebar collapsed to nothing, tabs intact. */
 .shell.no-sidebar {
-  grid-template-columns: 0 1fr;
+  grid-template-columns: 0 minmax(0, 1fr);
 }
 .shell.no-sidebar .sidebar {
   border-right: 0;
@@ -181,9 +188,14 @@ select {
 /* One column, not a zero-width one: `grid-area: main` places the chat in the
    first column, and with `0 1fr` that column is the zero-width one, so the
    whole conversation collapses to nothing. The areas and the tracks have to
-   agree on how many columns there are. */
+   agree on how many columns there are.
+
+   minmax(0, 1fr) rather than 1fr for the reason spelled out on `.shell` above:
+   a bare `1fr` carries an `auto` minimum, and this is the variant the phone
+   actually uses, so leaving it as `1fr` left every message bubble hanging off
+   a 412px screen while the other two spellings looked correct. */
 .shell.expanded {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 0 1fr;
   grid-template-areas:
     "."
@@ -871,6 +883,240 @@ select {
   border-top: 0;
 }
 
+/* ---- settings ----
+   A list of topics on the left, one topic on the right. The page scrolls; the
+   list does not, so the reader always knows where they are in the forty-odd
+   options and never has to scroll back up to move somewhere else. */
+.settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+.settings-nav {
+  position: sticky;
+  top: 0;
+  flex: none;
+  width: 206px;
+  max-height: calc(100vh - 128px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.settings-nav-item {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.settings-nav-item.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.settings-body {
+  flex: 1;
+  min-width: 0;
+}
+.settings-intro {
+  margin-bottom: 12px;
+}
+.settings-intro h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.settings-intro p {
+  margin: 4px 0 0;
+  max-width: 64ch;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+/* Narrow enough and two columns cost more than they give: the list turns into a
+   single scrolling row of chips above the section instead. */
+@media (max-width: 860px) {
+  .settings {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .settings-nav {
+    position: static;
+    width: 100%;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .settings-nav-item {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+/* ---- android / narrow windows ----
+   The desktop layout is three columns: sessions, stream, preview. A phone has
+   room for one of them, so the preview goes away and the sessions become a
+   drawer over the stream. Rather than a second design this is the same layout
+   with the parts that do not fit removed — the stream is the part that matters
+   and it never moves.
+
+   The stream must not shrink instead. That was the phone screenshot: the panel
+   kept its width, the conversation was left about eighty pixels, and "Сообщени��
+   пока нет" came out one letter per line. A panel that is worth hiding at this
+   width is worth hiding outright. */
+
+/* First-run screen: there is no gateway yet, so there is nothing to show. */
+.setup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.setup-card {
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  display: grid;
+  gap: 12px;
+}
+.setup-card h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.setup-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.setup-card code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  font-size: 12px;
+}
+
+/* Narrow windows have no hover, no right-click and no room to spare; safe areas
+   matter more than breakpoints because the notch is not optional. */
+@media (max-width: 820px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .view {
+    padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  /* One column: the stream gets the whole window.
+     minmax(0, 1fr) and not a bare `1fr`, for the reason on `.shell` above. It
+     has to be repeated here rather than inherited: these three rules sit inside
+     the narrow media query and win over the base ones, so fixing only the base
+     left every message bubble hanging off the edge in exactly the windows the
+     base rules were not talking about. */
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "titlebar"
+      "main";
+    transition: none;
+  }
+  .shell.no-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell.no-sidebar .sidebar {
+    border-right: 1px solid var(--line-strong);
+  }
+  /* Focus mode is the same thing now, so there is nothing to switch to. */
+  .shell.expanded {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--titlebar-h) 1fr;
+    grid-template-areas:
+      "titlebar"
+      "main";
+  }
+  .shell.expanded .titlebar {
+    display: flex;
+  }
+
+  /* The sessions list stops being a column and becomes a drawer over the
+     conversation, because there is no width to give both. */
+  .sidebar {
+    position: absolute;
+    top: var(--titlebar-h);
+    bottom: 0;
+    left: 0;
+    width: min(86vw, 340px);
+    z-index: 70;
+    border-right: 1px solid var(--line-strong);
+    box-shadow: 0 0 44px rgba(0, 0, 0, 0.45);
+    transform: translateX(-101%);
+    transition: transform 0.18s ease;
+  }
+  .shell:not(.no-sidebar) .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Two panels side by side cannot both be read here, and the file preview is
+     the one that loses least: the name and a link to open it are still in the
+     message. */
+  .preview,
+  .chat-body.with-preview {
+    display: none;
+  }
+
+  /* The field grid is 220px + 1fr, which on a 360px screen leaves the control
+     100px wide. Stacked, the label sits above and the control gets the width. */
+  .field {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .field .hint {
+    grid-column: 1;
+    margin-top: 0;
+  }
+  .settings {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .settings-nav {
+    position: static;
+    width: 100%;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .settings-nav-item {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* Touch targets, not mouse targets: 42px is what a thumb can hit. */
+  .iconbtn,
+  .btn,
+  .tabs button {
+    min-height: 42px;
+  }
+  .iconbtn.tiny {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
 /* Preview frame for the busy animation in Settings. */
 .ba-preview {
   position: relative;
@@ -1136,9 +1382,19 @@ input[type="color"] {
   border-bottom: 1px solid var(--line);
   background: var(--surface-1);
   flex: none;
+  /* The row is as wide as its children, which on a phone exceeds the screen.
+     Letting it scroll keeps every control reachable instead of hiding the ones
+     past the edge, and `min-width: 0` stops the widest child from setting a
+     floor for the column below. */
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
   /* Above the busy animation overlay. */
   position: relative;
   z-index: 2;
+}
+.chat-head::-webkit-scrollbar {
+  display: none;
 }
 
 /* Context window gauge in the chat header. */
@@ -1360,668 +1616,6 @@ input[type="color"] {
   }
 }
 
-/* ---- the phone client ---- */
-/* Its own window on a phone, so it starts from scratch: no desktop shell, no
-   acrylic, no custom scrollbars that a touch screen cannot drag. */
-body:has(.m-app) {
-  background: var(--surface-1);
-}
-
-.m-app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  /* Respect the notch and the gesture bar rather than hiding behind them. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
-  font-size: 15px;
-}
-
-.m-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  background: var(--surface-1);
-}
-
-.m-head-t {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.m-back {
-  width: 34px;
-  height: 34px;
-  margin-left: -6px;
-  font-size: 22px;
-  line-height: 1;
-  border: 0;
-  border-radius: 50%;
-  color: var(--text);
-  background: none;
-  cursor: pointer;
-}
-
-.m-back:hover {
-  background: var(--surface-hover);
-}
-
-.m-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.m-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-  padding: 12px 14px;
-  text-align: left;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--text);
-  background: none;
-  cursor: pointer;
-  min-height: 48px;
-}
-
-.m-row:active {
-  background: var(--surface-hover);
-}
-
-.m-row-t {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.m-row-when {
-  font-size: 12px;
-  color: var(--text-faint);
-}
-
-.m-stream {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 12px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.m-msg {
-  max-width: 86%;
-  padding: 9px 12px;
-  border-radius: 14px;
-  background: var(--surface-3);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.m-msg--mine {
-  align-self: flex-end;
-  background: var(--you-soft);
-  border: 1px solid var(--you-line);
-  color: var(--text);
-}
-
-.m-typing {
-  align-self: flex-start;
-  padding: 6px 10px;
-  border-radius: 12px;
-  font-size: 13px;
-  color: var(--text-faint);
-  background: var(--surface-3);
-}
-
-.m-compose {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  padding: 8px 10px 10px;
-  border-top: 1px solid var(--line);
-}
-
-.m-input {
-  flex: 1;
-  max-height: 140px;
-  padding: 9px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background: var(--surface-3);
-  color: var(--text);
-  /* 16px, or iOS Safari zooms the page in when the field is focused. */
-  font-size: 16px;
-  font-family: inherit;
-  resize: none;
-}
-
-.m-send {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border: 0;
-  border-radius: 50%;
-  font-size: 17px;
-  color: #fff;
-  background: var(--accent);
-  cursor: pointer;
-}
-
-.m-send:disabled {
-  opacity: 0.4;
-}
-
-.m-send--stop {
-  background: var(--danger);
-  font-size: 13px;
-}
-
-.m-error {
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-
-/* The peek shown in a folded reasoning block: enough to see that the work is
-   still there and roughly what it was about, without competing with the title.
-   The title holds its width and the peek gives up its own — a summary that
-   squeezed "Размышления" into "Размышл…" to fit a preview would have swapped
-   one unreadable thing for another. */
-.think-label {
-  flex: none;
-  color: var(--text-dim);
-}
-
-.think-peek {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 11.5px;
-  color: var(--text-faint);
-}
-
-/* The person at the keyboard, on the tab being read. Sized to sit beside the
-   status dot rather than compete with the label. */
-.tab .typing {
-  display: inline-flex;
-  align-items: center;
-  color: var(--accent);
-  flex: 0 0 auto;
-  animation: typing-pulse 2.4s ease-in-out infinite;
-}
-
-/* The hands, half a cycle apart: one is always coming down onto a key while
-   the other goes back up. The travel is deliberately larger than the shape is
-   tall — at fifteen pixels a small nudge is invisible, and an indicator nobody
-   can see is not an indicator. */
-.tab .typing .typing-hand {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: typing-press 0.5s ease-in-out infinite;
-}
-
-.tab .typing .typing-hand--right {
-  /* Negative delay, not a second keyframe set: same motion, opposite phase. */
-  animation-delay: -0.25s;
-}
-
-/* Solid, not stroked: at this size a filled block reads and an outline does
-   not. */
-.tab .typing .typing-palm {
-  fill: currentColor;
-  stroke: none;
-}
-
-@keyframes typing-press {
-  0% {
-    transform: translateY(-2.1px);
-  }
-  55% {
-    transform: translateY(0.7px);
-  }
-  100% {
-    transform: translateY(-2.1px);
-  }
-}
-
-@keyframes typing-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tab .typing,
-  .tab .typing .typing-hand {
-    animation: none;
-    opacity: 0.85;
-  }
-}
-
-.busyanim--aurora {
-  display: grid;
-  place-items: center;
-}
-.ba-blob {
-  position: absolute;
-  width: 62%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  filter: blur(70px);
-  mix-blend-mode: multiply;
-  animation: ba-drift calc(var(--ba-speed) * 14) ease-in-out infinite alternate;
-}
-.ba-blob--1 {
-  background: hsl(var(--ba-hue) 85% 62%);
-  top: -18%;
-  left: 6%;
-}
-.ba-blob--2 {
-  background: hsl(calc(var(--ba-hue) + 48) 85% 64%);
-  bottom: -22%;
-  right: 4%;
-  animation-delay: -4s;
-}
-.ba-blob--3 {
-  background: hsl(calc(var(--ba-hue) - 42) 80% 66%);
-  top: 26%;
-  left: 34%;
-  animation-delay: -8s;
-}
-@keyframes ba-drift {
-  from {
-    transform: translate3d(-6%, -4%, 0) scale(1);
-  }
-  to {
-    transform: translate3d(8%, 6%, 0) scale(1.18);
-  }
-}
-
-.busyanim--scanlines {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    hsl(var(--ba-hue) 40% 40% / 0.5) 0 1px,
-    transparent 1px 4px
-  );
-}
-.ba-band {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 22%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    hsl(var(--ba-hue) 90% 60% / 0.55),
-    transparent
-  );
-  animation: ba-sweep calc(var(--ba-speed) * 2.6) linear infinite;
-}
-@keyframes ba-sweep {
-  from {
-    transform: translateY(-120%);
-  }
-  to {
-    transform: translateY(560%);
-  }
-}
-
-.busyanim--pulse {
-  display: grid;
-  place-items: center;
-}
-.ba-pulse {
-  width: 46%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    hsl(var(--ba-hue) 90% 60% / 0.9),
-    hsl(var(--ba-hue) 90% 60% / 0) 68%
-  );
-  animation: ba-breathe calc(var(--ba-speed) * 2.2) ease-in-out infinite;
-}
-@keyframes ba-breathe {
-  0%,
-  100% {
-    transform: scale(0.82);
-    opacity: 0.55;
-  }
-  50% {
-    transform: scale(1.12);
-    opacity: 1;
-  }
-}
-
-.busyanim--dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-.ba-dots i {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: hsl(var(--ba-hue) 80% 48%);
-  animation: ba-bounce calc(var(--ba-speed) * 1.1) ease-in-out infinite;
-}
-.ba-dots i:nth-child(2) {
-  animation-delay: 0.16s;
-}
-.ba-dots i:nth-child(3) {
-  animation-delay: 0.32s;
-}
-@keyframes ba-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.45;
-  }
-  50% {
-    transform: translateY(-11px);
-    opacity: 1;
-  }
-}
-.stream-inner {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.msg-user {
-  align-self: flex-end;
-  max-width: 86%;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--you-line);
-  background: var(--you-soft);
-  /* The bar on the inner edge is what separates the two sides of the
-     conversation when a long prompt and a long answer sit next to each other. */
-  box-shadow: inset 3px 0 0 var(--you);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.msg-assistant {
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.55;
-}
-
-.msg-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-.callout {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--danger);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  padding: 10px 12px;
-}
-.callout-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--danger);
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-.callout-body {
-  font-size: 13px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-.callout-hint {
-  margin-top: 6px;
-  color: var(--text-dim);
-  font-size: 12px;
-}
-.callout-hint.mono {
-  font-family: var(--mono);
-  color: var(--text-faint);
-}
-
-.tool {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.tool summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  color: var(--text-dim);
-  list-style: none;
-}
-.tool summary::-webkit-details-marker {
-  display: none;
-}
-.tool summary .caret {
-  transition: transform 0.15s ease;
-}
-.tool[open] summary .caret {
-  transform: rotate(90deg);
-}
-.tool pre {
-  margin: 0;
-  padding: 10px 12px;
-  border-top: 1px solid var(--line);
-  max-height: 320px;
-  overflow: auto;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-faint);
-  font-size: 11px;
-}
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
-
-.composer-wrap {
-  flex: none;
-  padding: 10px 24px 16px;
-  border-top: 1px solid var(--line);
-  background: var(--surface-1);
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px 2px;
-}
-.chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 240px;
-  padding: 5px 8px 5px 5px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--surface-3);
-}
-.chip img {
-  width: 34px;
-  height: 34px;
-  object-fit: cover;
-  border-radius: 5px;
-  flex: none;
-  background: var(--surface-1);
-}
-.chip-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 5px;
-  flex: none;
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.chip-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.chip-name {
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chip-size {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-.chip-x {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  flex: none;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-faint);
-  cursor: pointer;
-}
-.chip-x:hover {
-  background: var(--surface-active);
-  color: var(--text);
-}
-
-.dropzone {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  background: rgba(var(--tint), 0.72);
-  backdrop-filter: blur(8px);
-  pointer-events: none;
-}
-.dropzone-inner {
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  padding: 26px 40px;
-  border-radius: var(--radius);
-  border: 2px dashed var(--accent-line);
-  color: var(--text);
-  text-align: center;
-}
-.dropzone-hint {
-  font-size: 12px;
-  color: var(--text-faint);
-}
-
-.composer {
-  max-width: 900px;
-  margin: 0 auto;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  backdrop-filter: blur(18px);
-  overflow: hidden;
-  /* Above the busy animation overlay. */
-  position: relative;
-  z-index: 2;
-}
-.composer textarea {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  outline: none;
-  resize: none;
-  padding: 12px 14px 4px;
-  min-height: 52px;
-  max-height: 220px;
-  line-height: 1.5;
-}
-.composer-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px 8px 8px;
-}
-.composer-bar .spacer {
-  flex: 1;
-}
-.send {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 0;
-  background: var(--accent);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.send:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-/* Кнопка остановки активного хода — отдельная от отправки. */
-.iconbtn.stop {
-  color: var(--danger);
-}
-.iconbtn.stop:hover {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.hintbar {
-  max-width: 900px;
-  margin: 6px auto 0;
-  color: var(--text-faint);
-  font-size: 11px;
-  text-align: right;
-}
 
 /* ---------------- misc ---------------- */
 
@@ -2150,6 +1744,12 @@ body:has(.m-app) {
 .chat-body {
   flex: 1;
   min-height: 0;
+  /* As a flex item this defaulted to `min-width: auto`, which is its
+     min-content size — so the header toolbar's natural width became a floor the
+     whole conversation column could not go below. On a phone that pushed the
+     transcript, the composer and every message bubble past the right edge of a
+     412px screen. Sibling `.chat-main` already sets this; its parent did not. */
+  min-width: 0;
   display: flex;
   align-items: stretch;
 }

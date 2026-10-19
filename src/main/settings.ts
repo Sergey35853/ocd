@@ -6,7 +6,7 @@ import type { AppSettings } from "@shared/types"
 const DEFAULTS: AppSettings = {
   defaultDirectory: "",
   defaultProvider: "opencode",
-  defaultModel: "space-bunny-free",
+  defaultModel: "minimax-m3.1-flash-free",
   defaultAgent: "build",
   // Win11 "Mica Alt" look: light, neutral, low saturation.
   theme: "light",
