@@ -198,6 +198,35 @@ function Shell() {
     }
   }, [view])
 
+  /**
+   * The sessions list is a drawer in a narrow window, not a column beside the
+   * chat.
+   *
+   * Two things follow from that and neither is a styling detail. It must start
+   * closed, or the app opens onto the list and hides the conversation it was
+   * opened for; and it must close itself once a conversation is picked, or the
+   * user has to find the hamburger again to read what they just tapped.
+   *
+   * Asked of `matchMedia` rather than of the window width so the answer follows
+   * a resize instead of being frozen at the first render.
+   */
+  const narrow = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 820px)").matches,
+    [],
+  )
+
+  useEffect(() => {
+    if (narrow) setSidebarOpen(false)
+  }, [narrow])
+
+  const pickSession = useCallback(
+    (sessionId: string) => {
+      store.openSession(sessionId)
+      if (narrow) setSidebarOpen(false)
+    },
+    [narrow, store],
+  )
+
   const filteredSessions = useMemo(() => {
     const needle = query.trim().toLowerCase()
     // Sessions already listed above as a body match are not repeated below.
@@ -586,7 +615,7 @@ function Shell() {
                       key={hit.sessionId}
                       type="button"
                       className={cx("sess", "hit", hit.sessionId === store.activeTab && "active")}
-                      onClick={() => store.openSession(hit.sessionId)}
+                      onClick={() => pickSession(hit.sessionId)}
                       title={hit.snippet}
                     >
                       <span className="t">{hit.title || t("session.untitled")}</span>
@@ -615,7 +644,7 @@ function Shell() {
                       key={session.id}
                       type="button"
                       className={cx("sess", session.id === store.activeTab && "active")}
-                      onClick={() => store.openSession(session.id)}
+                      onClick={() => pickSession(session.id)}
                       title={session.location?.directory ?? session.id}
                     >
                       <span className={cx("bullet", store.busy[session.id] && "live")} />
@@ -674,7 +703,7 @@ function Shell() {
         onClose={() => setPaletteOpen(false)}
         onOpenSession={(id) => {
           setView("chat")
-          void store.openSession(id)
+          pickSession(id)
         }}
       />
     </div>

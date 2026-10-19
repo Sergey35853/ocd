@@ -9,6 +9,9 @@ import { useT } from "../i18n"
 /** Where a person goes when the app has nowhere to send a note. */
 const AUTHOR_URL = "https://github.com/Sergey35853"
 
+/** The same door by a second road, for the people who do not use GitHub. */
+const AUTHOR_TELEGRAM = "https://t.me/Link_Ser"
+
 /** Matches the caps in main/feedback.ts, so a pasted wall of text is cut, not refused. */
 const MAX_MESSAGE = 4000
 const MAX_CONTACT = 200
@@ -224,6 +227,15 @@ export function AboutView({ onBack }: { onBack: () => void }) {
                 onClick={() => void window.ocd.app.openExternal(AUTHOR_URL)}
               >
                 <IconLink size={14} /> {t("about.authorGitHub")}
+              </button>
+              {/* Not translated: a brand reads the same in every language here,
+                  and five identical strings are five places to keep in step. */}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void window.ocd.app.openExternal(AUTHOR_TELEGRAM)}
+              >
+                <IconLink size={14} /> Telegram
               </button>
             </div>
           </div>

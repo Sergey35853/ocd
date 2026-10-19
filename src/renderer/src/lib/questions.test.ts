@@ -88,6 +88,53 @@ describe("pendingQuestions", () => {
     expect(questions[0].form?.id).toBe("f1")
   })
 
+  it("keeps a question whose call has not finished yet", () => {
+    const block = asking("c1", "Формат?")
+    const questions = pendingQuestions([turn([block], 1)], [])
+    expect(questions).toHaveLength(1)
+  })
+
+  it("drops a question the model has already moved past", () => {
+    const block = asking("c1", "Формат?")
+    block.state = { ...block.state, status: "completed" }
+    const questions = pendingQuestions([turn([block], 1)], [])
+    expect(questions).toEqual([])
+  })
+
+  it("keeps it while its form is still open, however the call reads", () => {
+    const block = asking("c1", "Формат?")
+    block.state = { ...block.state, status: "completed" }
+    const questions = pendingQuestions([turn([block], 1)], [form("f1", "c1")])
+    expect(questions).toHaveLength(1)
+    expect(questions[0].form?.id).toBe("f1")
+  })
+
+  it("asks nothing once every question of the session is answered", () => {
+    const answered = asking("c1", "Формат?")
+    answered.state = { ...answered.state, status: "completed" }
+    const asked = asking("c2", "Тема?")
+    const questions = pendingQuestions([turn([answered, asked], 1)], [])
+    expect(questions.map((item) => item.key)).toEqual(["c2"])
+  })
+
+  it("drops a call this window settled while the server still calls it running", () => {
+    const questions = pendingQuestions([turn([asking("c1", "Формат?")], 1)], [], ["c1"])
+    expect(questions).toEqual([])
+  })
+
+  it("keeps the rest of the session when one call is settled here", () => {
+    const messages = [turn([asking("c1", "Первая?"), asking("c2", "Вторая?")], 1)]
+    expect(pendingQuestions(messages, [], ["c1"]).map((item) => item.key)).toEqual(["c2"])
+  })
+
+  it("lets a settled call come back when the form it lost is still open", () => {
+    const questions = pendingQuestions([turn([asking("c1", "Формат?")], 1)], [form("f1", "c1")], [
+      "c1",
+    ])
+    expect(questions).toHaveLength(1)
+    expect(questions[0].form?.id).toBe("f1")
+  })
+
   it("asks nothing when the conversation is quiet", () => {
     expect(
       pendingQuestions([turn([{ type: "tool", name: "read", id: "t1", state: {} }], 1)], []),

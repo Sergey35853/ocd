@@ -901,6 +901,81 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   /** Whether the stream should follow new content. See the scroll listener. */
   const pinnedRef = useRef(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  /**
+   * Whether an input method is mid-word right now.
+   *
+   * Only used for Enter, and the reason is that Enter means two different things.
+   * Outside a composition it sends. While an IME is still assembling a word, it
+   * is the key that takes the word — sending there throws the message away and
+   * keeps the half-typed text in the IME.
+   *
+   * It does NOT make typing work — see `composerIme.test.ts`, which records that
+   * gap rather than pretending it is closed.
+   */
+  const composingRef = useRef(false)
+
+  /** The field is not controlled, so the app writes into the element itself. */
+  const draftRef = useRef("")
+  /** A change made while an IME was mid-word, waiting for `compositionend`. */
+  const pendingDraft = useRef<string | null>(null)
+  /** When the last touch sent on the finger going down, to skip its click. */
+  const sentOnPointer = useRef(0)
+  /**
+   * Until when the field must not be written to.
+   *
+   * The keyboard commits a word on its own schedule, and a tap anywhere outside
+   * the field makes it commit right then. Writing into the field inside that
+   * window leaves the WebView unresponsive — measured, not guessed: the page
+   * stops answering evals and taps alike until the app is restarted.
+   *
+   * `fieldFocused` is the wider half of the same rule, and the one that actually
+   * bit: a composition event is not needed for this. The keyboard is up, it
+   * holds its own idea of what the field contains, and writing `value` under it
+   * is enough to hang the renderer — the page answers nothing afterwards,
+   * including the very next tap. So the field is not written to for as long as
+   * it has focus: what wanted to go in waits, and goes in once the keyboard has
+   * gone and the commit is over.
+   */
+  const imeBusyUntil = useRef(0)
+  const fieldFocused = useRef(false)
+
+  /** Grow the field to fit what is in it, up to a sensible ceiling. */
+  const fitField = useCallback((node: HTMLTextAreaElement | null) => {
+    if (!node) return
+    node.style.height = "auto"
+    node.style.height = `${Math.min(node.scrollHeight, 220)}px`
+  }, [])
+
+  /**
+   * Put text into the field, not only into state.
+   *
+   * With the element uncontrolled, state alone would leave the screen showing
+   * something else — the difference between a draft surviving a switch of
+   * conversation and silently vanishing.
+   */
+  const applyDraft = useCallback(
+    (text: string) => {
+      draftRef.current = text
+      setDraft(text)
+      const node = textareaRef.current
+      if (!node) return
+      // Yanking the value out from under an input method that is still holding
+      // an unfinished word is what makes the view appear to hang on send: the
+      // text it is holding is deleted underneath it, and the WebView stops
+      // responding — no further tap, no further event, nothing until the app is
+      // restarted. So the write waits for the IME to let go (`fieldFocused`),
+      // and then for the commit to finish (`imeBusyUntil`). See the note on
+      // those two.
+      if (composingRef.current || fieldFocused.current || Date.now() < imeBusyUntil.current) {
+        pendingDraft.current = text
+        return
+      }
+      pendingDraft.current = null
+      if (node.value !== text) node.value = text
+      fitField(node)
+    },
+    [fitField],
+  )
 
   // Preview pane: opened on demand, auto-opened when the assistant produces
   // something viewable, and optionally pinned so it survives new targets and
@@ -1036,12 +1111,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     (label: string) => {
       // An empty label is the "my own answer" path: clear the box and let the
       // user type, rather than leaving a suggestion they have to delete.
-      setDraft(label)
+      applyDraft(label)
       writeDraft(sessionId, label)
       textareaRef.current?.focus()
       if (label) textareaRef.current?.setSelectionRange(label.length, label.length)
     },
-    [sessionId],
+    [applyDraft, sessionId],
   )
 
 
@@ -1096,7 +1171,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
 
   const editPrompt = useCallback(
     (text: string, messageId?: string) => {
-      setDraft(text)
+      applyDraft(text)
       writeDraft(sessionId, text)
       textareaRef.current?.focus()
       textareaRef.current?.setSelectionRange(text.length, text.length)
@@ -1104,7 +1179,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       // has an id the server has never seen.
       setEditTarget(messageId ? { id: messageId, text } : null)
     },
-    [sessionId],
+    [applyDraft, sessionId],
   )
 
   const live = sessionId ? store.live[sessionId] : undefined
@@ -1117,7 +1192,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     const done = await store.editAndResend(sessionId, editTarget.id, draft)
     if (done) {
       setEditTarget(null)
-      setDraft("")
+      applyDraft("")
       writeDraft(sessionId, "")
       // Whatever the pane was showing came from the messages that no longer
       // exist, so it would sit there showing the wrong document.
@@ -1127,7 +1202,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       }
       dismissedFor.current = null
     }
-  }, [draft, editTarget, sessionId, previewPinned, store])
+  }, [applyDraft, draft, editTarget, sessionId, previewPinned, store])
 
   const isBusy = sessionId ? Boolean(store.busy[sessionId]) : false
   const turnStart = sessionId ? store.turnStart[sessionId] : undefined
@@ -1171,9 +1246,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   useEffect(() => {
     void load()
     // Restore this conversation's unsent prompt, not a stale one from the tab
-    // the user just left.
-    setDraft(readDraft(sessionId ?? ""))
-  }, [load, sessionId])
+    // the user just left. This has to write into the field itself, not only into
+    // state — otherwise switching conversations leaves the old words on screen
+    // while the draft belongs to the new one.
+    applyDraft(readDraft(sessionId ?? ""))
+  }, [load, sessionId, applyDraft])
 
   // The stream arrives over SSE and never reloads the history, so without this
   // the last reply stays invisible until something else happens to trigger a
@@ -1295,9 +1372,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       void store.send(sessionId, text, store.settings?.defaultAgent)
       return
     }
-    setDraft((current) => (current ? `${current} ${text}` : text))
+    applyDraft(draftRef.current ? `${draftRef.current} ${text}` : text)
     textareaRef.current?.focus()
-  }, [store.dictationText, store, sessionId])
+  }, [store.dictationText, store, sessionId, applyDraft])
 
   // The tray's "quick ask" and the global hotkey both ask main to show the
   // window; main cannot reach into React, so the renderer listens and puts the
@@ -1355,8 +1432,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * reads from the bottom, where the composer and the answer both are.
    */
   const questions = useMemo(
-    () => pendingQuestions(turns, store.forms[sessionId] ?? []),
-    [sessionId, store.forms, turns],
+    () => pendingQuestions(turns, store.forms[sessionId] ?? [], store.settledCalls[sessionId]),
+    [sessionId, store.forms, store.settledCalls, turns],
   )
 
   /**
@@ -1564,7 +1641,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   )
 
   const onPaste = useCallback(
-    async (event: React.ClipboardEvent) => {
+    async (event: ClipboardEvent) => {
       const items = Array.from(event.clipboardData?.items ?? [])
       const imageItem = items.find((item) => item.type.startsWith("image/"))
       if (!imageItem) return
@@ -1647,7 +1724,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   }, [addPicked])
 
   const submit = () => {
-    const body = draft.trim()
+    // Read from the element, not from state. An input method holds a word in
+    // composition and never hands it over until something ends it, so at the
+    // moment somebody presses Send the state can still be a word behind — and
+    // the field would go out saying "cannot send".
+    const body = (textareaRef.current?.value ?? draft).trim()
     // Only what the prompt endpoint takes. An `Attachment` carries display state
     // too, and handing that over would put keys the server's schema rejects.
     const files: PromptFile[] = attachments.map((item) => ({
@@ -1657,7 +1738,35 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     }))
     // Sending stays allowed during an active turn: the prompt joins the queue.
     if (!body && files.length === 0) return
-    setDraft("")
+
+    // No session means nothing to send into. Usually there is one — the tabs are
+    // the sessions and one is open — but a fresh window can open straight into
+    // this chat with nothing selected, and every send then went to the
+    // empty-string session and vanished. Creating one here is what a person
+    // pressing "send" meant, and it is the same thing the desktop's Ctrl+N does
+    // before it puts them here.
+    if (!sessionId) {
+      const text = body
+      const pending = files
+      applyDraft("")
+      void (async () => {
+        try {
+          const id = await store.newSession()
+          if (!id) {
+            applyDraft(text)
+            store.toast(t("chat.sendNoSession"), "error")
+            return
+          }
+          await store.send(id, text, store.settings?.defaultAgent, pending)
+        } catch (err) {
+          applyDraft(text)
+          store.toast(err instanceof Error ? err.message : String(err), "error")
+        }
+      })()
+      return
+    }
+
+    applyDraft("")
     writeDraft(sessionId, "")
     // Remember what was attached before the chips go: this is what feeds the
     // preview pane for the turn that is about to run.
@@ -1684,12 +1793,187 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       // because that is what the server message is matched on anyway.
       if (attachments.length) sentFiles.current.set(body, [...attachments])
     }
-    void store.send(sessionId ?? "", body, store.settings?.defaultAgent, files)
+    // A session always exists by this point: the branch above returns otherwise.
+    void store.send(sessionId, body, store.settings?.defaultAgent, files)
+    // The keyboard is still up, holding its own idea of what the field says, and
+    // the text must not stay there either — the next send would post it twice.
+    // So the keyboard goes first: the field is emptied by `flushPending` once the
+    // commit it triggers is over. Blurring is the only way to make it go, and
+    // doing it here — after the message is out, and with nothing written to the
+    // field on this tick — is what keeps the WebView alive.
+    if (fieldFocused.current) textareaRef.current?.blur()
   }
 
   const defaultKey = `${store.settings?.defaultProvider}/${store.settings?.defaultModel}`
   const activeKey = sessionModel ? `${sessionModel.providerID}/${sessionModel.id}` : defaultKey
   const modelMismatch = Boolean(sessionModel) && activeKey !== defaultKey
+
+  /*
+   * The composer element, built here rather than rendered.
+   *
+   * Measured, in this app, on this emulator, by bisecting rather than guessing.
+   * A bare `<textarea>` placed inside `.composer` itself types perfectly — "П",
+   * "Пр", "Про", "Пров", "Прове" — so the container and the stylesheet are not
+   * involved. The same element as a React component receives exactly one
+   * character: `input:insertCompositionText` arrives with "П" in it, React's
+   * onChange does not run for that event type, and the composition never ends.
+   * Removing `value` did not help, so this is not the controlled-value
+   * write-back; it is React handling the element at all.
+   *
+   * So React renders only the container. Everything it used to do through props
+   * is done by hand here.
+   *
+   * Placed after `submit`, `sessionId` and `onPaste` exist on purpose: reaching
+   * for any of them from higher up is a ReferenceError, not a stale value, and
+   * the first attempt at this sat above them and rendered a blank screen.
+   */
+  const composerHostRef = useRef<HTMLDivElement>(null)
+  const fieldLive = useRef({
+    submit: () => {},
+    sendOnEnter: true,
+    sessionId: "",
+    paste: async (_event: ClipboardEvent) => {},
+  })
+  fieldLive.current.submit = submit
+  fieldLive.current.sendOnEnter = store.settings?.sendOnEnter !== false
+  fieldLive.current.sessionId = sessionId
+  fieldLive.current.paste = onPaste
+
+  useEffect(() => {
+    const host = composerHostRef.current
+    if (!host) return
+
+    const node = document.createElement("textarea")
+    node.rows = 2
+    node.placeholder = t("chat.placeholder")
+    host.appendChild(node)
+    textareaRef.current = node
+
+    const sync = () => {
+      const text = node.value
+      draftRef.current = text
+      writeDraft(fieldLive.current.sessionId ?? "", text)
+      fitField(node)
+      // Send is a React button whose disabled state is derived from `draft`, and
+      // putting every character of a composition into that state re-renders the
+      // view while the keyboard is still assembling the word — which kills the
+      // composition on the first character, and the field then takes nothing more.
+      // Measured, not guessed: the field types the whole word with this call out
+      // of `setDraft`, and takes one character with it in.
+      //
+      // So the button is enabled here directly, and `draft` is brought up to
+      // date when the word is finished. Sending reads the element rather than the
+      // state, so a word that has not been committed yet still goes.
+      const send = node.closest(".composer")?.querySelector("button.send")
+      if (send instanceof HTMLButtonElement) send.disabled = !text.trim()
+    }
+    /** Frees the field once the keyboard has finished committing. */
+    let settleTimer: ReturnType<typeof setTimeout> | undefined
+    /**
+     * The keyboard is committing a word and must not be written to yet.
+     *
+     * Both ways into it are covered: the word it was assembling (composition),
+     * and the word it is committing because something outside the field was
+     * tapped — which arrives without a `compositionend` of its own. The window
+     * is short; what was written meanwhile goes in when it closes.
+     */
+    const settleIme = () => {
+      imeBusyUntil.current = Date.now() + 250
+      clearTimeout(settleTimer)
+      settleTimer = setTimeout(() => {
+        imeBusyUntil.current = 0
+        flushPending()
+      }, 280)
+    }
+    const flushPending = () => {
+      const queued = pendingDraft.current
+      if (queued === null || composingRef.current || Date.now() < imeBusyUntil.current) return
+      pendingDraft.current = null
+      if (node.value === queued) return
+      node.value = queued
+      fitField(node)
+      const send = node.closest(".composer")?.querySelector("button.send")
+      if (send instanceof HTMLButtonElement) send.disabled = !queued.trim()
+    }
+    const onCompositionStart = () => {
+      composingRef.current = true
+    }
+    const onCompositionEnd = () => {
+      composingRef.current = false
+      // Nothing is written to the field, and no state is set, on this tick:
+      // the keyboard is still committing the word it was holding, and a write
+      // or a re-render from inside that moment leaves the WebView
+      // unresponsive. The word is read — nothing is touched — and everything
+      // else happens once the keyboard is out of the way.
+      const word = node.value
+      settleIme()
+      setTimeout(() => {
+        if (textareaRef.current !== node) return
+        sync()
+        // The word is finished, so the rest of the view can safely hear about it.
+        setDraft(word)
+        flushPending()
+      }, 0)
+    }
+    const onBlur = () => {
+      // Losing focus is the keyboard leaving: it commits whatever it was holding
+      // right now, and the field is not to be written to until that is done.
+      fieldFocused.current = false
+      settleIme()
+    }
+    const onFocus = () => {
+      // The keyboard is up from here to `blur`, and it is the whole of the time
+      // the field must not be written to. Not the same as `composingRef`: the
+      // keyboard can be open with nothing being composed, and a write then is
+      // just as fatal.
+      fieldFocused.current = true
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.shiftKey) return
+      // While the keyboard is mid-word, Enter is the key that takes the word.
+      // Sending there throws the message away and keeps the half-typed text.
+      if (composingRef.current) return
+      if (!fieldLive.current.sendOnEnter) return
+      event.preventDefault()
+      fieldLive.current.submit()
+    }
+    const onContextMenu = (event: Event) => {
+      event.preventDefault()
+      void window.ocd.contextMenu.show("input")
+    }
+    const onPasteHere = (event: Event) => {
+      void fieldLive.current.paste(event as ClipboardEvent)
+    }
+
+    node.addEventListener("input", sync)
+    node.addEventListener("focus", onFocus)
+    node.addEventListener("compositionstart", onCompositionStart)
+    node.addEventListener("compositionend", onCompositionEnd)
+    node.addEventListener("blur", onBlur)
+    node.addEventListener("keydown", onKeyDown as EventListener)
+    node.addEventListener("paste", onPasteHere)
+    node.addEventListener("contextmenu", onContextMenu)
+
+    return () => {
+      clearTimeout(settleTimer)
+      node.removeEventListener("input", sync)
+      node.removeEventListener("focus", onFocus)
+      node.removeEventListener("compositionstart", onCompositionStart)
+      node.removeEventListener("compositionend", onCompositionEnd)
+      node.removeEventListener("blur", onBlur)
+      node.removeEventListener("keydown", onKeyDown as EventListener)
+      node.removeEventListener("paste", onPasteHere)
+      node.removeEventListener("contextmenu", onContextMenu)
+      if (node.parentElement === host) host.removeChild(node)
+      textareaRef.current = null
+    }
+  }, [fitField, t])
+
+  // The placeholder follows the language; the element itself is built once.
+  useEffect(() => {
+    const node = textareaRef.current
+    if (node) node.placeholder = t("chat.placeholder")
+  }, [t])
 
   return (
     <div className="chat">
@@ -2080,33 +2364,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                 </div>
               ) : null}
 
-              <textarea
-                ref={textareaRef}
-                value={draft}
-                placeholder={t("chat.placeholder")}
-                onChange={(event) => {
-                  setDraft(event.target.value)
-                  writeDraft(sessionId ?? "", event.target.value)
-                  const node = event.target
-                  node.style.height = "auto"
-                  node.style.height = `${Math.min(node.scrollHeight, 220)}px`
-                }}
-                onPaste={(event) => void onPaste(event)}
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  void window.ocd.contextMenu.show("input")
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    store.settings?.sendOnEnter !== false
-                  ) {
-                    event.preventDefault()
-                    submit()
-                  }
-                }}
-              />
+              <div ref={composerHostRef} />
 
               <div className="composer-bar">
                 <button
@@ -2180,7 +2438,24 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                     className="send"
                     title={t("chat.send")}
                     disabled={!draft.trim() && attachments.length === 0}
-                    onClick={submit}
+                    // Sent on the finger going down, not on the click.
+                    //
+                    // Measured on this emulator, with the keyboard open: the tap
+                    // hands the page pointerdown and then nothing — no click ever
+                    // arrives, because closing the keyboard moves the button
+                    // under the finger and Chromium drops the click it was about
+                    // to synthesise for a target that moved. pointerdown is the
+                    // one event of that tap that is not thrown away.
+                    onPointerDown={() => {
+                      sentOnPointer.current = Date.now()
+                      submit()
+                    }}
+                    onClick={() => {
+                      // The tap above also produces a click a moment later.
+                      // Sending on both would queue the same message twice.
+                      if (Date.now() - sentOnPointer.current < 1500) return
+                      submit()
+                    }}
                   >
                     <IconSend size={15} />
                   </button>
@@ -2203,3 +2478,6 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     </div>
   )
 }
+
+
+

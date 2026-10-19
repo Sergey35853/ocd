@@ -79,10 +79,16 @@ export interface PendingQuestion {
  * Questions are ordered by their place in the chat, and one whose tool call is
  * not in the loaded history goes last: it has no position to be found at, and
  * it still has to be visible rather than silently lost.
+ *
+ * `settled` names the calls this window answered or dismissed. The server only
+ * marks a call finished a beat after the reply lands, and until it does the
+ * call reads as still running, which would leave a card that looks live over an
+ * answer already given.
  */
 export function pendingQuestions(
   messages: MessageInfo[],
   forms: PendingForm[],
+  settled: string[] = [],
 ): PendingQuestion[] {
   const byCall = new Map<string, PendingForm>()
   for (const form of forms) {
@@ -90,6 +96,7 @@ export function pendingQuestions(
     if (call) byCall.set(call, form)
   }
 
+  const done = new Set(settled)
   const asked: PendingQuestion[] = []
   const taken = new Set<string>()
 
@@ -101,6 +108,10 @@ export function pendingQuestions(
       const call = callKey(block)
       const form = call ? byCall.get(call) : undefined
       if (call && form) taken.add(call)
+      // Answered or dismissed: the question stays in the transcript, but the
+      // model is no longer waiting. Without this the card is rebuilt from the
+      // block on every render and outlives the answer.
+      if (!form && (block.state?.status === "completed" || (call && done.has(call)))) continue
       asked.push({
         key: call ?? `${message.id}-${asked.length}`,
         ...(form ? { form } : {}),

@@ -181,6 +181,8 @@ interface Store {
   ): Promise<void>
   /** Questions the model is waiting on, per conversation. */
   forms: Record<string, PendingForm[]>
+  /** Tool calls this window settled, per conversation. */
+  settledCalls: Record<string, string[]>
   /** Commands run in the background, newest first, per conversation. */
   shellRuns: Record<string, ShellRun[]>
   /** Re-read the waiting questions for a conversation. */
@@ -379,6 +381,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [pendingPermissions, setPendingPermissions] = useState<PermissionRequest[]>([])
   /** Questions the model is waiting on, per conversation. */
   const [forms, setForms] = useState<Record<string, PendingForm[]>>({})
+  /**
+   * Tool calls this window settled, per conversation.
+   *
+   * The transcript only admits a question was answered once the server gets
+   * round to finishing the call, and that comes a beat after the reply went
+   * out. These say so in the meantime, or the card keeps looking live for the
+   * length of a round trip.
+   */
+  const [settledCalls, setSettledCalls] = useState<Record<string, string[]>>({})
+  /** Mirror of `forms`, so a callback can name the call behind a form id. */
+  const formsRef = useRef<Record<string, PendingForm[]>>(forms)
   /**
    * Commands run in the background, newest first, per conversation.
    *
@@ -712,6 +725,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [toast, pollPermissions],
   )
 
+  /** Write one session's waiting questions, keeping the mirror in step. */
+  const putForms = useCallback((sessionId: string, next: PendingForm[]) => {
+    formsRef.current = { ...formsRef.current, [sessionId]: next }
+    setForms((current) => ({ ...current, [sessionId]: next }))
+  }, [])
+
+  const dropForm = useCallback((sessionId: string, formId: string) => {
+    putForms(
+      sessionId,
+      (formsRef.current[sessionId] ?? []).filter((item) => item.id !== formId),
+    )
+  }, [putForms])
+
   /**
    * Refresh the questions waiting on one session.
    *
@@ -719,16 +745,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * is gone from the server, and keeping it on screen would leave a dead
    * question the user can click forever.
    */
-  const pollForms = useCallback(async (sessionId: string) => {
-    if (!sessionId) return
-    try {
-      const waiting = await window.ocd.form.list(sessionId)
-      setForms((current) =>
-        waiting.length ? { ...current, [sessionId]: waiting } : { ...current, [sessionId]: [] },
-      )
-    } catch {
-      /* the server may not be connected yet */
-    }
+  const pollForms = useCallback(
+    async (sessionId: string) => {
+      if (!sessionId) return
+      try {
+        const waiting = await window.ocd.form.list(sessionId)
+        putForms(sessionId, waiting)
+      } catch {
+        /* the server may not be connected yet */
+      }
+    },
+    [putForms],
+  )
+
+  /**
+   * Note that this window settled a question, and name the call behind it.
+   *
+   * Returns the call so a failed request can take the note back: the form comes
+   * back on the next poll, and the card has to come back with it.
+   */
+  const settleCall = useCallback((sessionId: string, formId: string) => {
+    const call = (formsRef.current[sessionId] ?? []).find((item) => item.id === formId)?.metadata?.tool?.id
+    if (!call) return null
+    setSettledCalls((current) => {
+      const list = current[sessionId] ?? []
+      return list.includes(call) ? current : { ...current, [sessionId]: [...list, call] }
+    })
+    return call
+  }, [])
+
+  const unsettleCall = useCallback((sessionId: string, call: string | null) => {
+    if (!call) return
+    setSettledCalls((current) => ({
+      ...current,
+      [sessionId]: (current[sessionId] ?? []).filter((item) => item !== call),
+    }))
   }, [])
 
   /**
@@ -739,35 +790,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    */
   const answerForm = useCallback(
     async (sessionId: string, formId: string, answer: FormAnswer) => {
-      setForms((current) => ({
-        ...current,
-        [sessionId]: (current[sessionId] ?? []).filter((item) => item.id !== formId),
-      }))
+      const call = settleCall(sessionId, formId)
+      dropForm(sessionId, formId)
       try {
         await window.ocd.form.reply(sessionId, formId, answer)
       } catch (err) {
+        unsettleCall(sessionId, call)
         toast(err instanceof Error ? err.message : String(err), "error")
         void pollForms(sessionId)
       }
     },
-    [pollForms, toast],
+    [dropForm, pollForms, settleCall, toast, unsettleCall],
   )
 
   /** Dismiss a question without answering, so the turn is not stuck on it. */
   const cancelForm = useCallback(
     async (sessionId: string, formId: string) => {
-      setForms((current) => ({
-        ...current,
-        [sessionId]: (current[sessionId] ?? []).filter((item) => item.id !== formId),
-      }))
+      const call = settleCall(sessionId, formId)
+      dropForm(sessionId, formId)
       try {
         await window.ocd.form.cancel(sessionId, formId)
       } catch (err) {
+        unsettleCall(sessionId, call)
         toast(err instanceof Error ? err.message : String(err), "error")
         void pollForms(sessionId)
       }
     },
-    [pollForms, toast],
+    [dropForm, pollForms, settleCall, toast, unsettleCall],
   )
 
   /**
@@ -1587,6 +1636,7 @@ useEffect(() => {
       pollPermissions,
       answerPermission,
       forms,
+      settledCalls,
       shellRuns,
       pollForms,
       answerForm,
@@ -1643,6 +1693,7 @@ useEffect(() => {
       resetLimits,
       shellRuns,
       forms,
+      settledCalls,
       live,
       models,
       providers,
