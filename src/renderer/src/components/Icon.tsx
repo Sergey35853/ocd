@@ -151,6 +151,17 @@ export const IconClose = (p: Props) =>
 
 export const IconChevron = (p: Props) => svg(<path d="m9 6 6 6-6 6" />, p)
 
+/** Three dots: the actions of a conversation. */
+export const IconMore = (p: Props) =>
+  svg(
+    <>
+      <circle cx="5" cy="12" r="1.4" />
+      <circle cx="12" cy="12" r="1.4" />
+      <circle cx="19" cy="12" r="1.4" />
+    </>,
+    p,
+  )
+
 /** Hamburger: opens the packed navigation menu. */
 export const IconMenu = (p: Props) =>
   svg(

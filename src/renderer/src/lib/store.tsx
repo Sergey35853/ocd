@@ -19,6 +19,7 @@ import type {
   PendingForm,
   PermissionDecision,
   PermissionRequest,
+  PermissionRule,
   ModelInfo,
   ModelRef,
   ProviderInfo,
@@ -204,6 +205,18 @@ interface Store {
   ): Promise<void>
   /** Pins the agent of a conversation and remembers it as the default. */
   setAgent(agent: string, sessionId?: string | null): Promise<void>
+  /** Asks the server to shrink the conversation. */
+  compactSession(sessionId: string): Promise<void>
+  /** Branches the conversation into a new session. */
+  forkSession(sessionId: string): Promise<void>
+  /** Moves a session to another project directory. */
+  moveSession(sessionId: string, directory: string): Promise<void>
+  /** Runs one of the server's commands in a conversation. */
+  runSessionCommand(sessionId: string, command: { name: string; text: string }): Promise<void>
+  /** The permission answers the server remembers. */
+  permissionRules(projectID?: string): Promise<PermissionRule[]>
+  /** Forgets one remembered permission answer. */
+  deletePermissionRule(id: string): Promise<void>
   /** Reads back what a conversation is really running on. */
   refreshSessionInfo(sessionId: string): Promise<void>
   /** Rewinds the conversation to a message and resends it; false if refused. */
@@ -1074,6 +1087,96 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  /**
+   * Ask the server to shrink the conversation.
+   *
+   * A long chat fills the model's context window; the server answers with a
+   * summary and carries on. The work happens on the server, so this only
+   * queues it.
+   */
+  const compactSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        await window.ocd.api.compactSession(sessionId)
+        toast(translate("toast.compactQueued"), "info")
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [toast],
+  )
+
+  /**
+   * Branch the conversation.
+   *
+   * The new session continues from the same place, so a different direction
+   * can be tried without losing the old one.
+   */
+  const forkSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        const forked = await window.ocd.api.forkSession(sessionId)
+        await refreshSessions()
+        if (forked?.id) openSession(forked.id)
+        toast(translate("toast.forked"), "info")
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [openSession, refreshSessions, toast],
+  )
+
+  /** Move a session to another project directory. */
+  const moveSession = useCallback(
+    async (sessionId: string, directory: string) => {
+      try {
+        await window.ocd.api.moveSession(sessionId, directory)
+        await refreshSessions()
+        toast(translate("toast.moved"), "info")
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [refreshSessions, toast],
+  )
+
+  /** Run one of the server's commands inside a conversation. */
+  const runSessionCommand = useCallback(
+    async (sessionId: string, command: { name: string; text: string }) => {
+      try {
+        await window.ocd.api.runSessionCommand(sessionId, command)
+        toast(translate("toast.commandRun", { name: command.name }), "info")
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [toast],
+  )
+
+  /** The permission answers the server remembers for this project. */
+  const permissionRules = useCallback(
+    async (projectID?: string) => {
+      try {
+        return await window.ocd.api.permissionRules(projectID)
+      } catch {
+        return []
+      }
+    },
+    [],
+  )
+
+  /** Forget one remembered permission answer. */
+  const deletePermissionRule = useCallback(
+    async (id: string) => {
+      try {
+        await window.ocd.api.deletePermissionRule(id)
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [toast],
+  )
+
   const clearDictationText = useCallback(() => setDictationText(null), [])
 
   /**
@@ -1753,6 +1856,12 @@ useEffect(() => {
       setModel,
       setAgent,
       refreshSessionInfo,
+      compactSession,
+      forkSession,
+      moveSession,
+      runSessionCommand,
+      permissionRules,
+      deletePermissionRule,
       editAndResend,
       abort,
       updateSettings,
@@ -1810,6 +1919,12 @@ useEffect(() => {
       setModel,
       setAgent,
       refreshSessionInfo,
+      compactSession,
+      forkSession,
+      moveSession,
+      runSessionCommand,
+      permissionRules,
+      deletePermissionRule,
       editAndResend,
       abort,
       updateSettings,

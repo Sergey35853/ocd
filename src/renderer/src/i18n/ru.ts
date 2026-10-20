@@ -41,6 +41,13 @@ export const ru = {
 
   // ---- session titles ----
   "session.untitled": "Без названия",
+  "session.rules": "Правила разрешений…",
+  "session.back": "Назад",
+  "session.command": "Команда…",
+  "session.move": "Перенести в проект…",
+  "session.fork": "Ответить в другой ветке",
+  "session.compact": "Сжать контекст",
+  "session.actions": "Действия с сессией",
   "session.today": "Сегодня",
   "session.week": "Неделя",
   "session.month": "Месяц",
@@ -444,6 +451,10 @@ export const ru = {
 
   // ---- store toasts ----
   "toast.configFailed": "Не удалось записать конфиг",
+  "toast.commandRun": "Команда {name} запущена",
+  "toast.moved": "Сессия перенесена",
+  "toast.forked": "Создана ветка разговора",
+  "toast.compactQueued": "Сжатие контекста поставлено в очередь",
   "toast.restarting": "Перезапускаю сервер OpenCode…",
   "toast.restarted": "Сервер OpenCode перезапущен",
   "toast.restartFailed": "Не удалось поднять сервер",
@@ -611,6 +622,9 @@ export const ru = {
   "queue.empty": "Очередь пуста",
   "preview.missing": "Файл не найден — он удалён или перемещён",
   "perm.title": "Требуется подтверждение",
+  "perm.rulesForget": "Забыть",
+  "perm.rulesEmpty": "Пока ни одного правила нет.",
+  "perm.rulesTitle": "Запомненные разрешения",
   "perm.lead": "Модель хочет выполнить действие. Разрешить?",
   "perm.action": "Действие",
   "perm.agent": "Агент",

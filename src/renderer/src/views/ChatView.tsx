@@ -27,6 +27,7 @@ import {
 import { Picker } from "../components/ui"
 import { BusyAnimation } from "../components/BusyAnimation"
 import { ExportMenu } from "../components/ExportMenu"
+import { SessionActions } from "../components/SessionActions"
 import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
 import { DiffView } from "../components/DiffView"
@@ -2234,6 +2235,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
           selected={sessionAgent ?? store.settings?.defaultAgent ?? "build"}
           onSelect={(key) => void store.setAgent(key, sessionId)}
         />
+        {sessionId ? (
+          <SessionActions sessionId={sessionId} projectID={session?.projectID} />
+        ) : null}
 
         {isBusy && turnStart ? (
           <TurnTimer startedAt={turnStart} samples={turnSamples} now={store.now} />
