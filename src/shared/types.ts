@@ -441,6 +441,32 @@ export interface PermissionRule {
   time?: { created?: number; updated?: number }
 }
 
+/** One file or folder the server found in the project. */
+export interface FileEntry {
+  path: string
+  type: "file" | "directory" | string
+}
+
+/** The branch a project is on. */
+export interface VcsBranch {
+  current?: string
+  default?: string
+}
+
+/** What a project changed in one file. */
+export interface VcsFileStatus {
+  file: string
+  additions?: number
+  deletions?: number
+  status?: "added" | "deleted" | "modified" | string
+}
+
+/** One of the worktrees the server keeps. */
+export interface WorktreeInfo {
+  directory: string
+  strategy?: string
+}
+
 export interface ConfigFileInfo {
   path: string
   text: string
@@ -879,6 +905,14 @@ export interface OcdApi {
     ): Promise<unknown>
     /** Forget a remembered permission answer (DELETE /api/permission/saved/{id}). */
     deletePermissionRule(id: string): Promise<unknown>
+    /** Files of the project, found by name. */
+    findFiles(query: string, directory?: string): Promise<FileEntry[]>
+    /** The branch the project is on. */
+    vcsBranch(directory?: string): Promise<VcsBranch | null>
+    /** What the project changed, per file. */
+    vcsStatus(directory?: string): Promise<VcsFileStatus[]>
+    /** The worktrees the server keeps. */
+    worktrees(): Promise<WorktreeInfo[]>
     /**
      * Rewinds the conversation to before a message, dropping it and everything
      * after. Fails with 409 while a turn is running.

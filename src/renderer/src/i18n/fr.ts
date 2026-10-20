@@ -8,6 +8,10 @@ export const fr: Dict = {
   "common.refresh": "Actualiser",
   "common.search": "Rechercher…",
   "common.notFound": "Aucun résultat",
+  "files.hint": "Commencez à taper pour trouver un fichier.",
+  "files.searching": "Recherche…",
+  "files.placeholder": "Nom ou partie d'un chemin",
+  "files.title": "Trouver un fichier du projet",
   "common.add": "Ajouter",
   "common.default": "par défaut",
 

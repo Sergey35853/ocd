@@ -12,6 +12,10 @@ export const ru = {
   "common.refresh": "Обновить",
   "common.search": "Поиск…",
   "common.notFound": "Ничего не найдено",
+  "files.hint": "Начните печатать, чтобы найти файл.",
+  "files.searching": "Ищу…",
+  "files.placeholder": "Имя или часть пути",
+  "files.title": "Найти файл в проекте",
   "common.add": "Добавить",
   "common.default": "по умолчанию",
 

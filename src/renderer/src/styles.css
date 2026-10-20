@@ -1719,6 +1719,56 @@ input[type="color"] {
   overflow-y: auto;
 }
 
+/* The file search: what the server found in the project. */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.file-empty {
+  padding: 12px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.file-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: 500 13px/1.3 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.file-row:hover {
+  background: var(--surface-hover);
+}
+.file-name {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
 /* The list of remembered permission answers. */
 .rule-list {
   list-style: none;

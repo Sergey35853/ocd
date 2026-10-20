@@ -94,6 +94,10 @@ import type {
   PermissionDecision,
   PermissionRequest,
   PermissionRule,
+  FileEntry,
+  VcsBranch,
+  VcsFileStatus,
+  WorktreeInfo,
   MessageInfo,
   MessagePage,
   MessagePageQuery,
@@ -125,8 +129,15 @@ function unwrapOne<T>(value: unknown): T {
   return value as T
 }
 
+/**
+ * The folder an endpoint should look at.
+ *
+ * The server reads the location as a deep object — `location[directory]` — and
+ * answers 400 for anything else, including the string "[object Object]" that
+ * a plain object used to become.
+ */
 function locationQuery(directory?: string) {
-  return directory ? { directory } : undefined
+  return directory ? { "location[directory]": directory } : undefined
 }
 
 /** An engine id the UI offered; anything else is a bug, not a user error. */
@@ -390,6 +401,53 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<PermissionRule[]>("api:permissionRules", async (projectID?: string) => {
     const rules = await service.get<unknown>("/api/permission/saved", { projectID })
     return Array.isArray(rules) ? (rules as PermissionRule[]) : []
+  })
+
+  /**
+   * Files of the project, by name.
+   *
+   * The server walks the tree itself: the app has no index of its own and no
+   * way to keep one in step with the disk.
+   */
+  handle<FileEntry[]>("api:findFiles", async (query: string, directory?: string) => {
+    const found = await service.get<unknown>("/api/fs/find", {
+      query,
+      limit: 50,
+      ...(directory ? { "location[directory]": directory } : {}),
+    })
+    return Array.isArray(found) ? (found as FileEntry[]) : []
+  })
+
+  /** The branch the project is on. */
+  handle<VcsBranch | null>("api:vcsBranch", async (directory?: string) => {
+    try {
+      const body = await service.get<{ data?: VcsBranch }>("/api/vcs/branch", {
+        ...(directory ? { "location[directory]": directory } : {}),
+      })
+      return body?.data ?? null
+    } catch {
+      // A folder that is not a repository has no branch, and that is not an
+      // error worth a toast.
+      return null
+    }
+  })
+
+  /** What the project changed, per file. */
+  handle<VcsFileStatus[]>("api:vcsStatus", async (directory?: string) => {
+    try {
+      const body = await service.get<{ data?: VcsFileStatus[] }>("/api/vcs/status", {
+        ...(directory ? { "location[directory]": directory } : {}),
+      })
+      return body?.data ?? []
+    } catch {
+      return []
+    }
+  })
+
+  /** The worktrees the server keeps for the projects. */
+  handle<WorktreeInfo[]>("api:worktrees", async () => {
+    const list = await service.get<unknown>("/api/worktree")
+    return Array.isArray(list) ? (list as WorktreeInfo[]) : []
   })
 
   handle<unknown>("api:savePermissionRule", (sessionId: string, rule: { action: string; resources: string[]; save?: string[] }) =>
@@ -945,7 +1003,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /** Permissions the server is blocked on. An empty list means none waiting. */
   handle<PermissionRequest[]>("permission:list", async (directory?: string) =>
     unwrap<PermissionRequest>(
-      await service.get(`/api/permission/request`, directory ? { location: directory } : undefined),
+      await service.get(
+      `/api/permission/request`,
+      directory ? { "location[directory]": directory } : undefined,
+    ),
     ),
   )
 

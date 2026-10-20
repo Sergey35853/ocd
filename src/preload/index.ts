@@ -108,6 +108,10 @@ const api = {
       rule: { action: string; resources: string[]; save?: string[] },
     ) => call("api:savePermissionRule", sessionId, rule),
     deletePermissionRule: (id: string) => call("api:deletePermissionRule", id),
+    findFiles: (query: string, directory?: string) => call("api:findFiles", query, directory),
+    vcsBranch: (directory?: string) => call("api:vcsBranch", directory),
+    vcsStatus: (directory?: string) => call("api:vcsStatus", directory),
+    worktrees: () => call("api:worktrees"),
     /**
      * Rewinds the conversation to before a message. Everything from it on is
      * dropped, which is what "edit and resend" needs.

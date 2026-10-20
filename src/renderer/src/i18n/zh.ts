@@ -8,6 +8,10 @@ export const zh: Dict = {
   "common.refresh": "刷新",
   "common.search": "搜索…",
   "common.notFound": "未找到内容",
+  "files.hint": "开始输入以查找文件。",
+  "files.searching": "搜索中…",
+  "files.placeholder": "文件名或路径片段",
+  "files.title": "在项目中查找文件",
   "common.add": "添加",
   "common.default": "默认",
 

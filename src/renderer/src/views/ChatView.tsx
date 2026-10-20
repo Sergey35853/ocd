@@ -28,6 +28,8 @@ import { Picker } from "../components/ui"
 import { BusyAnimation } from "../components/BusyAnimation"
 import { ExportMenu } from "../components/ExportMenu"
 import { SessionActions } from "../components/SessionActions"
+import { FileSearch } from "../components/FileSearch"
+import { mentionAt } from "./mention"
 import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
 import { DiffView } from "../components/DiffView"
@@ -61,6 +63,7 @@ import {
   IconImage,
   IconMic,
   IconPanel,
+  IconSearch,
   IconSend,
   IconSpeaker,
   IconStop,
@@ -900,6 +903,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   // earlier can still be pinned to a different (possibly blocked) model.
   const [sessionModel, setSessionModel] = useState<ModelRef | null>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  /** The file search, when it is open; the query is what the caret holds. */
+  const [fileSearch, setFileSearch] = useState<{ query: string } | null>(null)
   const [dropping, setDropping] = useState(false)
   const dropDepth = useRef(0)
   const streamRef = useRef<HTMLDivElement>(null)
@@ -2007,11 +2012,21 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     sendOnEnter: true,
     sessionId: "",
     paste: async (_event: ClipboardEvent) => {},
+    mention: (_query: string | null) => {},
   })
   fieldLive.current.submit = submit
   fieldLive.current.sendOnEnter = store.settings?.sendOnEnter !== false
   fieldLive.current.sessionId = sessionId
   fieldLive.current.paste = onPaste
+  fieldLive.current.mention = (query: string | null) => {
+    if (query === null) {
+      setFileSearch((current) => (current?.query === "" ? null : current))
+      return
+    }
+    setFileSearch((current) =>
+      current && current.query === query ? current : { query },
+    )
+  }
 
   useEffect(() => {
     const host = composerHostRef.current
@@ -2040,6 +2055,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       // state, so a word that has not been committed yet still goes.
       const send = node.closest(".composer")?.querySelector("button.send")
       if (send instanceof HTMLButtonElement) send.disabled = !text.trim()
+      // A file mention: `@` opens the file search, and what follows it is the
+      // query. The text itself is left alone — the field belongs to the
+      // keyboard while it is open, and the path is useful to the model anyway.
+      const mention = mentionAt(text, node.selectionStart ?? text.length)
+      fieldLive.current.mention(mention)
     }
     /** Frees the field once the keyboard has finished committing. */
     let settleTimer: ReturnType<typeof setTimeout> | undefined
@@ -2506,6 +2526,17 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             {sessionId && runs.length ? (
               <OutputPanel runs={runs} onOpenTerminal={openTerminalWindow} />
             ) : null}
+            {fileSearch ? (
+              <FileSearch
+                directory={store.directory || undefined}
+                initialQuery={fileSearch.query}
+                onPick={async (paths) => {
+                  addPicked(await window.ocd.attachments.fromPaths(paths))
+                  setFileSearch(null)
+                }}
+                onClose={() => setFileSearch(null)}
+              />
+            ) : null}
             {sessionId ? (
               <QueueBar
                 items={store.inbox[sessionId] ?? []}
@@ -2598,6 +2629,14 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   onClick={async () => addPicked(await window.ocd.attachments.fromClipboard())}
                 >
                   <IconImage size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="iconbtn"
+                  title={t("files.title")}
+                  onClick={() => setFileSearch({ query: "" })}
+                >
+                  <IconSearch size={15} />
                 </button>
 
                 <span className="grow composer-hint">

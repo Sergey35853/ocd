@@ -336,7 +336,13 @@ export class OpenCodeService extends EventEmitter {
       const endpoint = this.requireEndpoint()
       const url = new URL(path, endpoint.url)
       for (const [key, value] of Object.entries(options.query ?? {})) {
-        if (value !== undefined) url.searchParams.set(key, String(value))
+        if (value === undefined) continue
+        // An object in the query is a deep object: the server reads
+        // `location[directory]`, not a JSON blob and not "[object Object]".
+        url.searchParams.set(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : String(value),
+        )
       }
       const init: RequestInit = {
         method,
