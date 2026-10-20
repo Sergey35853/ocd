@@ -438,7 +438,9 @@ export interface AppSettings {
   defaultAgent: string
   /** "system" | "light" | "dark" | "auto" */
   theme: string
-  /** Acrylic backdrop intensity 0..1. */
+  /** System material behind the window: "micaAlt" (like an Explorer folder) or "acrylic". */
+  backdrop: string
+  /** Opacity 0..1 of the tint painted over the system backdrop. */
   acrylicOpacity: number
   acrylicTint: string
   accentColor: string

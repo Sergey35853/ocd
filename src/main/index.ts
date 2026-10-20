@@ -12,6 +12,7 @@ import { closeAllSessionWindows, registerGlobalHotkey, unregisterHotkeys } from 
 import { type UiLanguage } from "./i18n"
 import { repairLegacyLanguageInstruction } from "./configFile"
 import { initLog, log } from "./log"
+import { applyBackdrop, backdropMaterial, windowNeedsTransparency } from "./backdrop"
 import { refreshShellAssociations } from "./shellNotify"
 import { reportInstall } from "./feedback"
 
@@ -40,13 +41,6 @@ function installPreviewGuestPreload(): void {
       webPreferences.preload = previewGuestPreload
     })
   })
-}
-
-/** Windows 11 build 22000+ is required for the DWM system backdrop. */
-function supportsSystemBackdrop(): boolean {
-  if (process.platform !== "win32") return false
-  const [major, minor] = process.getSystemVersion().split(".").map((part) => parseInt(part, 10) || 0)
-  return major > 10 || (major === 10 && minor >= 22000)
 }
 
 function showWindow(): void {
@@ -121,7 +115,7 @@ function applyGlobalHotkey(): { ok: boolean; error?: string } {
 function createWindow(): BrowserWindow {
   const settings = getSettings()
 
-  const useBackdrop = settings.blurBehind && supportsSystemBackdrop()
+  const material = backdropMaterial()
 
   const win = new BrowserWindow({
     width: 1240,
@@ -130,10 +124,12 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     frame: false,
-    transparent: useBackdrop,
+    // Layered whenever the system can draw a backdrop: the flag cannot be
+    // changed later, and switching the backdrop on has to keep working.
+    transparent: windowNeedsTransparency(),
     backgroundColor: "#00000000",
-    // Acrylic on Win11, Mica where acrylic is unavailable, flat elsewhere.
-    backgroundMaterial: useBackdrop ? "acrylic" : "none",
+    // Mica Alt — the material behind a folder window in Explorer.
+    backgroundMaterial: material,
     icon: windowIcon(),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -149,13 +145,7 @@ function createWindow(): BrowserWindow {
   mainWindow = win
 
   // Some Windows 11 builds only honour the backdrop when it is set post-create.
-  if (process.platform === "win32") {
-    try {
-      win.setBackgroundMaterial(useBackdrop ? "acrylic" : "none")
-    } catch {
-      /* older build: the constructor value stands */
-    }
-  }
+  applyBackdrop(win)
 
   win.setAlwaysOnTop(settings.alwaysOnTop, "screen-saver")
   win.setVisibleOnAllWorkspaces(settings.alwaysOnTop, { visibleOnFullScreen: true })

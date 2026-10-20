@@ -16,6 +16,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 const settings = {
   theme: "auto",
   blurBehind: true,
+  backdrop: "micaAlt",
   acrylicOpacity: 0.8,
   acrylicTint: "#202020",
   accentColor: "#0f6cbd",
@@ -114,7 +115,8 @@ describe("SettingsView sections", () => {
 
   it("opens on the first topic and shows only its fields", async () => {
     const markup = await render()
-    expect(markup).toContain("Акриловое размытие")
+    expect(markup).toContain("Системный фон")
+    expect(markup).toContain("Материал фона")
     expect(markup).not.toContain("Поверх всех окон")
     expect(markup).not.toContain("Отправлять по Enter")
   })

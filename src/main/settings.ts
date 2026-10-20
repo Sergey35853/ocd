@@ -10,7 +10,9 @@ const DEFAULTS: AppSettings = {
   defaultAgent: "build",
   // Win11 "Mica Alt" look: light, neutral, low saturation.
   theme: "light",
-  acrylicOpacity: 0.82,
+  // Mica Alt: the material behind a folder window in Explorer.
+  backdrop: "micaAlt",
+  acrylicOpacity: 0.45,
   acrylicTint: "#eef3fa",
   accentColor: "#0f6cbd",
   blurBehind: true,

@@ -33,6 +33,7 @@ import { showContextMenu, type ContextTarget } from "./contextMenu"
 import { openPreviewExternal, preparePreview, writePreviewFile } from "./preview"
 import { updateTrayState, currentLanguage } from "./tray"
 import { openSessionWindow, registerGlobalHotkey } from "./windows"
+import { refreshBackdrop } from "./backdrop"
 import { conversationHtml, exportConversation, saveText, type ExportPayload } from "./export"
 import { printConversation } from "./print"
 import {
@@ -719,7 +720,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // ---------- app ----------
 
   handle<AppSettings>("app:getSettings", () => getSettings())
-  handle<AppSettings>("app:setSettings", (patch: Partial<AppSettings>) => setSettings(patch))
+  handle<AppSettings>("app:setSettings", (patch: Partial<AppSettings>) => {
+    const before = getSettings()
+    const next = setSettings(patch)
+    // The material is a property of the native window, so the renderer cannot
+    // change it on its own — it has to be re-applied here, and only when the
+    // backdrop actually changed.
+    if (before.blurBehind !== next.blurBehind || before.backdrop !== next.backdrop) {
+      refreshBackdrop()
+    }
+    return next
+  })
 
   handle("app:version", () => ({
     // `app.getVersion()` is the packaged build's own version, read from the

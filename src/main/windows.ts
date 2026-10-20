@@ -2,6 +2,7 @@ import { BrowserWindow, globalShortcut, shell } from "electron"
 import { join } from "node:path"
 import { windowIcon } from "./icon"
 import { getSettings } from "./settings"
+import { applyBackdrop, backdropMaterial, windowNeedsTransparency } from "./backdrop"
 
 /** One extra window per session, keyed so re-opening focuses the existing one. */
 const sessionWindows = new Map<string, BrowserWindow>()
@@ -23,6 +24,7 @@ export function openSessionWindow(sessionId: string, title: string | null): Brow
   }
 
   const settings = getSettings()
+  const material = backdropMaterial()
   const win = new BrowserWindow({
     width: 1040,
     height: 760,
@@ -30,9 +32,12 @@ export function openSessionWindow(sessionId: string, title: string | null): Brow
     minHeight: 480,
     show: false,
     frame: false,
-    transparent: settings.blurBehind,
+    // Layered whenever the system can draw a backdrop: the flag cannot be
+    // changed later, and switching the backdrop on has to keep working.
+    transparent: windowNeedsTransparency(),
     backgroundColor: "#00000000",
-    backgroundMaterial: settings.blurBehind ? "acrylic" : "none",
+    // Mica Alt — the material behind a folder window in Explorer.
+    backgroundMaterial: material,
     icon: windowIcon(),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
@@ -46,6 +51,9 @@ export function openSessionWindow(sessionId: string, title: string | null): Brow
 
   sessionWindows.set(sessionId, win)
   win.setAlwaysOnTop(settings.alwaysOnTop, "screen-saver")
+
+  // Some Windows 11 builds only honour the backdrop when it is set post-create.
+  applyBackdrop(win)
 
   win.once("ready-to-show", () => {
     win.show()

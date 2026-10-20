@@ -19,7 +19,8 @@
 
   /* Win11 Mica Alt: cool neutral, very low saturation. */
   --tint: 238, 243, 250;
-  --acrylic: 0.82;
+  /* How strongly the tint is painted over the system backdrop. */
+  --acrylic: 0.45;
 
   --text: #1a1a1a;
   --text-dim: #43474e;
@@ -107,6 +108,12 @@ body.no-blur {
   background: linear-gradient(155deg, #f4f7fb 0%, #e8eef7 55%, #dfe7f2 100%);
 }
 
+/* With the system backdrop switched off there is nothing to tint — the
+   gradient is the window. */
+body.no-blur .shell {
+  background: transparent;
+}
+
 button,
 input,
 textarea,
@@ -173,6 +180,12 @@ select {
   border-radius: 10px;
   overflow: hidden;
   transition: grid-template-columns 0.16s ease;
+  /* The tint layer over the system backdrop.
+     A folder window in Explorer is not a solid fill either: the Mica behind
+     it is sampled from the wallpaper, and a thin light veil sits on top of
+     that. The same veil, of the same strength, is what makes the two look
+     like they came out of the same system. */
+  background: rgba(var(--tint), var(--acrylic));
 }
 
 /* Sidebar collapsed to nothing, tabs intact. */
@@ -274,7 +287,10 @@ select {
   align-items: stretch;
   gap: 8px;
   padding-left: 10px;
-  background: var(--surface-1);
+  /* Mica Alt: the title bar in Explorer is a shade denser than the content
+     below it, and the same separation is what keeps the tab strip readable
+     against a busy wallpaper. */
+  background: rgba(var(--tint), calc(var(--acrylic) + 0.12));
   border-bottom: 1px solid var(--line);
   -webkit-app-region: drag;
 }
@@ -545,7 +561,9 @@ select {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--surface-1);
+  /* Nothing of its own: the pane shows the same Mica as the content next to
+     it, the way the tree pane in Explorer does. */
+  background: transparent;
   border-right: 1px solid var(--line);
 }
 
@@ -708,7 +726,9 @@ select {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--surface-1);
+  /* The content sits directly on the tinted backdrop — same as a folder
+     window, where the file list has no fill of its own either. */
+  background: transparent;
 }
 
 .view {

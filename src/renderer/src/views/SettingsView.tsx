@@ -15,8 +15,10 @@ import type {
 } from "@shared/types"
 
 const THEME_PRESETS: Record<string, { tint: string; opacity: number }> = {
-  light: { tint: "#eef3fa", opacity: 0.82 },
-  dark: { tint: "#202020", opacity: 0.78 },
+  // Light: a thin veil, so the Mica behind the window stays visible.
+  // Dark: a dense veil, because the Mica behind it is a light surface.
+  light: { tint: "#eef3fa", opacity: 0.45 },
+  dark: { tint: "#202020", opacity: 0.85 },
 }
 
 function MicPicker() {
@@ -361,9 +363,22 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             />
           </Field>
 
+          <Field label={t("set.backdrop")} hint={t("set.backdropHint")}>
+            <select
+              className="select"
+              value={settings.backdrop}
+              onChange={(event) =>
+                void store.updateSettings({ backdrop: event.target.value })
+              }
+            >
+              <option value="micaAlt">{t("set.backdropMica")}</option>
+              <option value="acrylic">{t("set.backdropAcrylic")}</option>
+            </select>
+          </Field>
+
           <Field
-            label={t("set.acrylicDensity")}
-            hint={`${Math.round(settings.acrylicOpacity * 100)}% · ${t("set.acrylicDensityHint")}`}
+            label={t("set.backdropDensity")}
+            hint={`${Math.round(settings.acrylicOpacity * 100)}% · ${t("set.backdropDensityHint")}`}
           >
             <input
               type="range"
