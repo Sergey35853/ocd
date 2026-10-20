@@ -66,8 +66,8 @@ export function translate(key: DictKey, params?: TranslateParams): string {
  * key ahead of time. A level without a translation shows its own name rather
  * than a raw key.
  */
-export function translateLoose(key: string, fallback: string): string {
-  const dict = DICTS[current] as Record<string, string> | undefined
+export function translateLoose(key: string, fallback: string, language: UiLanguage = current): string {
+  const dict = DICTS[language] as Record<string, string> | undefined
   return dict?.[key] ?? (ru as Record<string, string>)[key] ?? fallback
 }
 

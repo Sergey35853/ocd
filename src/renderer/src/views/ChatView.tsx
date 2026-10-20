@@ -1289,7 +1289,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     } catch {
       setMessages([])
     }
-  }, [sessionId])
+  }, [sessionId, withAttachments])
 
   /**
    * Fetch the page before the oldest one on screen.
@@ -1337,7 +1337,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     } finally {
       loadingOlderRef.current = false
     }
-  }, [sessionId])
+  }, [sessionId, withAttachments])
 
   useEffect(() => {
     void load()
@@ -1717,7 +1717,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     if (!variants.length) return []
     return variants.map((variant) => ({
       key: variant.id,
-      label: translateLoose(`variant.${variant.id}`, variant.id),
+      label: translateLoose(`variant.${variant.id}`, variant.id, language),
       hint: variant.settings?.reasoningEffort ? String(variant.settings.reasoningEffort) : undefined,
     }))
   }, [store.models, sessionModel, store.settings, language])
