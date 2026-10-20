@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import type { WorktreeInfo } from "@shared/types"
 import { useStore } from "../lib/store"
 import { useT } from "../i18n"
 import { IconMore } from "./Icon"
@@ -28,7 +29,9 @@ export function SessionActions({
   const t = useT()
   const [open, setOpen] = useState(false)
   /** "menu" shows the actions, "commands" the server's own commands. */
-  const [mode, setMode] = useState<"menu" | "commands">("menu")
+  const [mode, setMode] = useState<"menu" | "commands" | "move">("menu")
+  /** The worktrees the server keeps: places a session can be moved to. */
+  const [worktrees, setWorktrees] = useState<WorktreeInfo[]>([])
   /** Whether the list of remembered permission answers is on screen. */
   const [rulesOpen, setRulesOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -68,7 +71,45 @@ export function SessionActions({
 
   const menu = (
     <div className="picker-menu" ref={menuRef} role="menu">
-      {mode === "commands" ? (
+      {mode === "move" ? (
+        <>
+          <button
+            type="button"
+            className="item"
+            onClick={() => setMode("menu")}
+            style={{ color: "var(--text-faint)" }}
+          >
+            <span className="grow">← {t("session.back")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
+            onClick={() => void move()}
+          >
+            <span className="grow">{t("session.moveFolder")}</span>
+          </button>
+          {worktrees.map((worktree) => (
+            <button
+              key={worktree.directory}
+              type="button"
+              className="item"
+              role="menuitem"
+              onClick={() => {
+                close()
+                void store.moveSession(sessionId, worktree.directory)
+              }}
+            >
+              <span className="grow">{worktree.directory.split(/[\\/]/).pop()}</span>
+              {worktree.strategy ? (
+                <span style={{ color: "var(--text-faint)", fontSize: 11 }}>
+                  {worktree.strategy}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </>
+      ) : mode === "commands" ? (
         <>
           <button
             type="button"
@@ -130,7 +171,10 @@ export function SessionActions({
             type="button"
             className="item"
             role="menuitem"
-            onClick={() => void move()}
+            onClick={() => {
+              setMode("move")
+              void window.ocd.api.worktrees().then((list) => setWorktrees(list))
+            }}
           >
             <span className="grow">{t("session.move")}</span>
           </button>

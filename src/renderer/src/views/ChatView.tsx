@@ -1027,6 +1027,31 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const changes = useMemo(() => sessionChanges(messages), [messages])
 
   /**
+   * The branch and the dirty files of the project the chat works in.
+   *
+   * The server counts them: it is the one that knows what the agent touched.
+   */
+  const [git, setGit] = useState<{ branch?: string; changed: number } | null>(null)
+  useEffect(() => {
+    const directory = store.directory || undefined
+    let cancelled = false
+    void Promise.all([
+      window.ocd.api.vcsBranch(directory),
+      window.ocd.api.vcsStatus(directory),
+    ])
+      .then(([branch, status]) => {
+        if (cancelled) return
+        setGit({ branch: branch?.current || undefined, changed: status.length })
+      })
+      .catch(() => {
+        if (!cancelled) setGit(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [store.directory, changes.length])
+
+  /**
    * Attachments of prompts sent in this session, keyed by the prompt text.
    *
    * A prompt carries its files to the model by name only, so neither the reply
@@ -2315,6 +2340,16 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
           onOpenFile={(path) => void openPreviewPath(path)}
           onToast={store.toast}
         />
+
+        {git?.branch ? (
+          <span
+            className="badge"
+            title={t("chat.gitHint", { branch: git.branch, count: git.changed })}
+          >
+            ⎇ {git.branch}
+            {git.changed ? ` · ${git.changed}` : ""}
+          </span>
+        ) : null}
 
         <LimitMeter
           model={`${sessionModel?.providerID ?? store.settings?.defaultProvider ?? "opencode"}/${sessionModel?.id ?? store.settings?.defaultModel ?? ""}`}
