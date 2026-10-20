@@ -221,6 +221,11 @@ export const fr: Dict = {
   "prov.currentModel": "Modèle actuel",
   "prov.currentHint":
     "Les nouvelles sessions et les messages utilisent ce modèle. La liste provient du serveur OpenCode actif ; les identifiants sont lus dans votre configuration de fournisseurs.",
+  "prov.credentials": "Clés sur le serveur",
+  "prov.credentialActive": "active",
+  "prov.credentialTail": "clé …{tail}",
+  "prov.credentialActivate": "Rendre active",
+  "prov.credentialForget": "Oublier",
   "prov.filterModels": "Filtrer les modèles…",
   "prov.onlyReady": "Disponibles seulement",
   "prov.noModels": "Aucun modèle trouvé.",

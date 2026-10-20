@@ -214,6 +214,11 @@ export const zh: Dict = {
   "prov.currentModel": "当前模型",
   "prov.currentHint":
     "新建会话与发送消息都会使用该模型。模型列表来自正在运行的 OpenCode 服务器，凭据取自你的提供商配置。",
+  "prov.credentials": "服务器上的密钥",
+  "prov.credentialActive": "当前",
+  "prov.credentialTail": "密钥 …{tail}",
+  "prov.credentialActivate": "设为当前",
+  "prov.credentialForget": "忘记",
   "prov.filterModels": "筛选模型…",
   "prov.onlyReady": "仅显示可用",
   "prov.noModels": "未找到模型。",

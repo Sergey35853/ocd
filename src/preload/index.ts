@@ -115,6 +115,9 @@ const api = {
     vcsBranch: (directory?: string) => call("api:vcsBranch", directory),
     vcsStatus: (directory?: string) => call("api:vcsStatus", directory),
     worktrees: () => call("api:worktrees"),
+    credentials: () => call("api:credentials"),
+    activateCredential: (id: string) => call("api:activateCredential", id),
+    deleteCredential: (id: string) => call("api:deleteCredential", id),
     /**
      * Rewinds the conversation to before a message. Everything from it on is
      * dropped, which is what "edit and resend" needs.

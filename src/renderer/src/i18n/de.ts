@@ -222,6 +222,11 @@ export const de: Dict = {
   "prov.currentModel": "Aktuelles Modell",
   "prov.currentHint":
     "Neue Sitzungen und Nachrichten nutzen dieses Modell. Die Modellliste kommt vom laufenden OpenCode-Server, Zugangsdaten aus deiner Anbieterkonfiguration.",
+  "prov.credentials": "Schlüssel auf dem Server",
+  "prov.credentialActive": "aktiv",
+  "prov.credentialTail": "Schlüssel …{tail}",
+  "prov.credentialActivate": "Aktivieren",
+  "prov.credentialForget": "Vergessen",
   "prov.filterModels": "Modelle filtern…",
   "prov.onlyReady": "Nur verfügbare",
   "prov.noModels": "Keine Modelle gefunden.",

@@ -479,6 +479,22 @@ export interface PtyInfo {
   exitCode?: number
 }
 
+/**
+ * A key the server keeps for a provider.
+ *
+ * The secret itself never comes to the window: only the last four characters
+ * are kept, which is enough to tell two keys apart and useless to anybody
+ * else.
+ */
+export interface StoredCredential {
+  id: string
+  integrationID: string
+  label: string
+  active: boolean
+  type: string
+  tail: string
+}
+
 export interface ConfigFileInfo {
   path: string
   text: string
@@ -925,6 +941,12 @@ export interface OcdApi {
     vcsStatus(directory?: string): Promise<VcsFileStatus[]>
     /** The worktrees the server keeps. */
     worktrees(): Promise<WorktreeInfo[]>
+    /** The keys the server keeps for the providers. */
+    credentials(): Promise<StoredCredential[]>
+    /** Makes a stored key the one in use. */
+    activateCredential(id: string): Promise<unknown>
+    /** Forgets a stored key. */
+    deleteCredential(id: string): Promise<unknown>
     /**
      * Rewinds the conversation to before a message, dropping it and everything
      * after. Fails with 409 while a turn is running.

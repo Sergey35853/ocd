@@ -216,6 +216,11 @@ export const en: Dict = {
   "prov.currentModel": "Current model",
   "prov.currentHint":
     "New sessions and messages use this model. The model list comes from the running OpenCode server, so credentials are read from your provider configuration.",
+  "prov.credentials": "Keys on the server",
+  "prov.credentialActive": "active",
+  "prov.credentialTail": "key …{tail}",
+  "prov.credentialActivate": "Make active",
+  "prov.credentialForget": "Forget",
   "prov.filterModels": "Filter models…",
   "prov.onlyReady": "Available only",
   "prov.noModels": "No models found.",

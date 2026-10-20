@@ -151,6 +151,16 @@ export const IconClose = (p: Props) =>
 
 export const IconChevron = (p: Props) => svg(<path d="m9 6 6 6-6 6" />, p)
 
+/** A key: the stored credentials of a provider. */
+export const IconKey = (p: Props) =>
+  svg(
+    <>
+      <circle cx="8" cy="12" r="3.2" />
+      <path d="M11 12h9M17 12v3M20 12v2" />
+    </>,
+    p,
+  )
+
 /** Three dots: the actions of a conversation. */
 export const IconMore = (p: Props) =>
   svg(

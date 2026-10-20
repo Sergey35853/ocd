@@ -13,6 +13,7 @@ import {
   IconAlert,
   IconCheck,
   IconChip,
+  IconKey,
   IconLink,
   IconRefresh,
   IconSearch,
@@ -24,6 +25,7 @@ import type {
   IntegrationMethod,
   LocalRuntimeStatus,
   MethodField,
+  StoredCredential,
 } from "@shared/types"
 import { ViewBack } from "../components/ViewBack"
 import { LocalModels } from "../components/LocalModels"
@@ -57,6 +59,8 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
   const [hideConnected, setHideConnected] = useState(false)
   const [customId, setCustomId] = useState("")
   const [installed, setInstalled] = useState<ConfigProviderSummary[]>([])
+  /** The keys the server keeps for the providers. */
+  const [credentials, setCredentials] = useState<StoredCredential[]>([])
   const [busy, setBusy] = useState(false)
 
   const [stage, setStage] = useState<Stage>({ kind: "none" })
@@ -78,6 +82,15 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
       store.toast(err instanceof Error ? err.message : String(err), "error")
     }
   }, [store])
+
+  /** The keys the server keeps: what is stored and which one is in use. */
+  const reloadCredentials = useCallback(async () => {
+    try {
+      setCredentials(await window.ocd.api.credentials())
+    } catch {
+      setCredentials([])
+    }
+  }, [])
 
   /**
    * Ask every known local runtime whether it is up.
@@ -106,7 +119,8 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     void reloadInstalled()
     void reloadCatalog()
-  }, [reloadInstalled, reloadCatalog])
+    void reloadCredentials()
+  }, [reloadInstalled, reloadCatalog, reloadCredentials])
 
   const catalog = useMemo(
     () => buildCatalog(integrations ?? [], statuses),
@@ -353,6 +367,69 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
           {t("prov.currentHint")}
         </div>
       </div>
+
+      {credentials.length ? (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="card-head">
+            <IconKey size={16} />
+            {t("prov.credentials")}
+            <div className="spacer" />
+            <span className="badge">{credentials.length}</span>
+          </div>
+          <div className="card-body">
+            <ul className="rule-list">
+              {credentials.map((credential) => (
+                <li key={credential.id}>
+                  <div className="rule-main">
+                    <span className="rule-action">
+                      {credential.label || credential.integrationID}
+                      {credential.active ? (
+                        <span className="badge accent" style={{ marginLeft: 8 }}>
+                          {t("prov.credentialActive")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mono rule-resource">
+                      {credential.integrationID} ·{" "}
+                      {t("prov.credentialTail", { tail: credential.tail })}
+                    </span>
+                  </div>
+                  {credential.active ? null : (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        void window.ocd.api
+                          .activateCredential(credential.id)
+                          .then(() => reloadCredentials())
+                          .catch((err) =>
+                            store.toast(err instanceof Error ? err.message : String(err), "error"),
+                          )
+                      }}
+                    >
+                      {t("prov.credentialActivate")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      void window.ocd.api
+                        .deleteCredential(credential.id)
+                        .then(() => reloadCredentials())
+                        .catch((err) =>
+                          store.toast(err instanceof Error ? err.message : String(err), "error"),
+                        )
+                    }}
+                  >
+                    {t("prov.credentialForget")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <div className="card-head">

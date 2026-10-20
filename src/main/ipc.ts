@@ -100,6 +100,7 @@ import type {
   VcsBranch,
   VcsFileStatus,
   WorktreeInfo,
+  StoredCredential,
   MessageInfo,
   MessagePage,
   MessagePageQuery,
@@ -1249,6 +1250,42 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return result
   })
 
+  // ---------- stored credentials ----------
+
+  /**
+   * The keys the server keeps for the providers.
+   *
+   * The server answers with the secret itself, so the app shows only the tail
+   * of it: a key on screen is a key in a screenshot.
+   */
+  handle<StoredCredential[]>("api:credentials", async () => {
+    const list = await service.get<unknown>("/api/credential")
+    const rows = Array.isArray(list) ? list : []
+    return rows.map((row) => {
+      const item = row as Record<string, unknown>
+      const value = item.value as { type?: string; key?: string } | undefined
+      const key = value?.key ?? ""
+      return {
+        id: String(item.id ?? ""),
+        integrationID: String(item.integrationID ?? ""),
+        label: String(item.label ?? item.integrationID ?? ""),
+        active: item.active === true,
+        type: value?.type ?? "key",
+        // The last four characters are enough to tell two keys apart.
+        tail: key.length > 4 ? key.slice(-4) : key,
+      }
+    })
+  })
+
+  /** Make a stored key the one in use for its provider. */
+  handle<unknown>("api:activateCredential", (id: string) =>
+    service.post(`/api/credential/${id}/activate`, {}),
+  )
+
+  /** Forget a stored key. */
+  handle<unknown>("api:deleteCredential", (id: string) =>
+    service.del(`/api/credential/${id}`),
+  )
   // ---------- terminal ----------
 
   /** Run a command in the server's terminal and attach to it. */

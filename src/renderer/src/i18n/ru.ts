@@ -235,6 +235,11 @@ export const ru = {
   "prov.currentModel": "Текущая модель",
   "prov.currentHint":
     "Новые сеансы и сообщения используют эту модель. Список моделей берётся у запущенного сервера OpenCode, поэтому ключи авторизации берутся из вашей конфигурации провайдеров.",
+  "prov.credentials": "Ключи на сервере",
+  "prov.credentialActive": "активный",
+  "prov.credentialTail": "ключ …{tail}",
+  "prov.credentialActivate": "Сделать активным",
+  "prov.credentialForget": "Забыть",
   "prov.filterModels": "Фильтр моделей…",
   "prov.onlyReady": "Только доступные",
   "prov.noModels": "Модели не найдены.",
