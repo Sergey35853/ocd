@@ -1056,6 +1056,13 @@ export interface OcdApi {
       format: "markdown" | "html" | "pdf"
       messages: number
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /** Saves the conversation as the server's own session file. */
+    exportSessionFile(
+      sessionId: string,
+      title: string,
+    ): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /** Takes a session file back and makes a session of it. */
+    importSessionFile(): Promise<{ ok: boolean; canceled?: boolean; id?: string; error?: string }>
     /** Write app-produced text (a patch) exactly as given, wherever the user says. */
     saveText(payload: {
       name: string

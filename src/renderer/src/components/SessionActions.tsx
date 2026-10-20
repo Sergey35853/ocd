@@ -192,6 +192,17 @@ export function SessionActions({
             role="menuitem"
             onClick={() => {
               close()
+              void store.importSession()
+            }}
+          >
+            <span className="grow">{t("session.import")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
+            onClick={() => {
+              close()
               setRulesOpen(true)
             }}
           >

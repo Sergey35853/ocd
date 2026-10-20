@@ -217,6 +217,8 @@ interface Store {
   permissionRules(projectID?: string): Promise<PermissionRule[]>
   /** Forgets one remembered permission answer. */
   deletePermissionRule(id: string): Promise<void>
+  /** Takes a session file back and makes a session of it. */
+  importSession(): Promise<void>
   /** Reads back what a conversation is really running on. */
   refreshSessionInfo(sessionId: string): Promise<void>
   /** Rewinds the conversation to a message and resends it; false if refused. */
@@ -1177,6 +1179,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [toast],
   )
 
+  /**
+   * Take a session file back and make a session of it.
+   *
+   * The file is the server's own export, so the conversation arrives with its
+   * messages — the only way to move one between machines.
+   */
+  const importSession = useCallback(async () => {
+    try {
+      const result = await window.ocd.app.importSessionFile()
+      if (!result.ok) {
+        if (result.error) toast(result.error, "error")
+        return
+      }
+      await refreshSessions()
+      if (result.id) openSession(result.id)
+      toast(translate("toast.imported"), "info")
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    }
+  }, [openSession, refreshSessions, toast])
+
   const clearDictationText = useCallback(() => setDictationText(null), [])
 
   /**
@@ -1862,6 +1885,7 @@ useEffect(() => {
       runSessionCommand,
       permissionRules,
       deletePermissionRule,
+      importSession,
       editAndResend,
       abort,
       updateSettings,
@@ -1925,6 +1949,7 @@ useEffect(() => {
       runSessionCommand,
       permissionRules,
       deletePermissionRule,
+      importSession,
       editAndResend,
       abort,
       updateSettings,

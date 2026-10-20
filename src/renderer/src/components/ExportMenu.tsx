@@ -117,6 +117,18 @@ export function ExportMenu({
       onFailed()
     }
   }
+  /** The session itself, in the server's own file: it can be taken back. */
+  const runSessionFile = async () => {
+    setOpen(false)
+    try {
+      const result = await window.ocd.app.exportSessionFile(sessionId, title)
+      if (result.ok && result.path) onDone(result.path)
+      else if (!result.canceled) onFailed()
+    } catch {
+      onFailed()
+    }
+  }
+
   const menu = (
     <div
       className="menu-pop"
@@ -136,6 +148,16 @@ export function ExportMenu({
           <span className="kbd">.{item.ext}</span>
         </button>
       ))}
+      <div className="menu-pop-sep" />
+      <button
+        type="button"
+        role="menuitem"
+        className="menu-pop-item"
+        onClick={() => void runSessionFile()}
+      >
+        <span>{t("export.sessionFile")}</span>
+        <span className="kbd">.json</span>
+      </button>
       <div className="menu-pop-sep" />
       <button
         type="button"

@@ -37,6 +37,7 @@ export const zh: Dict = {
   "shell.openCodeVersion": "OpenCode {version}",
 
   "session.untitled": "无标题",
+  "session.import": "导入会话…",
   "session.rules": "权限规则…",
   "session.back": "返回",
   "session.command": "命令…",
@@ -424,6 +425,7 @@ export const zh: Dict = {
   "anim.previewOff": "动画已关闭",
 
   "toast.configFailed": "写入配置失败",
+  "toast.imported": "会话已导入",
   "toast.commandRun": "命令 {name} 已执行",
   "toast.moved": "会话已移动",
   "toast.forked": "已创建对话分支",
@@ -473,6 +475,7 @@ export const zh: Dict = {
   // export / session windows
   "chat.openInWindow": "在独立窗口中打开",
   "export.title": "导出对话",
+  "export.sessionFile": "会话文件",
   "export.markdown": "Markdown",
   "export.html": "HTML",
   "export.pdf": "PDF",

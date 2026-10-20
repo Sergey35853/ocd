@@ -108,6 +108,9 @@ const api = {
       rule: { action: string; resources: string[]; save?: string[] },
     ) => call("api:savePermissionRule", sessionId, rule),
     deletePermissionRule: (id: string) => call("api:deletePermissionRule", id),
+    exportSessionFile: (sessionId: string, title: string) =>
+      call("app:exportSessionFile", sessionId, title),
+    importSessionFile: () => call("app:importSessionFile"),
     findFiles: (query: string, directory?: string) => call("api:findFiles", query, directory),
     vcsBranch: (directory?: string) => call("api:vcsBranch", directory),
     vcsStatus: (directory?: string) => call("api:vcsStatus", directory),

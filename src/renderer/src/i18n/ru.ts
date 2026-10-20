@@ -45,6 +45,7 @@ export const ru = {
 
   // ---- session titles ----
   "session.untitled": "Без названия",
+  "session.import": "Импортировать сессию…",
   "session.rules": "Правила разрешений…",
   "session.back": "Назад",
   "session.command": "Команда…",
@@ -457,6 +458,7 @@ export const ru = {
 
   // ---- store toasts ----
   "toast.configFailed": "Не удалось записать конфиг",
+  "toast.imported": "Сессия импортирована",
   "toast.commandRun": "Команда {name} запущена",
   "toast.moved": "Сессия перенесена",
   "toast.forked": "Создана ветка разговора",
@@ -507,6 +509,7 @@ export const ru = {
   // export / session windows
   "chat.openInWindow": "Открыть в отдельном окне",
   "export.title": "Экспорт беседы",
+  "export.sessionFile": "Файл сессии",
   "export.markdown": "Markdown",
   "export.html": "HTML",
   "export.pdf": "PDF",

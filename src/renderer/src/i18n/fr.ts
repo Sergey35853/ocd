@@ -37,6 +37,7 @@ export const fr: Dict = {
   "shell.openCodeVersion": "OpenCode {version}",
 
   "session.untitled": "Sans titre",
+  "session.import": "Importer une session…",
   "session.rules": "Règles d'autorisation…",
   "session.back": "Retour",
   "session.command": "Commande…",
@@ -434,6 +435,7 @@ export const fr: Dict = {
   "anim.previewOff": "Animation désactivée",
 
   "toast.configFailed": "Impossible d'écrire la configuration",
+  "toast.imported": "La session a été importée",
   "toast.commandRun": "Commande {name} exécutée",
   "toast.moved": "La session a été déplacée",
   "toast.forked": "Une branche de la conversation a été créée",
@@ -484,6 +486,7 @@ export const fr: Dict = {
   // export / session windows
   "chat.openInWindow": "Ouvrir dans une fenêtre séparée",
   "export.title": "Exporter la conversation",
+  "export.sessionFile": "Fichier de session",
   "export.markdown": "Markdown",
   "export.html": "HTML",
   "export.pdf": "PDF",

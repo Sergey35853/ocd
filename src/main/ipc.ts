@@ -1,4 +1,5 @@
 import { BrowserWindow, app, dialog, ipcMain, shell } from "electron"
+import { readFile } from "node:fs/promises"
 import { service } from "./service"
 import { getSettings, setSettings, exportSettings, importSettings } from "./settings"
 import {
@@ -1245,6 +1246,54 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const result = await saveText(payload, getWindow())
     if (!result.ok && result.error) throw new Error(result.error)
     return result
+  })
+
+  /**
+   * Save the conversation as the server's own file.
+   *
+   * The Markdown and PDF exports are for reading; this one is the session
+   * itself, with its messages, and the server can take it back — which is the
+   * only way to move a conversation between machines.
+   */
+  handle("app:exportSessionFile", async (sessionId: string, title: string) => {
+    const body = await service.get<{ data?: unknown }>(
+      `/api/experimental/session/${sessionId}/export`,
+    )
+    const data = body?.data
+    if (!data) throw new Error("The server returned an empty export")
+    return saveText(
+      { name: title || sessionId, content: JSON.stringify(data, null, 2), ext: "json" },
+      getWindow(),
+    )
+  })
+
+  /** Take a session file back and make a session of it. */
+  handle("app:importSessionFile", async () => {
+    const win = getWindow()
+    const result = win
+      ? await dialog.showOpenDialog(win, {
+          properties: ["openFile"],
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        })
+      : await dialog.showOpenDialog({
+          properties: ["openFile"],
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        })
+    if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true }
+    const text = await readFile(result.filePaths[0], "utf8")
+    const payload = JSON.parse(text) as { info?: unknown; messages?: unknown; location?: unknown }
+    if (!payload.info || !Array.isArray(payload.messages)) {
+      return { ok: false, error: "Not a session file" }
+    }
+    const created = await service.post<{ data?: { id?: string } }>(
+      "/api/experimental/session/import",
+      {
+        info: payload.info,
+        messages: payload.messages,
+        ...(payload.location ? { location: payload.location } : {}),
+      },
+    )
+    return { ok: true, id: created?.data?.id ?? "" }
   })
 }
 
