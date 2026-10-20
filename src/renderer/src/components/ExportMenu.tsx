@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import type { MessageInfo } from "@shared/types"
 import { textOf, toolLabel } from "../lib/format"
 import { useT } from "../i18n"
 import { IconExport } from "./Icon"
+import { useAnchoredMenu } from "./ui"
 
 const FORMATS = [
   { id: "markdown", ext: "md" },
@@ -63,11 +65,16 @@ export function ExportMenu({
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<Format | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const box = useAnchoredMenu(open, rootRef, 178, 178, 5)
 
   useEffect(() => {
     if (!open) return
     const away = (event: PointerEvent) => {
-      if (!(event.target as HTMLElement | null)?.closest(".export-menu")) setOpen(false)
+      const target = event.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false)
@@ -110,6 +117,38 @@ export function ExportMenu({
       onFailed()
     }
   }
+  const menu = (
+    <div
+      className="menu-pop"
+      ref={menuRef}
+      role="menu"
+      style={{ top: box?.top, left: box?.left }}
+    >
+      {FORMATS.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          role="menuitem"
+          className="menu-pop-item"
+          onClick={() => void run(item.id)}
+        >
+          <span>{t(`export.${item.id}` as never)}</span>
+          <span className="kbd">.{item.ext}</span>
+        </button>
+      ))}
+      <div className="menu-pop-sep" />
+      <button
+        type="button"
+        role="menuitem"
+        className="menu-pop-item"
+        onClick={() => void runPrint()}
+      >
+        <span>{t("export.print")}</span>
+        <span className="kbd">Ctrl+P</span>
+      </button>
+    </div>
+  )
+
   return (
     <div className="export-menu" ref={rootRef}>
       <button
@@ -121,32 +160,7 @@ export function ExportMenu({
       >
         <IconExport size={15} />
       </button>
-      {open ? (
-        <div className="menu-pop" role="menu">
-          {FORMATS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className="menu-pop-item"
-              onClick={() => void run(item.id)}
-            >
-              <span>{t(`export.${item.id}` as never)}</span>
-              <span className="kbd">.{item.ext}</span>
-            </button>
-          ))}
-          <div className="menu-pop-sep" />
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-pop-item"
-            onClick={() => void runPrint()}
-          >
-            <span>{t("export.print")}</span>
-            <span className="kbd">Ctrl+P</span>
-          </button>
-        </div>
-      ) : null}
+      {open && box ? createPortal(menu, document.body) : null}
     </div>
   )
 }

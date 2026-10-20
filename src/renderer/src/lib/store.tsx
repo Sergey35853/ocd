@@ -987,7 +987,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setModel = useCallback(
     async (providerID: string, modelID: string, sessionId?: string | null) => {
       await updateSettings({ defaultProvider: providerID, defaultModel: modelID })
-      void window.ocd.api.setDefaultModel({ providerID, id: modelID }).catch(() => {})
+      // The server has no "set default model" route and the default the app
+      // itself stores is what gets pinned onto every new session, so saving it
+      // locally is enough.
       if (!sessionId) return
       try {
         await window.ocd.api.setSessionModel(sessionId, { providerID, id: modelID })

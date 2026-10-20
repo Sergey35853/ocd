@@ -1,9 +1,13 @@
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react"
+import { createPortal } from "react-dom"
 import { cx } from "../lib/format"
 import { useT } from "../i18n"
 import { IconSearch } from "./Icon"
@@ -92,6 +96,71 @@ export interface PickerItem {
   disabled?: boolean
 }
 
+export interface AnchorBox {
+  top: number
+  left: number
+  width: number
+  maxHeight: number
+}
+
+/**
+ * Where to hang a floating menu, in window coordinates.
+ *
+ * The menu is drawn in the document body rather than next to its button,
+ * because the chat header scrolls sideways on a narrow window — and a scroll
+ * container clips its children. A dropdown that hangs below the button ends
+ * up inside the header's box and is cut off: it is there in the DOM, the
+ * user just cannot see it. Rendering it in the body and placing it by hand
+ * is the only way out, and it also keeps the menu off the bottom edge of a
+ * short window.
+ */
+export function useAnchoredMenu(
+  open: boolean,
+  anchorRef: RefObject<HTMLElement | null>,
+  minWidth = 320,
+  maxWidth = 420,
+  gap = 6,
+  maxHeight = 420,
+): AnchorBox | null {
+  const [box, setBox] = useState<AnchorBox | null>(null)
+
+  const place = useCallback(() => {
+    const el = anchorRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const width = Math.min(maxWidth, Math.max(minWidth, window.innerWidth - 24))
+    const left = Math.min(
+      Math.max(8, rect.right - width),
+      Math.max(8, window.innerWidth - width - 8),
+    )
+    const top = rect.bottom + gap
+    setBox({
+      top,
+      left,
+      width,
+      maxHeight: Math.max(120, Math.min(maxHeight, window.innerHeight - top - 12)),
+    })
+  }, [anchorRef, minWidth, maxWidth, gap, maxHeight])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setBox(null)
+      return
+    }
+    place()
+    // The anchor moves with the window and with any scrolling around it.
+    const onChange = () => place()
+    window.addEventListener("resize", onChange)
+    window.addEventListener("scroll", onChange, true)
+    return () => {
+      window.removeEventListener("resize", onChange)
+      window.removeEventListener("scroll", onChange, true)
+    }
+  }, [open, place])
+
+  return box
+}
+
 export function Picker({
   label,
   items,
@@ -110,15 +179,27 @@ export function Picker({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const box = useAnchoredMenu(open, rootRef)
   const t = useT()
 
   useEffect(() => {
     if (!open) return
     const onDown = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (rootRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false)
     }
     document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
   }, [open])
 
   const current = items.find((item) => item.key === selected)
@@ -140,11 +221,60 @@ export function Picker({
     else groups.push({ name, rows: [item] })
   }
 
+  const menu = (
+    <div
+      className="picker-menu"
+      ref={menuRef}
+      role="listbox"
+      style={{ top: box?.top, left: box?.left, width: box?.width, maxHeight: box?.maxHeight }}
+    >
+      {searchable ? (
+        <div className="search" style={{ padding: "2px 2px 6px" }}>
+          <IconSearch size={14} className="mag" />
+          <input
+            autoFocus
+            placeholder={t("common.search")}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+      ) : null}
+      {filtered.length === 0 ? (
+        <div style={{ padding: "10px", color: "var(--text-faint)" }}>{t("common.notFound")}</div>
+      ) : null}
+      {groups.map((group) => (
+        <div key={group.name || "_"}>
+          {group.name ? <div className="head">{group.name}</div> : null}
+          {group.rows.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={cx("item", item.key === selected && "sel")}
+              disabled={item.disabled}
+              onClick={() => {
+                if (item.disabled) return
+                onSelect(item.key)
+                setOpen(false)
+              }}
+            >
+              <span className="grow">{item.label}</span>
+              {item.hint ? (
+                <span style={{ color: "var(--text-faint)", fontSize: 11 }}>{item.hint}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <div className="picker" ref={rootRef}>
       <button
         type="button"
         className="btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => {
           setOpen((value) => !value)
           setQuery("")
@@ -152,47 +282,7 @@ export function Picker({
       >
         {current?.label ?? label}
       </button>
-      {open ? (
-        <div className="menu">
-          {searchable ? (
-            <div className="search" style={{ padding: "2px 2px 6px" }}>
-              <IconSearch size={14} className="mag" />
-              <input
-                autoFocus
-                placeholder={t("common.search")}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-          ) : null}
-          {filtered.length === 0 ? (
-            <div style={{ padding: "10px", color: "var(--text-faint)" }}>{t("common.notFound")}</div>
-          ) : null}
-          {groups.map((group) => (
-            <div key={group.name || "_"}>
-              {group.name ? <div className="head">{group.name}</div> : null}
-              {group.rows.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={cx("item", item.key === selected && "sel")}
-                  disabled={item.disabled}
-                  onClick={() => {
-                    if (item.disabled) return
-                    onSelect(item.key)
-                    setOpen(false)
-                  }}
-                >
-                  <span className="grow">{item.label}</span>
-                  {item.hint ? (
-                    <span style={{ color: "var(--text-faint)", fontSize: 11 }}>{item.hint}</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {open && box ? createPortal(menu, document.body) : null}
       <span style={{ display: "none" }}>{title}</span>
     </div>
   )

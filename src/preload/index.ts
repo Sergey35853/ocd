@@ -53,8 +53,6 @@ const api = {
     locations: () => call("api:locations"),
     providers: (directory?: string) => call("api:providers", directory),
     models: (directory?: string) => call("api:models", directory),
-    setDefaultModel: (model: { providerID: string; id: string }) =>
-      call("api:setDefaultModel", model),
     agents: () => call("api:agents"),
     plugins: () => call("api:plugins"),
     updatePlugins: () => call("api:updatePlugins"),

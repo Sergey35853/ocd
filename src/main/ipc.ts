@@ -260,10 +260,6 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }))
   })
 
-  handle<unknown>("api:setDefaultModel", (model: ModelRef) =>
-    service.post("/api/model/default", model),
-  )
-
   handle<AgentInfo[]>("api:agents", async () =>
     unwrap<AgentInfo>(await service.get("/api/agent")).filter((agent) => agent && agent.id),
   )

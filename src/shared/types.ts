@@ -765,7 +765,6 @@ export interface OcdApi {
     locations(): Promise<unknown>
     providers(location?: string): Promise<ProviderInfo[]>
     models(location?: string): Promise<ModelInfo[]>
-    setDefaultModel(model: ModelRef): Promise<unknown>
     agents(): Promise<AgentInfo[]>
     plugins(): Promise<PluginEntry[]>
     updatePlugins(): Promise<unknown>

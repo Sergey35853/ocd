@@ -312,7 +312,6 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
 
   const choose = async (providerID: string, modelID: string) => {
     await store.updateSettings({ defaultProvider: providerID, defaultModel: modelID })
-    await window.ocd.api.setDefaultModel({ providerID, id: modelID }).catch(() => {})
     store.toast(t("toast.modelDefault", { provider: providerID, model: modelID }))
   }
 
