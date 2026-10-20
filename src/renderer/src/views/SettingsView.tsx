@@ -382,9 +382,9 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           >
             <input
               type="range"
-              min={0.2}
+              min={0.05}
               max={1}
-              step={0.02}
+              step={0.01}
               value={settings.acrylicOpacity}
               onChange={(event) =>
                 void store.updateSettings({ acrylicOpacity: Number(event.target.value) })
