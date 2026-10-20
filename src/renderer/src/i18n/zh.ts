@@ -9,6 +9,8 @@ export const zh: Dict = {
   "common.search": "搜索…",
   "common.notFound": "未找到内容",
   "files.hint": "开始输入以查找文件。",
+  "terminal.open": "终端",
+  "terminal.title": "终端",
   "files.searching": "搜索中…",
   "files.placeholder": "文件名或路径片段",
   "files.title": "在项目中查找文件",

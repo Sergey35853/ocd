@@ -29,6 +29,7 @@ import { BusyAnimation } from "../components/BusyAnimation"
 import { ExportMenu } from "../components/ExportMenu"
 import { SessionActions } from "../components/SessionActions"
 import { FileSearch } from "../components/FileSearch"
+import { TerminalPanel } from "../components/TerminalPanel"
 import { mentionAt } from "./mention"
 import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
@@ -65,9 +66,9 @@ import {
   IconPanel,
   IconSearch,
   IconSend,
+  IconTerminal,
   IconSpeaker,
   IconStop,
-  IconTerminal,
   IconTrash,
   IconWindow,
 } from "../components/Icon"
@@ -905,6 +906,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const [attachments, setAttachments] = useState<Attachment[]>([])
   /** The file search, when it is open; the query is what the caret holds. */
   const [fileSearch, setFileSearch] = useState<{ query: string } | null>(null)
+  /** Whether the terminal drawer is open. */
+  const [terminalOpen, setTerminalOpen] = useState(false)
   const [dropping, setDropping] = useState(false)
   const dropDepth = useRef(0)
   const streamRef = useRef<HTMLDivElement>(null)
@@ -2561,6 +2564,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             {sessionId && runs.length ? (
               <OutputPanel runs={runs} onOpenTerminal={openTerminalWindow} />
             ) : null}
+            {terminalOpen ? (
+              <TerminalPanel
+                cwd={store.directory || undefined}
+                onClose={() => setTerminalOpen(false)}
+              />
+            ) : null}
             {fileSearch ? (
               <FileSearch
                 directory={store.directory || undefined}
@@ -2672,6 +2681,14 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   onClick={() => setFileSearch({ query: "" })}
                 >
                   <IconSearch size={15} />
+                </button>
+                <button
+                  type="button"
+                  className={cx("iconbtn", terminalOpen && "active")}
+                  title={t("terminal.open")}
+                  onClick={() => setTerminalOpen((value) => !value)}
+                >
+                  <IconTerminal size={15} />
                 </button>
 
                 <span className="grow composer-hint">

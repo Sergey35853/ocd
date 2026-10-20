@@ -4,6 +4,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { registerIpc, broadcastServiceEvents, startAutoSpeech } from "./ipc"
 import { service } from "./service"
+import { setPtyOutput } from "./pty"
 import { voice } from "./voice"
 import { getSettings, setSettings } from "./settings"
 import { windowIcon } from "./icon"
@@ -369,6 +370,13 @@ if (!app.requestSingleInstanceLock()) {
     setTrayActions(trayActions)
     registerIpc(() => mainWindow)
     broadcastServiceEvents(() => BrowserWindow.getAllWindows())
+    // The terminal writes through the main process, so the bytes have to be
+    // handed to the window from there.
+    setPtyOutput((payload) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send("ocd:pty", payload)
+      }
+    })
     startAutoSpeech()
 
     createWindow()

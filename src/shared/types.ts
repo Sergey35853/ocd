@@ -467,6 +467,18 @@ export interface WorktreeInfo {
   strategy?: string
 }
 
+/** A command the server runs and keeps alive. */
+export interface PtyInfo {
+  id: string
+  title: string
+  command: string
+  args: string[]
+  cwd: string
+  status: "running" | "exited" | string
+  pid?: number
+  exitCode?: number
+}
+
 export interface ConfigFileInfo {
   path: string
   text: string
@@ -1159,6 +1171,18 @@ export interface OcdApi {
     onStatus(cb: (status: ServiceStatus) => void): () => void
     /** Push of the update state, so the header arrow follows the finding. */
     onUpdate(cb: (state: UpdateState) => void): () => void
+  }
+  /** A terminal the server runs and the app attaches to. */
+  pty: {
+    open(input: {
+      command: string
+      args?: string[]
+      cwd?: string
+      title?: string
+    }): Promise<PtyInfo>
+    input(id: string, data: string): Promise<void>
+    close(id: string): Promise<void>
+    onOutput(cb: (payload: { id: string; data: string }) => void): () => void
   }
   voice: {
     /** Defaults inherited from the oc-voice / oc-dictate plugin configs. */

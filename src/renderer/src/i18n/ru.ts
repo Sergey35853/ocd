@@ -13,6 +13,8 @@ export const ru = {
   "common.search": "Поиск…",
   "common.notFound": "Ничего не найдено",
   "files.hint": "Начните печатать, чтобы найти файл.",
+  "terminal.open": "Терминал",
+  "terminal.title": "Терминал",
   "files.searching": "Ищу…",
   "files.placeholder": "Имя или часть пути",
   "files.title": "Найти файл в проекте",

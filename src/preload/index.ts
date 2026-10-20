@@ -350,6 +350,21 @@ const api = {
       return () => ipcRenderer.off("ocd:attach", listener)
     },
   },
+  pty: {
+    /** Run a command in the server's terminal and attach to it. */
+    open: (input: { command: string; args?: string[]; cwd?: string; title?: string }) =>
+      call("pty:open", input),
+    /** What the user typed. */
+    input: (id: string, data: string) => call("pty:input", id, data),
+    /** Stop the command. */
+    close: (id: string) => call("pty:close", id),
+    /** What the terminal wrote. */
+    onOutput: (cb: (payload: { id: string; data: string }) => void) => {
+      const listener = (_event: unknown, payload: { id: string; data: string }) => cb(payload)
+      ipcRenderer.on("ocd:pty", listener)
+      return () => ipcRenderer.off("ocd:pty", listener)
+    },
+  },
   voice: {
     defaults: () => call("voice:defaults"),
     devices: () => call("voice:devices"),

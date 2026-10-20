@@ -9,6 +9,8 @@ export const fr: Dict = {
   "common.search": "Rechercher…",
   "common.notFound": "Aucun résultat",
   "files.hint": "Commencez à taper pour trouver un fichier.",
+  "terminal.open": "Terminal",
+  "terminal.title": "Terminal",
   "files.searching": "Recherche…",
   "files.placeholder": "Nom ou partie d'un chemin",
   "files.title": "Trouver un fichier du projet",

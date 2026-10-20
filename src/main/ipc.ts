@@ -2,6 +2,7 @@ import { BrowserWindow, app, dialog, ipcMain, shell } from "electron"
 import { readFile } from "node:fs/promises"
 import { service } from "./service"
 import { getSettings, setSettings, exportSettings, importSettings } from "./settings"
+import { openPty, writePty, closePty } from "./pty"
 import {
   readConfig,
   writeConfig,
@@ -1242,10 +1243,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return result
   })
 
-  handle("app:saveText", async (payload: { name: string; content: string; ext: string }) => {
+  handle<unknown>("app:saveText", async (payload: { name: string; content: string; ext: string }) => {
     const result = await saveText(payload, getWindow())
     if (!result.ok && result.error) throw new Error(result.error)
     return result
+  })
+
+  // ---------- terminal ----------
+
+  /** Run a command in the server's terminal and attach to it. */
+  handle("pty:open", async (input: { command: string; args?: string[]; cwd?: string; title?: string }) =>
+    openPty(input),
+  )
+
+  /** What the user typed in the terminal. */
+  handle("pty:input", (id: string, data: string) => {
+    writePty(id, data)
+  })
+
+  /** Stop the command. */
+  handle("pty:close", async (id: string) => {
+    await closePty(id)
   })
 
   /**

@@ -318,6 +318,21 @@ export class OpenCodeService extends EventEmitter {
     return this.endpoint
   }
 
+  /**
+   * The address of the server.
+   *
+   * The websocket the terminal uses does not go through `request()`, so it
+   * needs the address and the credentials on its own.
+   */
+  endpointUrl(): string {
+    return this.requireEndpoint().url
+  }
+
+  /** The credentials for the server, for the same reason. */
+  authHeaders(): Record<string, string> {
+    return authHeader(this.requireEndpoint())
+  }
+
   async request<T = unknown>(
     method: string,
     path: string,
