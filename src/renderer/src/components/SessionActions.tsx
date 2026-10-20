@@ -70,7 +70,12 @@ export function SessionActions({
   }
 
   const menu = (
-    <div className="picker-menu" ref={menuRef} role="menu">
+    <div
+      className="picker-menu"
+      ref={menuRef}
+      role="menu"
+      style={{ top: box?.top, left: box?.left, width: box?.width, maxHeight: box?.maxHeight }}
+    >
       {mode === "move" ? (
         <>
           <button
