@@ -60,6 +60,18 @@ export function translate(key: DictKey, params?: TranslateParams): string {
 }
 
 /**
+ * Look up a key the dictionary may not have.
+ *
+ * The server names its reasoning levels itself, so the app cannot know every
+ * key ahead of time. A level without a translation shows its own name rather
+ * than a raw key.
+ */
+export function translateLoose(key: string, fallback: string): string {
+  const dict = DICTS[current] as Record<string, string> | undefined
+  return dict?.[key] ?? (ru as Record<string, string>)[key] ?? fallback
+}
+
+/**
  * Subscribe a component to language changes and hand it the translator.
  * Non-React modules (formatters, the store) can call `translate()` directly.
  */

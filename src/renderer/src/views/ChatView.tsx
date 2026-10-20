@@ -82,7 +82,7 @@ import {
 import { useMarkdown } from "../lib/markdown"
 import { cleanText, isUnreadable } from "../lib/text"
 import { stripAnsi } from "../lib/ansi"
-import { useT } from "../i18n"
+import { getLanguage, translateLoose, useT } from "../i18n"
 
 /** Opens a staged or on-disk document in the pane next to the stream. */
 type OpenPreview = (target: PreviewTarget) => void
@@ -884,6 +884,10 @@ interface ChatViewProps {
 export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }: ChatViewProps) {
   const store = useStore()
   const t = useT()
+  /** The store's answer about a conversation, for the header to show. */
+  const refreshSessionInfo = store.refreshSessionInfo
+  /** The active interface language, so labels follow the switch. */
+  const language = getLanguage()
   const [messages, setMessages] = useState<MessageInfo[]>([])
   /** The just-sent prompt, shown until the server lists it in the history. */
   const [pendingUser, setPendingUser] = useState<MessageInfo | null>(null)
@@ -1089,6 +1093,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   // The store keys everything by id, so an absent session is the empty string
   // rather than null; the JSX below guards on truthiness where it matters.
   const sessionId = session?.id ?? ""
+  /** The agent the session is pinned to, as the server sees it. */
+  const sessionAgent = sessionId ? store.sessionAgents[sessionId] : undefined
 
   /**
    * Load an earlier prompt back into the composer.
@@ -1287,10 +1293,20 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       .catch(() => {
         if (!cancelled) setSessionModel(null)
       })
+    // The store keeps the same answer for the whole window, so that a change
+    // made from another client reaches this header as well.
+    void refreshSessionInfo(sessionId)
     return () => {
       cancelled = true
     }
-  }, [sessionId])
+  }, [sessionId, refreshSessionInfo])
+
+  // The server's answer wins: the model may have been changed elsewhere.
+  const storeModel = sessionId ? store.sessionModels[sessionId] : undefined
+  useEffect(() => {
+    if (storeModel === undefined) return
+    setSessionModel(storeModel)
+  }, [storeModel])
 
   // Pin to the newest message, unless the user has scrolled up to read.
   useLayoutEffect(() => {
@@ -1592,6 +1608,27 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       })),
     [store.models],
   )
+
+  /**
+   * The reasoning levels the chosen model offers.
+   *
+   * The server keeps them next to the model and expects the level inside the
+   * model reference, so choosing one is part of choosing the model.
+   */
+  const variantItems = useMemo(() => {
+    const model = store.models.find(
+      (item) =>
+        item.providerID === (sessionModel?.providerID ?? store.settings?.defaultProvider) &&
+        item.id === (sessionModel?.id ?? store.settings?.defaultModel),
+    )
+    const variants = model?.variants ?? []
+    if (!variants.length) return []
+    return variants.map((variant) => ({
+      key: variant.id,
+      label: translateLoose(`variant.${variant.id}`, variant.id),
+      hint: variant.settings?.reasoningEffort ? String(variant.settings.reasoningEffort) : undefined,
+    }))
+  }, [store.models, sessionModel, store.settings, language])
 
   const agentItems = useMemo(
     () =>
@@ -2073,16 +2110,37 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             const index = key.indexOf("/")
             const providerID = key.slice(0, index)
             const id = key.slice(index + 1)
-            void store.setModel(providerID, id, sessionId).then(() => setSessionModel({ providerID, id }))
+            // A new model may not offer the level the old one did, so the
+            // level is dropped rather than carried over to a model that does
+            // not know it.
+            void store
+              .setModel(providerID, id, sessionId)
+              .then(() => setSessionModel({ providerID, id }))
           }}
         />
+        {variantItems.length ? (
+          <Picker
+            title={t("chat.variant")}
+            label={t("chat.variant")}
+            items={variantItems}
+            selected={sessionModel?.variant ?? ""}
+            onSelect={(key) => {
+              const providerID = sessionModel?.providerID ?? store.settings?.defaultProvider ?? "opencode"
+              const id = sessionModel?.id ?? store.settings?.defaultModel ?? ""
+              if (!id) return
+              void store
+                .setModel(providerID, id, sessionId, key)
+                .then(() => setSessionModel({ providerID, id, variant: key }))
+            }}
+          />
+        ) : null}
         <Picker
           title={t("chat.agent")}
           label={t("chat.agent")}
           searchable
           items={agentItems}
-          selected={store.settings?.defaultAgent ?? "build"}
-          onSelect={(key) => void store.updateSettings({ defaultAgent: key })}
+          selected={sessionAgent ?? store.settings?.defaultAgent ?? "build"}
+          onSelect={(key) => void store.setAgent(key, sessionId)}
         />
 
         {isBusy && turnStart ? (

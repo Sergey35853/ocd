@@ -68,6 +68,7 @@ export const ru = {
   "chat.thinking": "Размышления",
   "chat.model": "Модель",
   "chat.agent": "Агент",
+  "chat.variant": "Уровень размышления",
   "chat.sessionModelMismatch": "модель сессии: {model}",
   "chat.sessionModelGone": "модель {model} больше недоступна",
   "chat.modelGoneHint": "Сервер больше не предлагает эту модель — при отправке сессия переключится на рабочую",
@@ -715,6 +716,11 @@ export const ru = {
   "model.downloadThis": "Скачать {repo}",
   "model.ram": "ОЗУ {size}",
   "model.diskFree": "свободно {size}",
+  "variant.low": "низкий",
+  "variant.medium": "средний",
+  "variant.high": "высокий",
+  "variant.xhigh": "очень высокий",
+  "variant.max": "максимум",
 } as const
 
 export type DictKey = keyof typeof ru

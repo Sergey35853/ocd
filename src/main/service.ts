@@ -321,7 +321,12 @@ export class OpenCodeService extends EventEmitter {
   async request<T = unknown>(
     method: string,
     path: string,
-    options: { query?: Record<string, string | number | undefined>; body?: unknown } = {},
+    options: {
+      query?: Record<string, string | number | undefined>
+      body?: unknown
+      /** Keep the server's envelope instead of unwrapping `{ data: ... }`. */
+      raw?: boolean
+    } = {},
   ): Promise<T> {
     // Two attempts at most. A fetch that fails on the connection is the one
     // error worth retrying, and only after the registration has been read
@@ -357,14 +362,18 @@ export class OpenCodeService extends EventEmitter {
       const type = res.headers.get("content-type") ?? ""
       if (type.includes("application/json")) {
         const body = await res.json()
-        return unwrapEnvelope(body) as T
+        return (options.raw ? body : unwrapEnvelope(body)) as T
       }
       return (await res.text()) as unknown as T
     }
   }
 
-  get<T>(path: string, query?: Record<string, string | number | undefined>): Promise<T> {
-    return this.request<T>("GET", path, { query })
+  get<T>(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+    options?: { raw?: boolean },
+  ): Promise<T> {
+    return this.request<T>("GET", path, { query, ...options })
   }
 
   post<T>(path: string, body?: unknown, query?: Record<string, string | number | undefined>): Promise<T> {

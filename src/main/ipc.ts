@@ -93,6 +93,10 @@ import type {
   InboxItem,
   PermissionDecision,
   PermissionRequest,
+  PermissionRule,
+  MessageInfo,
+  MessagePage,
+  MessagePageQuery,
   UpdateState,
 } from "@shared/types"
 
@@ -338,6 +342,66 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   handle<unknown>("api:setSessionModel", (sessionId: string, model: ModelRef) =>
     service.post(`/api/session/${sessionId}/model`, { model }),
+  )
+
+  /**
+   * The model history, page by page.
+   *
+   * The server's list is endless in both directions and hands back a cursor
+   * for the page before the one it returned. The plain envelope is unwrapped
+   * by the service, which would throw the cursor away, so this asks for the
+   * raw body and picks the two pieces apart itself.
+   */
+  handle<MessagePage>("api:messagePage", async (sessionId: string, page?: MessagePageQuery) => {
+    const query: Record<string, string | number | undefined> = { limit: page?.limit ?? 100 }
+    if (page?.cursor) query.cursor = page.cursor
+    else if (page?.order) query.order = page.order
+    const raw = await service.get<{ data?: unknown[]; cursor?: { previous?: string | null } }>(
+      `/api/session/${sessionId}/message`,
+      query,
+      { raw: true },
+    )
+    const messages = Array.isArray(raw?.data) ? (raw.data as MessageInfo[]) : []
+    return { messages, cursor: raw?.cursor?.previous ?? undefined }
+  })
+
+  handle<unknown>("api:setSessionAgent", (sessionId: string, agent: string) =>
+    service.post(`/api/session/${sessionId}/agent`, { agent }),
+  )
+
+  handle<unknown>("api:compactSession", (sessionId: string) =>
+    // `steer` runs the compaction at the next step boundary instead of
+    // waiting behind queued prompts.
+    service.post(`/api/session/${sessionId}/compact`, { delivery: "steer" }),
+  )
+
+  handle<SessionInfo>("api:forkSession", (sessionId: string, before?: string) =>
+    service.post(`/api/session/${sessionId}/fork`, before ? { before } : {}),
+  )
+
+  handle<unknown>("api:moveSession", (sessionId: string, directory: string) =>
+    service.post(`/api/session/${sessionId}/move`, { directory }),
+  )
+
+  handle<unknown>("api:runSessionCommand", (sessionId: string, command: { name: string; text: string }) =>
+    service.post(`/api/session/${sessionId}/command`, { name: command.name, text: command.text }),
+  )
+
+  handle<PermissionRule[]>("api:permissionRules", async (projectID?: string) => {
+    const rules = await service.get<unknown>("/api/permission/saved", { projectID })
+    return Array.isArray(rules) ? (rules as PermissionRule[]) : []
+  })
+
+  handle<unknown>("api:savePermissionRule", (sessionId: string, rule: { action: string; resources: string[]; save?: string[] }) =>
+    service.post(`/api/session/${sessionId}/permission`, {
+      action: rule.action,
+      resources: rule.resources,
+      ...(rule.save?.length ? { save: rule.save } : {}),
+    }),
+  )
+
+  handle<unknown>("api:deletePermissionRule", (id: string) =>
+    service.del(`/api/permission/saved/${id}`),
   )
 
   handle<ModelInfo | null>("api:serverDefaultModel", async () => {

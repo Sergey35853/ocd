@@ -20,6 +20,7 @@ import type {
   PermissionDecision,
   PermissionRequest,
   ModelInfo,
+  ModelRef,
   ProviderInfo,
   RequestLimits,
   ServerEvent,
@@ -126,6 +127,10 @@ interface Store {
   live: Record<string, LiveTurn>
 
   models: ModelInfo[]
+  /** The model each conversation is pinned to, per conversation. */
+  sessionModels: Record<string, ModelRef | null>
+  /** The agent each conversation is pinned to, per conversation. */
+  sessionAgents: Record<string, string>
   providers: ProviderInfo[]
   agents: AgentInfo[]
   skills: SkillInfo[]
@@ -191,7 +196,16 @@ interface Store {
   answerForm(sessionId: string, formId: string, answer: FormAnswer): Promise<void>
   /** Dismiss a question without answering it. */
   cancelForm(sessionId: string, formId: string): Promise<void>
-  setModel(providerID: string, modelID: string, sessionId?: string | null): Promise<void>
+  setModel(
+    providerID: string,
+    modelID: string,
+    sessionId?: string | null,
+    variant?: string,
+  ): Promise<void>
+  /** Pins the agent of a conversation and remembers it as the default. */
+  setAgent(agent: string, sessionId?: string | null): Promise<void>
+  /** Reads back what a conversation is really running on. */
+  refreshSessionInfo(sessionId: string): Promise<void>
   /** Rewinds the conversation to a message and resends it; false if refused. */
   editAndResend(sessionId: string, messageId: string, text: string): Promise<boolean>
   /** Stop the running turn; the server picks up anything waiting. */
@@ -404,6 +418,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [limits, setLimits] = useState<Record<string, RequestLimits>>({})
   const [live, setLive] = useState<Record<string, LiveTurn>>({})
   const [models, setModels] = useState<ModelInfo[]>([])
+  /**
+   * The model and the agent each conversation runs on, per conversation.
+   *
+   * The server owns both: a session can be pinned to a model and an agent
+   * that differ from the app's defaults, and another client can change them
+   * behind our back. Keeping them here means one source of truth for the
+   * whole window instead of a copy per open chat.
+   */
+  const [sessionModels, setSessionModels] = useState<Record<string, ModelRef | null>>({})
+  const [sessionAgents, setSessionAgents] = useState<Record<string, string>>({})
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [agents, setAgents] = useState<AgentInfo[]>([])
   const [skills, setSkills] = useState<SkillInfo[]>([])
@@ -985,20 +1009,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /** Switch the model of the open session and remember it as the default. */
   const setModel = useCallback(
-    async (providerID: string, modelID: string, sessionId?: string | null) => {
-      await updateSettings({ defaultProvider: providerID, defaultModel: modelID })
+    async (
+      providerID: string,
+      modelID: string,
+      sessionId?: string | null,
+      variant?: string,
+    ) => {
+      // The reasoning level belongs to the model reference: the server pins
+      // `model` on the session as a whole, variant included.
+      const ref: ModelRef = { providerID, id: modelID, ...(variant ? { variant } : {}) }
+      await updateSettings({
+        defaultProvider: providerID,
+        defaultModel: modelID,
+        ...(variant ? { defaultModelVariant: variant } : {}),
+      })
       // The server has no "set default model" route and the default the app
       // itself stores is what gets pinned onto every new session, so saving it
       // locally is enough.
       if (!sessionId) return
       try {
-        await window.ocd.api.setSessionModel(sessionId, { providerID, id: modelID })
+        await window.ocd.api.setSessionModel(sessionId, ref)
+        setSessionModels((current) => ({ ...current, [sessionId]: ref }))
       } catch (err) {
         toast(err instanceof Error ? err.message : String(err), "error")
       }
     },
     [toast, updateSettings],
   )
+
+  /**
+   * Switch the agent of the open session and remember it as the default.
+   *
+   * The agent used to travel with every prompt, which meant the picker in the
+   * header only spoke about the next turn and said nothing about the session
+   * itself. The server can pin it, so it is pinned now.
+   */
+  const setAgent = useCallback(
+    async (agent: string, sessionId?: string | null) => {
+      await updateSettings({ defaultAgent: agent })
+      if (!sessionId) return
+      try {
+        await window.ocd.api.setSessionAgent(sessionId, agent)
+        setSessionAgents((current) => ({ ...current, [sessionId]: agent }))
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [toast, updateSettings],
+  )
+
+  /**
+   * Read what a conversation is really running on.
+   *
+   * The header shows this, so it has to be the server's answer rather than the
+   * app's guess: another client may have changed the model or the agent.
+   */
+  const refreshSessionInfo = useCallback(async (sessionId: string) => {
+    try {
+      const info = await window.ocd.api.session(sessionId)
+      setSessionModels((current) => ({ ...current, [sessionId]: info.model ?? null }))
+      if (info.agent) setSessionAgents((current) => ({ ...current, [sessionId]: info.agent! }))
+    } catch {
+      // The session may be gone; the header falls back to the default.
+    }
+  }, [])
 
   const clearDictationText = useCallback(() => setDictationText(null), [])
 
@@ -1187,6 +1261,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         case "session.updated":
         case "session.deleted":
           void refreshSessions()
+          // The session may have changed its model or its agent — from another
+          // client, or from the server's own housekeeping. The header shows
+          // what the server says, so it has to be told.
+          if (sessionID) void refreshSessionInfo(sessionID)
           break
 
         // Live spend. Confirmed against the real SSE stream: the counters are
@@ -1645,6 +1723,8 @@ useEffect(() => {
       cancelForm,
       live,
       models,
+      sessionModels,
+      sessionAgents,
       providers,
       agents,
       skills,
@@ -1671,6 +1751,8 @@ useEffect(() => {
       refreshCatalog,
       send,
       setModel,
+      setAgent,
+      refreshSessionInfo,
       editAndResend,
       abort,
       updateSettings,
@@ -1698,6 +1780,8 @@ useEffect(() => {
       settledCalls,
       live,
       models,
+      sessionModels,
+      sessionAgents,
       providers,
       agents,
       skills,
@@ -1724,6 +1808,8 @@ useEffect(() => {
       refreshCatalog,
       send,
       setModel,
+      setAgent,
+      refreshSessionInfo,
       editAndResend,
       abort,
       updateSettings,

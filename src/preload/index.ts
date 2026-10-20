@@ -26,6 +26,7 @@ import type {
   InboxItem,
   PromptDelivery,
   RequestLimits,
+  MessagePageQuery,
 } from "@shared/types"
 
 type Envelope<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -70,6 +71,8 @@ const api = {
     deleteSession: (id: string) => call("api:deleteSession", id),
     renameSession: (id: string, title: string) => call("api:renameSession", id, title),
     messages: (sessionId: string) => call("api:messages", sessionId),
+    messagePage: (sessionId: string, page?: MessagePageQuery) =>
+      call("api:messagePage", sessionId, page),
     prompt: (
       sessionId: string,
       input: {
@@ -88,8 +91,23 @@ const api = {
      */
     interrupt: (sessionId: string, resume?: boolean) =>
       call<{ interrupted: boolean }>("api:interrupt", sessionId, resume === true),
-    setSessionModel: (sessionId: string, model: { providerID: string; id: string }) =>
+    setSessionModel: (sessionId: string, model: { providerID: string; id: string; variant?: string }) =>
       call("api:setSessionModel", sessionId, model),
+    setSessionAgent: (sessionId: string, agent: string) =>
+      call("api:setSessionAgent", sessionId, agent),
+    compactSession: (sessionId: string) => call("api:compactSession", sessionId),
+    forkSession: (sessionId: string, before?: string) =>
+      call("api:forkSession", sessionId, before),
+    moveSession: (sessionId: string, directory: string) =>
+      call("api:moveSession", sessionId, directory),
+    runSessionCommand: (sessionId: string, command: { name: string; text: string }) =>
+      call("api:runSessionCommand", sessionId, command),
+    permissionRules: (projectID?: string) => call("api:permissionRules", projectID),
+    savePermissionRule: (
+      sessionId: string,
+      rule: { action: string; resources: string[]; save?: string[] },
+    ) => call("api:savePermissionRule", sessionId, rule),
+    deletePermissionRule: (id: string) => call("api:deletePermissionRule", id),
     /**
      * Rewinds the conversation to before a message. Everything from it on is
      * dropped, which is what "edit and resend" needs.

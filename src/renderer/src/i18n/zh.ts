@@ -59,6 +59,7 @@ export const zh: Dict = {
   "chat.thinking": "思考过程",
   "chat.model": "模型",
   "chat.agent": "智能体",
+  "chat.variant": "推理级别",
   "chat.sessionModelMismatch": "会话模型：{model}",
   "chat.sessionModelGone": "模型 {model} 已不可用",
   "chat.modelGoneHint": "服务器不再提供此模型——发送时会把会话切换到可用模型",
@@ -681,5 +682,10 @@ export const zh: Dict = {
   "model.downloadThis": "下载 {repo}",
   "model.ram": "内存 {size}",
   "model.diskFree": "可用 {size}",
+  "variant.low": "低",
+  "variant.medium": "中",
+  "variant.high": "高",
+  "variant.xhigh": "很高",
+  "variant.max": "最高",
 }
 

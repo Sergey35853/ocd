@@ -42,6 +42,17 @@ export interface ModelRef {
   variant?: string
 }
 
+/**
+ * One reasoning level of a model.
+ *
+ * The server offers them per model — `low`, `medium`, `high` and so on — and
+ * each carries the settings the model expects, e.g. a reasoning effort.
+ */
+export interface ModelVariant {
+  id: string
+  settings?: Record<string, unknown>
+}
+
 export interface ModelInfo {
   id: string
   name?: string
@@ -53,6 +64,8 @@ export interface ModelInfo {
   releaseDate?: string
   cost?: Record<string, unknown>
   limit?: { context?: number; output?: number }
+  /** Reasoning levels the model offers, if it offers any. */
+  variants?: ModelVariant[]
   /** Filled by OCD: computed "<providerID>/<modelID>" */
   ref?: string
 }
@@ -301,6 +314,8 @@ export interface SessionInfo {
   version?: string
   time?: { created?: number; updated?: number }
   model?: ModelRef
+  /** The agent the session is pinned to. Empty means the server's own choice. */
+  agent?: string
   location?: LocationInfo
   projectID?: string
   parentID?: string | null
@@ -398,6 +413,34 @@ export interface MessageInfo {
   outcome?: string
 }
 
+/**
+ * One page of history and the cursor that walks backwards through it.
+ *
+ * The server's message list is endless in both directions; the cursor is the
+ * only way back to the beginning of a long conversation.
+ */
+export interface MessagePage {
+  messages: MessageInfo[]
+  /** Cursor for the page before this one. Absent when the start is reached. */
+  cursor?: string
+}
+
+/** Which page of the history to ask the server for. */
+export interface MessagePageQuery {
+  limit?: number
+  cursor?: string
+  order?: "asc" | "desc"
+}
+
+/** A permission answer the server remembers for a project. */
+export interface PermissionRule {
+  id: string
+  projectID?: string
+  action: string
+  resource: string
+  time?: { created?: number; updated?: number }
+}
+
 export interface ConfigFileInfo {
   path: string
   text: string
@@ -435,6 +478,8 @@ export interface AppSettings {
   defaultDirectory: string
   defaultProvider: string
   defaultModel: string
+  /** Reasoning level of the default model, e.g. "high". Empty means the model's own. */
+  defaultModelVariant?: string
   defaultAgent: string
   /** "system" | "light" | "dark" | "auto" */
   theme: string
@@ -781,7 +826,20 @@ export interface OcdApi {
     session(id: string): Promise<SessionInfo>
     deleteSession(id: string): Promise<unknown>
     renameSession(id: string, title: string): Promise<unknown>
-    messages(sessionId: string): Promise<MessageInfo[]>
+    messages(
+      sessionId: string,
+      page?: { limit?: number; cursor?: string; order?: "asc" | "desc" },
+    ): Promise<MessageInfo[]>
+    /**
+     * One page of history plus the cursor to the page before it.
+     *
+     * The plain list is the last page: the newest messages. Older ones are
+     * fetched with the cursor the server hands back.
+     */
+    messagePage(
+      sessionId: string,
+      page?: { limit?: number; cursor?: string; order?: "asc" | "desc" },
+    ): Promise<MessagePage>
     prompt(
       sessionId: string,
       input: {
@@ -799,6 +857,28 @@ export interface OcdApi {
     interrupt(sessionId: string, resume?: boolean): Promise<{ interrupted: boolean }>
     /** Pin the model of an existing session (POST /api/session/{id}/model). */
     setSessionModel(sessionId: string, model: ModelRef): Promise<unknown>
+    /** Pin the agent of an existing session (POST /api/session/{id}/agent). */
+    setSessionAgent(sessionId: string, agent: string): Promise<unknown>
+    /** Ask the server to shrink the conversation (POST /api/session/{id}/compact). */
+    compactSession(sessionId: string): Promise<unknown>
+    /** Branch the conversation (POST /api/session/{id}/fork). */
+    forkSession(sessionId: string, before?: string): Promise<SessionInfo>
+    /** Move a session to another project directory (POST /api/session/{id}/move). */
+    moveSession(sessionId: string, directory: string): Promise<unknown>
+    /** Run a server-side command in a session (POST /api/session/{id}/command). */
+    runSessionCommand(
+      sessionId: string,
+      command: { name: string; text: string },
+    ): Promise<unknown>
+    /** Permission rules remembered for the project (GET /api/permission/saved). */
+    permissionRules(projectID?: string): Promise<PermissionRule[]>
+    /** Remember a permission answer (POST /api/session/{id}/permission). */
+    savePermissionRule(
+      sessionId: string,
+      rule: { action: string; resources: string[]; save?: string[] },
+    ): Promise<unknown>
+    /** Forget a remembered permission answer (DELETE /api/permission/saved/{id}). */
+    deletePermissionRule(id: string): Promise<unknown>
     /**
      * Rewinds the conversation to before a message, dropping it and everything
      * after. Fails with 409 while a turn is running.

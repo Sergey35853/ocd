@@ -59,6 +59,7 @@ export const fr: Dict = {
   "chat.thinking": "Réflexion",
   "chat.model": "Modèle",
   "chat.agent": "Agent",
+  "chat.variant": "Niveau de raisonnement",
   "chat.sessionModelMismatch": "modèle de session : {model}",
   "chat.sessionModelGone": "modèle {model} n'est plus disponible",
   "chat.modelGoneHint": "Le serveur ne propose plus ce modèle — l'envoi basculera la session sur un modèle disponible",
@@ -692,5 +693,10 @@ export const fr: Dict = {
   "model.downloadThis": "Télécharger {repo}",
   "model.ram": "RAM {size}",
   "model.diskFree": "{size} libres",
+  "variant.low": "faible",
+  "variant.medium": "moyen",
+  "variant.high": "élevé",
+  "variant.xhigh": "très élevé",
+  "variant.max": "maximum",
 }
 
