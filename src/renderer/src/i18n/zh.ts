@@ -60,6 +60,7 @@ export const zh: Dict = {
   "chat.model": "模型",
   "chat.agent": "智能体",
   "chat.variant": "推理级别",
+  "chat.historyStart": "对话开始",
   "chat.sessionModelMismatch": "会话模型：{model}",
   "chat.sessionModelGone": "模型 {model} 已不可用",
   "chat.modelGoneHint": "服务器不再提供此模型——发送时会把会话切换到可用模型",

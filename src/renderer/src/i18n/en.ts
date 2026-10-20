@@ -60,6 +60,7 @@ export const en: Dict = {
   "chat.model": "Model",
   "chat.agent": "Agent",
   "chat.variant": "Reasoning level",
+  "chat.historyStart": "Start of the conversation",
   "chat.sessionModelMismatch": "session model: {model}",
   "chat.sessionModelGone": "model {model} is no longer available",
   "chat.modelGoneHint": "The server no longer offers this model — sending will switch the session to a working one",

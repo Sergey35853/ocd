@@ -60,6 +60,7 @@ export const fr: Dict = {
   "chat.model": "Modèle",
   "chat.agent": "Agent",
   "chat.variant": "Niveau de raisonnement",
+  "chat.historyStart": "Début de la conversation",
   "chat.sessionModelMismatch": "modèle de session : {model}",
   "chat.sessionModelGone": "modèle {model} n'est plus disponible",
   "chat.modelGoneHint": "Le serveur ne propose plus ce modèle — l'envoi basculera la session sur un modèle disponible",

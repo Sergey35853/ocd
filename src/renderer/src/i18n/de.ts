@@ -60,6 +60,7 @@ export const de: Dict = {
   "chat.model": "Modell",
   "chat.agent": "Agent",
   "chat.variant": "Denklevel",
+  "chat.historyStart": "Anfang der Unterhaltung",
   "chat.sessionModelMismatch": "Sitzungsmodell: {model}",
   "chat.sessionModelGone": "Modell {model} ist nicht mehr verfügbar",
   "chat.modelGoneHint": "Der Server bietet dieses Modell nicht mehr an – beim Senden wechselt die Sitzung auf ein verfügbares Modell",

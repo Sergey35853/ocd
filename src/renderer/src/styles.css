@@ -4149,6 +4149,16 @@ select.input {
   gap: 14px;
 }
 
+/* The marker above the oldest message: the conversation starts here. */
+.history-start {
+  align-self: center;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font: 500 11.5px/1.4 var(--font);
+}
+
 .msg-user {
   align-self: flex-end;
   max-width: 86%;

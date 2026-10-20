@@ -69,6 +69,7 @@ export const ru = {
   "chat.model": "Модель",
   "chat.agent": "Агент",
   "chat.variant": "Уровень размышления",
+  "chat.historyStart": "Начало переписки",
   "chat.sessionModelMismatch": "модель сессии: {model}",
   "chat.sessionModelGone": "модель {model} больше недоступна",
   "chat.modelGoneHint": "Сервер больше не предлагает эту модель — при отправке сессия переключится на рабочую",

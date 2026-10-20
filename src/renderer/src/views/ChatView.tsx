@@ -120,6 +120,8 @@ type ToolFilter = "all" | "notable"
  */
 const DRAFT_PREFIX = "ocd.draft.v1:"
 const DRAFT_LIMIT = 60
+/** How many messages one page of the history holds. */
+const PAGE_SIZE = 100
 
 function readDraft(sessionId: string): string {
   if (!sessionId) return ""
@@ -904,6 +906,21 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const innerRef = useRef<HTMLDivElement>(null)
   /** Whether the stream should follow new content. See the scroll listener. */
   const pinnedRef = useRef(true)
+  /**
+   * Where the loaded history stands.
+   *
+   * The server hands the conversation out one page at a time, and the cursor
+   * walks backwards through it: `cursor` points at the page before the oldest
+   * one on screen, `start` says there is nothing before that.
+   */
+  const historyRef = useRef<{ sessionId: string; cursor?: string; start: boolean }>({
+    sessionId: "",
+    start: true,
+  })
+  /** Whether the older page is already on its way. */
+  const loadingOlderRef = useRef(false)
+  /** Whether the beginning of the conversation is on screen. */
+  const [historyStart, setHistoryStart] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   /**
    * Whether an input method is mid-word right now.
@@ -1013,6 +1030,20 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * not something to persist to disk.
    */
   const sentFiles = useRef(new Map<string, Attachment[]>())
+  /**
+   * Put the attachments of sent prompts back on the messages that carry them.
+   *
+   * The server's history names the files but carries none of their display
+   * state, so without this a sent attachment vanishes the moment the turn
+   * lands.
+   */
+  const withAttachments = useCallback((list: MessageInfo[]) =>
+    list.map((message) => {
+      if (message.type !== "user" || !message.text) return message
+      const files = sentFiles.current.get(message.text)
+      return files ? { ...message, attachments: files } : message
+    }),
+  [])
   /** Path being converted for the pane; non-null while LibreOffice runs. */
   const [preparing, setPreparing] = useState<string | null>(null)
 
@@ -1215,24 +1246,35 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   /** Commands running in the background for this conversation. */
   const runs = sessionId ? store.shellRuns[sessionId] ?? [] : []
 
+  /**
+   * Load the conversation, newest page first.
+   *
+   * The server keeps the whole history and hands out one page at a time; the
+   * older pages are fetched when the user scrolls up to them.
+   */
   const load = useCallback(async () => {
     if (!sessionId) {
       setMessages([])
       return
     }
     try {
-      const list = await window.ocd.api.messages(sessionId)
-      const fresh = Array.isArray(list) ? list : []
-      // Re-attach what was sent with each prompt: the history the server hands
-      // back names the files but carries none of their display state, so
-      // without this a sent attachment vanishes the moment the turn lands.
-      setMessages(
-        fresh.map((message) => {
-          if (message.type !== "user" || !message.text) return message
-          const files = sentFiles.current.get(message.text)
-          return files ? { ...message, attachments: files } : message
-        }),
-      )
+      const page = await window.ocd.api.messagePage(sessionId, { limit: PAGE_SIZE })
+      const fresh = withAttachments(page.messages ?? [])
+      // A refresh after a turn must not throw away the older half the user
+      // scrolled up to and read: keep what is above the new page.
+      setMessages((current) => {
+        const freshIds = new Set(fresh.map((message) => message.id))
+        const kept = current.filter((message) => !freshIds.has(message.id))
+        return [...kept, ...fresh]
+      })
+      // The cursor walks backwards, so the one that matters is the oldest
+      // page already loaded — a refresh must not rewind it.
+      if (historyRef.current.sessionId !== sessionId) {
+        historyRef.current = { sessionId, cursor: page.cursor, start: !page.cursor }
+        setHistoryStart(!page.cursor)
+      } else if (!historyRef.current.cursor && page.cursor) {
+        historyRef.current.cursor = page.cursor
+      }
 
       // Once the server has the turn, its copy replaces the optimistic one.
       // Matched on the exact body: the same sentence twice in a row would
@@ -1246,6 +1288,54 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       })
     } catch {
       setMessages([])
+    }
+  }, [sessionId])
+
+  /**
+   * Fetch the page before the oldest one on screen.
+   *
+   * The scroll position is restored afterwards: the messages appear above
+   * what the user is reading, and without the correction the page would jump
+   * under the cursor.
+   */
+  const loadOlder = useCallback(async () => {
+    const history = historyRef.current
+    if (!sessionId || history.sessionId !== sessionId) return
+    if (!history.cursor || history.start || loadingOlderRef.current) return
+    loadingOlderRef.current = true
+    const node = streamRef.current
+    const heightBefore = node?.scrollHeight ?? 0
+    try {
+      const page = await window.ocd.api.messagePage(sessionId, {
+        limit: PAGE_SIZE,
+        cursor: history.cursor,
+      })
+      const older = withAttachments(page.messages ?? [])
+      if (!older.length) {
+        history.start = true
+        setHistoryStart(true)
+        return
+      }
+      history.cursor = page.cursor
+      if (!page.cursor) {
+        history.start = true
+        setHistoryStart(true)
+      }
+      setMessages((current) => {
+        const known = new Set(current.map((message) => message.id))
+        const fresh = older.filter((message) => !known.has(message.id))
+        return fresh.length ? [...fresh, ...current] : current
+      })
+      requestAnimationFrame(() => {
+        if (!node) return
+        node.scrollTop = node.scrollHeight - heightBefore
+      })
+    } catch {
+      // A page that will not load is not worth retrying in a loop.
+      history.start = true
+      setHistoryStart(true)
+    } finally {
+      loadingOlderRef.current = false
     }
   }, [sessionId])
 
@@ -1351,10 +1441,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     pinnedRef.current = true
     const onScroll = () => {
       pinnedRef.current = isNearBottom(node)
+      // Near the top of the stream the next page of the history is waiting.
+      if (node.scrollTop < 160) void loadOlder()
     }
     node.addEventListener("scroll", onScroll, { passive: true })
     return () => node.removeEventListener("scroll", onScroll)
-  }, [sessionId])
+  }, [sessionId, loadOlder])
 
   /**
    * Follow the tail as the stream keeps growing after the last text arrived.
@@ -2263,6 +2355,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             }}
           >
             <div className="stream-inner" ref={innerRef}>
+              {sessionId && historyStart ? (
+                <div className="history-start">{t("chat.historyStart")}</div>
+              ) : null}
               {sessionId ? (
                 <SessionBoard
                   sessionId={sessionId}
