@@ -965,6 +965,10 @@ export interface OcdApi {
     findFiles(query: string, directory?: string): Promise<FileEntry[]>
     /** The branch the project is on. */
     vcsBranch(directory?: string): Promise<VcsBranch | null>
+    /** The branch a folder is on, read from the repository itself. */
+    gitBranch(directory?: string): Promise<string | null>
+    /** The branch and the number of changed files. */
+    gitStatus(directory?: string): Promise<{ branch: string | null; changed: number }>
     /** What the project changed, per file. */
     vcsStatus(directory?: string): Promise<VcsFileStatus[]>
     /** The worktrees the server keeps. */

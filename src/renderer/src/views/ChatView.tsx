@@ -1063,19 +1063,18 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   /**
    * The branch and the dirty files of the project the chat works in.
    *
-   * The server counts them: it is the one that knows what the agent touched.
+   * The server counts the changed files; the branch it can only list, so it
+   * is read from the repository itself. The folder is the session's own — a
+   * chat can be about another project than the one the app is pointed at.
    */
-  const [git, setGit] = useState<{ branch?: string; changed: number } | null>(null)
+  const [git, setGit] = useState<{ branch?: string | null; changed: number } | null>(null)
+  const sessionDirectory = session?.location?.directory || store.directory || undefined
   useEffect(() => {
-    const directory = store.directory || undefined
     let cancelled = false
-    void Promise.all([
-      window.ocd.api.vcsBranch(directory),
-      window.ocd.api.vcsStatus(directory),
-    ])
-      .then(([branch, status]) => {
-        if (cancelled) return
-        setGit({ branch: branch?.current || undefined, changed: status.length })
+    void window.ocd.api
+      .gitStatus(sessionDirectory)
+      .then((status) => {
+        if (!cancelled) setGit(status)
       })
       .catch(() => {
         if (!cancelled) setGit(null)
@@ -1083,7 +1082,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     return () => {
       cancelled = true
     }
-  }, [store.directory, changes.length])
+  }, [sessionDirectory, changes.length])
 
   /**
    * Attachments of prompts sent in this session, keyed by the prompt text.

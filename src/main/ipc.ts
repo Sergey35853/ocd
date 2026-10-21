@@ -1,5 +1,7 @@
 import { BrowserWindow, app, dialog, ipcMain, shell } from "electron"
 import { readFile } from "node:fs/promises"
+import { readFileSync, statSync } from "node:fs"
+import { join } from "node:path"
 import { service } from "./service"
 import { getSettings, setSettings, exportSettings, importSettings } from "./settings"
 import { openPty, writePty, closePty } from "./pty"
@@ -109,7 +111,37 @@ import type {
   UpdateState,
 } from "@shared/types"
 
-/** Some endpoints answer with a bare array, others with { all | data | models }. */
+/**
+ * The branch a folder is on.
+ *
+ * The server lists the branches of a repository but does not say which one is
+ * checked out, and the question the header answers is exactly that. The
+ * repository says it itself, in its own HEAD — one small file, read here
+ * because the renderer has no business touching the disk.
+ */
+function currentBranch(directory: string): string | null {
+  try {
+    const dotGit = join(directory, ".git")
+    let headPath = join(dotGit, "HEAD")
+    if (statSync(dotGit).isFile()) {
+      // A worktree: .git is a file that points at the real directory.
+      const text = readFileSync(dotGit, "utf8")
+      const match = text.match(/^gitdir:\s*(.+)$/m)
+      if (!match) return null
+      headPath = join(match[1].trim(), "HEAD")
+    }
+    const head = readFileSync(headPath, "utf8").trim()
+    const ref = head.match(/^ref:\s*refs\/heads\/(.+)$/)
+    // A detached HEAD has no branch: the commit itself is the best answer.
+    return ref ? ref[1] : head || null
+  } catch {
+    // Not a repository, or not readable: there is no branch to show.
+    return null
+  }
+}
+
+/**
+ * Some endpoints answer with a bare array, others with { all | data | models }. */
 function unwrap<T>(value: unknown, ...keys: string[]): T[] {
   if (Array.isArray(value)) return value as T[]
   if (value && typeof value === "object") {
@@ -292,9 +324,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    * agent: what it is for and what it is allowed to do.
    */
   handle<AgentDetails>("api:agent", async (id: string) => {
-    const body = await service.get<{ data?: AgentDetails }>(`/api/agent/${id}`)
-    const data = body?.data
-    if (!data) throw new Error(`Unknown agent: ${id}`)
+    const data = await service.get<AgentDetails>(`/api/agent/${id}`)
+    if (!data?.id) throw new Error(`Unknown agent: ${id}`)
     return {
       id: data.id,
       name: data.name,
@@ -437,17 +468,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    * difference is the whole point.
    */
   handle<{ count: number; tokens: number }>("api:sessionContext", async (sessionId: string) => {
-    const body = await service.get<{ data?: MessageInfo[] }>(
+    const messages = await service.get<MessageInfo[]>(
       `/api/session/${sessionId}/context`,
     )
-    const messages = body?.data ?? []
+    const list = Array.isArray(messages) ? messages : []
     let tokens = 0
-    for (const message of messages) {
+    for (const message of list) {
       const usage = message.tokens
       if (!usage) continue
       tokens += (usage.input ?? 0) + (usage.output ?? 0) + (usage.reasoning ?? 0)
     }
-    return { count: messages.length, tokens }
+    return { count: list.length, tokens }
   })
 
   /**
@@ -457,19 +488,18 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    * invisible here otherwise: the chat looks idle while the model is writing.
    */
   handle<Record<string, { type: string }>>("api:activeSessions", async () => {
-    const body = await service.get<{ data?: Record<string, { type: string }> }>(
+    const active = await service.get<Record<string, { type: string }>>(
       "/api/session/active",
     )
-    return body?.data ?? {}
+    return active ?? {}
   })
 
   /** The server's own log of a session: what it was doing and why. */
   handle<string[]>("api:sessionLog", async (sessionId: string) => {
     try {
-      const body = await service.get<{ data?: unknown }>(
+      const data = await service.get<unknown>(
         `/api/experimental/session/${sessionId}/log`,
       )
-      const data = body?.data
       if (Array.isArray(data)) return data.map((line) => String(line))
       if (typeof data === "string") return data.split(/\r?\n/)
       return []
@@ -481,11 +511,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /** The resources the MCP servers publish. */
   handle<{ resources: string[]; templates: string[] }>("api:mcpResources", async () => {
     try {
-      const body = await service.get<{
-        data?: { resources?: unknown[]; templates?: unknown[] }
-      }>("/api/mcp/resource")
-      const resources = body?.data?.resources ?? []
-      const templates = body?.data?.templates ?? []
+      const body = await service.get<{ resources?: unknown[]; templates?: unknown[] }>(
+        "/api/mcp/resource",
+      )
+      const resources = body?.resources ?? []
+      const templates = body?.templates ?? []
       const names = (list: unknown[]) =>
         list
           .map((item) => {
@@ -517,10 +547,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /** The branch the project is on. */
   handle<VcsBranch | null>("api:vcsBranch", async (directory?: string) => {
     try {
-      const body = await service.get<{ data?: VcsBranch }>("/api/vcs/branch", {
+      const branch = await service.get<VcsBranch>("/api/vcs/branch", {
         ...(directory ? { "location[directory]": directory } : {}),
       })
-      return body?.data ?? null
+      return branch ?? null
     } catch {
       // A folder that is not a repository has no branch, and that is not an
       // error worth a toast.
@@ -531,12 +561,36 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /** What the project changed, per file. */
   handle<VcsFileStatus[]>("api:vcsStatus", async (directory?: string) => {
     try {
-      const body = await service.get<{ data?: VcsFileStatus[] }>("/api/vcs/status", {
+      const status = await service.get<VcsFileStatus[]>("/api/vcs/status", {
         ...(directory ? { "location[directory]": directory } : {}),
       })
-      return body?.data ?? []
+      return Array.isArray(status) ? status : []
     } catch {
       return []
+    }
+  })
+
+  /** The branch a folder is on, read from its own .git. */
+  handle<string | null>("api:gitBranch", (directory?: string) => {
+    if (!directory) return null
+    return currentBranch(directory)
+  })
+
+  /**
+   * What the project changed and what branch it is on.
+   *
+   * The server counts the changed files; the branch it can only list, so it
+   * is read from the repository itself — the server's list of branches does
+   * not say which one is checked out.
+   */
+  handle<{ branch: string | null; changed: number }>("api:gitStatus", async (directory?: string) => {
+    const status = await service.get<VcsFileStatus[]>("/api/vcs/status", {
+      ...(directory ? { "location[directory]": directory } : {}),
+    })
+    const changed = Array.isArray(status) ? status : []
+    return {
+      branch: directory ? currentBranch(directory) : null,
+      changed: changed.length,
     }
   })
 
@@ -608,13 +662,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<{ messageID: string; files: FileDiffInfo[] }>(
     "api:revertStage",
     async (sessionId: string, messageId: string) => {
-      const staged = await service.post<{ data?: { messageID?: string; files?: FileDiffInfo[] } }>(
+      const staged = await service.post<{ messageID?: string; files?: FileDiffInfo[] }>(
         `/api/session/${sessionId}/revert/stage`,
         { messageID: messageId },
       )
       return {
-        messageID: staged?.data?.messageID ?? messageId,
-        files: staged?.data?.files ?? [],
+        messageID: staged?.messageID ?? messageId,
+        files: staged?.files ?? [],
       }
     },
   )
@@ -1445,10 +1499,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
           const id = (session as { id?: string }).id
           if (!id) return null
           try {
-            const body = await service.get<{ data?: unknown }>(
+            const data = await service.get<unknown>(
               `/api/experimental/session/${id}/export`,
             )
-            return body?.data ?? null
+            return data ?? null
           } catch {
             // One session that will not export is not worth stopping for.
             return null
@@ -1488,10 +1542,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
    * only way to move a conversation between machines.
    */
   handle("app:exportSessionFile", async (sessionId: string, title: string) => {
-    const body = await service.get<{ data?: unknown }>(
+    const data = await service.get<unknown>(
       `/api/experimental/session/${sessionId}/export`,
     )
-    const data = body?.data
     if (!data) throw new Error("The server returned an empty export")
     return saveText(
       { name: title || sessionId, content: JSON.stringify(data, null, 2), ext: "json" },
