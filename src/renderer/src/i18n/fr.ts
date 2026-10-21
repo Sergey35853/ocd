@@ -879,5 +879,12 @@ export const fr: Dict = {
   "project.checkpointSaved": "Point de reprise enregistré : {n} fichiers",
   "project.checkpointRestored": "{n} fichiers restaurés",
   "project.checkpointHint": "Une copie des fichiers modifiés — le retour, si l'agent a fait la mauvaise modification.",
+  "cmp.title": "Comparer des conversations",
+  "cmp.pickFirst": "Première conversation",
+  "cmp.pickSecond": "Deuxième conversation",
+  "cmp.compare": "Comparer",
+  "cmp.working": "Comparaison…",
+  "cmp.hint": "À gauche la première conversation, à droite la seconde. Les lignes qui diffèrent sont marquées.",
+  "cmp.empty": "Choisissez deux conversations",
 }
 

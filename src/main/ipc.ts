@@ -1163,8 +1163,20 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     service.post(`/api/experimental/mcp/${encodeURIComponent(server)}/disconnect`, undefined, locationQuery(directory)),
   )
 
-  // ---------- checkpoints ----------
+  /**
+   * The whole transcript of one conversation.
+   *
+   * The chat reads it a page at a time, because that is what it shows. A
+   * comparison of two conversations needs both of them whole, so this route
+   * asks for everything at once.
+   */
+  handle<MessageInfo[]>("api:sessionMessages", async (sessionId: string) => {
+    const body = await service.get<unknown>(`/api/session/${sessionId}/message`, { limit: 500 })
+    const list = Array.isArray(body) ? body : ((body as { data?: unknown[] }).data ?? [])
+    return list as MessageInfo[]
+  })
 
+  // ---------- checkpoints ----------
   /** The snapshots this machine holds. */
   handle<Checkpoint[]>("app:checkpoints", () => listCheckpoints())
 

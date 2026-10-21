@@ -2214,6 +2214,15 @@ input[type="color"] {
   border-radius: 6px;
 }
 
+/* The result of a comparison: a long diff in a box of its own. */
+.cmp-result {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+}
+
 @keyframes msg-hit {
   0% {
     background: rgba(15, 108, 189, 0.24);

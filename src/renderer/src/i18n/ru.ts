@@ -902,6 +902,13 @@ export const ru = {
   "project.checkpointSaved": "Чекпойнт сохранён: файлов {n}",
   "project.checkpointRestored": "Восстановлено файлов: {n}",
   "project.checkpointHint": "Снимок изменённых файлов — к нему можно вернуться, если агент сделал не то.",
+  "cmp.title": "Сравнение бесед",
+  "cmp.pickFirst": "Первая беседа",
+  "cmp.pickSecond": "Вторая беседа",
+  "cmp.compare": "Сравнить",
+  "cmp.working": "Сравниваю…",
+  "cmp.hint": "Слева — первая беседа, справа — вторая. Разные строки отмечены.",
+  "cmp.empty": "Выберите две беседы",
 } as const
 
 export type DictKey = keyof typeof ru

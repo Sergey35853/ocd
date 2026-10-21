@@ -1060,6 +1060,8 @@ export interface OcdApi {
       sessionId: string,
       page?: { limit?: number; cursor?: string; order?: "asc" | "desc" },
     ): Promise<MessagePage>
+    /** The whole transcript of one conversation, for a comparison. */
+    sessionMessages(sessionId: string): Promise<MessageInfo[]>
     prompt(
       sessionId: string,
       input: {

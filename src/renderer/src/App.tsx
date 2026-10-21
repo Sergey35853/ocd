@@ -6,6 +6,7 @@ import { actionFor } from "./lib/shortcuts"
 import { askChat } from "./lib/commands"
 import { ToastStack } from "./components/ui"
 import { PermissionPrompt } from "./components/PermissionPrompt"
+import { SessionCompare } from "./components/SessionCompare"
 import { CommandPalette, type Command } from "./components/CommandPalette"
 import { installClipboardBridge } from "./lib/messageMove"
 import {
@@ -207,6 +208,8 @@ function Shell() {
   const [dateFilter, setDateFilter] = useState("")
   const [indexReady, setIndexReady] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  /** The comparison of two conversations, when it is open. */
+  const [compareOpen, setCompareOpen] = useState(false)
   // Focus mode hides both the sidebar and the tab strip so the chat owns the window.
   const [expanded, setExpanded] = useState(false)
 
@@ -636,6 +639,7 @@ function Shell() {
       { id: "view:settings", label: t("nav.settings"), keywords: "настройки опции", group: "nav", run: () => setView("settings") },
       { id: "view:about", label: t("nav.about"), keywords: "о программе версия обновление about version", group: "nav", run: () => setView("about") },
       { id: "view:log", label: t("nav.log"), keywords: "журнал лог ошибки log errors", group: "app", run: () => setView("log") },
+      { id: "cmp", label: t("cmp.title"), keywords: "сравнить беседы разница compare diff", group: "app", run: () => setCompareOpen(true) },
       { id: "hud", label: t("set.hudToggle"), keywords: "панель индикатор hud", group: "app", run: () => void window.ocd.hud.toggle() },
       { id: "chat:compact", label: t("session.compact"), keywords: "сжать контекст compact context", group: "app", run: () => askChat("compact") },
       { id: "chat:terminal", label: t("terminal.open"), keywords: "терминал консоль terminal console", group: "app", run: () => askChat("terminal") },
@@ -980,6 +984,10 @@ function Shell() {
       </main>
 
       <PermissionPrompt />
+
+      {compareOpen ? (
+        <SessionCompare sessions={store.sessions} onClose={() => setCompareOpen(false)} />
+      ) : null}
 
       <ToastStack toasts={store.toasts} onDismiss={store.dismissToast} />
 

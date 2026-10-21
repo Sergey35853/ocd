@@ -874,5 +874,12 @@ export const en: Dict = {
   "project.checkpointSaved": "Checkpoint saved: {n} files",
   "project.checkpointRestored": "Restored {n} files",
   "project.checkpointHint": "A copy of the changed files — the way back, if the agent made the wrong change.",
+  "cmp.title": "Compare conversations",
+  "cmp.pickFirst": "First conversation",
+  "cmp.pickSecond": "Second conversation",
+  "cmp.compare": "Compare",
+  "cmp.working": "Comparing…",
+  "cmp.hint": "The first conversation is on the left, the second on the right. The lines that differ are marked.",
+  "cmp.empty": "Choose two conversations",
 }
 

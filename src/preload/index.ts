@@ -31,6 +31,7 @@ import type {
   InboxItem,
   PromptDelivery,
   RequestLimits,
+  MessageInfo,
   MessagePageQuery,
 } from "@shared/types"
 
@@ -73,6 +74,8 @@ const api = {
     renameSession: (id: string, title: string) => call("api:renameSession", id, title),
     messagePage: (sessionId: string, page?: MessagePageQuery) =>
       call("api:messagePage", sessionId, page),
+    /** The whole transcript of one conversation. */
+    sessionMessages: (sessionId: string) => call<MessageInfo[]>("api:sessionMessages", sessionId),
     prompt: (
       sessionId: string,
       input: {

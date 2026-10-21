@@ -868,5 +868,12 @@ export const zh: Dict = {
   "project.checkpointSaved": "检查点已保存：{n} 个文件",
   "project.checkpointRestored": "已还原 {n} 个文件",
   "project.checkpointHint": "改动文件的副本——智能体改错了时的退路。",
+  "cmp.title": "比较对话",
+  "cmp.pickFirst": "第一个对话",
+  "cmp.pickSecond": "第二个对话",
+  "cmp.compare": "比较",
+  "cmp.working": "比较中…",
+  "cmp.hint": "左边是第一个对话，右边是第二个。不同的行已标出。",
+  "cmp.empty": "请选择两个对话",
 }
 

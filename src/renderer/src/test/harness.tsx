@@ -133,6 +133,7 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
       mcp: async () => [],
       activeSessions: async () => ({}),
       messagePage: async () => ({ items: [] }),
+      sessionMessages: async () => [],
       session: async () => ({}),
       context: async () => ({}),
       sessionContext: async () => ({ context: "" }),
