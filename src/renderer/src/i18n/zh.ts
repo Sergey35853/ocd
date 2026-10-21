@@ -837,5 +837,10 @@ export const zh: Dict = {
   "project.modeDiff": "更改",
   "project.diffEmpty": "git 没有看到更改",
   "project.diffHint": "git 在工作区中看到的内容",
+  "export.jsonl": "JSONL",
+  "export.jsonlWorking": "正在准备 JSONL…",
+  "set.safeMode": "安全模式",
+  "set.safeModeHint": "智能体可以读取，但不能修改任何内容：所有修改请求都会立即拒绝，不再询问。",
+  "safe.refused": "安全模式：请求“{action}”已被拒绝",
 }
 

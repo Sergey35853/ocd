@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { MessageInfo } from "@shared/types"
+import type { ExportRecord, MessageInfo } from "@shared/types"
 import { textOf, toolLabel } from "../lib/format"
 import { useT } from "../i18n"
 import { IconExport } from "./Icon"
@@ -10,6 +10,7 @@ const FORMATS = [
   { id: "markdown", ext: "md" },
   { id: "html", ext: "html" },
   { id: "pdf", ext: "pdf" },
+  { id: "jsonl", ext: "jsonl" },
 ] as const
 
 type Format = (typeof FORMATS)[number]["id"]
@@ -43,7 +44,37 @@ function toMarkdown(messages: MessageInfo[]): string {
 }
 
 /**
- * Export button with a three-format popup.
+ * The conversation as records, for the JSONL export.
+ *
+ * The window knows which message was the user's and which was the model's —
+ * the server's transcript is a stream of parts, and the two are told apart by
+ * the message they belong to. A tool call becomes a line of its own: the
+ * command that was run is part of what happened, and a consumer that cannot
+ * make sense of it still reads it as a line.
+ */
+function toRecords(messages: MessageInfo[]): ExportRecord[] {
+  const records: ExportRecord[] = []
+  for (const message of messages) {
+    const body = textOf(message.content ?? []).trim()
+    if (body) {
+      records.push({ role: message.type === "user" ? "user" : "assistant", content: body })
+    }
+    for (const part of message.content ?? []) {
+      if (part.type !== "tool") continue
+      const error = part.state?.error
+      const status = part.state?.status
+      records.push({
+        role: "tool",
+        name: toolLabel(part),
+        content: error ? String(error) : status ?? "",
+      })
+    }
+  }
+  return records
+}
+
+/**
+ * Export button with a popup of formats.
  *
  * The heavy lifting lives in main: it owns the save dialog, the HTML shell and
  * `printToPDF`, so this component only has to hand over Markdown.
@@ -95,6 +126,7 @@ export function ExportMenu({
     title,
     markdown: toMarkdown(messages),
     messages: messages.length,
+    records: toRecords(messages),
   })
 
   const run = async (format: Format) => {

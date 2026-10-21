@@ -641,6 +641,14 @@ export interface AppSettings {
   globalHotkey: string
   /** Ask the server whether a newer release is out. */
   autoUpdate: boolean
+  /**
+   * The agent may look, but not touch.
+   *
+   * Every request of the agent to change something is refused without being
+   * asked about; the ones that only read are answered at once. The point is a
+   * conversation that cannot cost the user a file.
+   */
+  safeMode: boolean
   fontScale: number
   showThinking: boolean
   /** Windows toast when a turn ends while the window is in the background. */
@@ -944,6 +952,20 @@ export interface SearchHit {
   messageIndex?: number
 }
 
+/**
+ * One line of a JSONL export.
+ *
+ * The format other tools read: one object per line, and nothing but the
+ * message on it. The window knows which message was the user's and which was
+ * the model's, so the records are built there.
+ */
+export interface ExportRecord {
+  role: "user" | "assistant" | "tool"
+  content: string
+  /** The tool's name, for a tool line. */
+  name?: string
+}
+
 export interface OcdApi {
   service: {
     status(): Promise<ServiceStatus>
@@ -1225,8 +1247,10 @@ export interface OcdApi {
       sessionId: string
       title: string
       markdown: string
-      format: "markdown" | "html" | "pdf"
+      format: "markdown" | "html" | "pdf" | "jsonl"
       messages: number
+      /** The conversation as records, for the JSONL export. */
+      records?: Array<{ role: "user" | "assistant" | "tool"; content: string; name?: string }>
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
     /** Saves the conversation as the server's own session file. */
     exportSessionFile(

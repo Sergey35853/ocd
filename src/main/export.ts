@@ -2,14 +2,17 @@ import { BrowserWindow, dialog } from "electron"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { ExportRecord } from "@shared/types"
 
 /** What the renderer hands over: a ready-made Markdown document. */
 export interface ExportPayload {
   sessionId: string
   title: string
   markdown: string
-  format: "markdown" | "html" | "pdf"
+  format: "markdown" | "html" | "pdf" | "jsonl"
   messages: number
+  /** The conversation as records, for the JSONL export. */
+  records?: ExportRecord[]
 }
 
 export interface ExportResult {
@@ -23,6 +26,7 @@ const EXT: Record<ExportPayload["format"], string> = {
   markdown: "md",
   html: "html",
   pdf: "pdf",
+  jsonl: "jsonl",
 }
 
 /** Strip characters Windows refuses in a filename. */
@@ -246,6 +250,27 @@ function markdownDocument(payload: ExportPayload): string {
 }
 
 /**
+ * The conversation as JSONL: one JSON object per line.
+ *
+ * The format other tools read — a line per message, nothing but the message
+ * on it. A document with a title above the first record and a blank line
+ * between the records is not JSONL, and the readers that were promised it
+ * would not read it.
+ *
+ * The records come from the window: it knows which message was the user's and
+ * which was the model's, and main only writes the file.
+ */
+export function jsonlDocument(payload: ExportPayload): string {
+  const lines: string[] = []
+  for (const record of payload.records ?? []) {
+    const line: Record<string, string> = { role: record.role, content: record.content }
+    if (record.name) line.name = record.name
+    lines.push(JSON.stringify(line))
+  }
+  return lines.length ? `${lines.join("\n")}\n` : ""
+}
+
+/**
  * Render Markdown/HTML/PDF to a file the user picks.
  *
  * PDF goes through an offscreen window: `printToPDF` only exists on a
@@ -263,7 +288,9 @@ export async function exportConversation(
         ? [{ name: "Markdown", extensions: ["md"] }]
         : payload.format === "html"
           ? [{ name: "HTML", extensions: ["html"] }]
-          : [{ name: "PDF", extensions: ["pdf"] }]
+          : payload.format === "jsonl"
+            ? [{ name: "JSONL", extensions: ["jsonl"] }]
+            : [{ name: "PDF", extensions: ["pdf"] }]
 
     const result = parent
       ? await dialog.showSaveDialog(parent, { defaultPath: `${name}.${EXT[payload.format]}`, filters })
@@ -272,6 +299,13 @@ export async function exportConversation(
 
     if (payload.format === "markdown") {
       await writeFile(result.filePath, markdownDocument(payload), "utf8")
+      return { ok: true, path: result.filePath }
+    }
+
+    if (payload.format === "jsonl") {
+      const text = jsonlDocument(payload)
+      if (!text) return { ok: false, error: "В разговоре нет ни одной реплики" }
+      await writeFile(result.filePath, text, "utf8")
       return { ok: true, path: result.filePath }
     }
 

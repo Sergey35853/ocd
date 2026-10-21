@@ -843,5 +843,10 @@ export const en: Dict = {
   "project.modeDiff": "Changes",
   "project.diffEmpty": "Git sees no changes",
   "project.diffHint": "What git sees in the working tree",
+  "export.jsonl": "JSONL",
+  "export.jsonlWorking": "Preparing JSONL…",
+  "set.safeMode": "Safe mode",
+  "set.safeModeHint": "The agent may read, but it may not change anything: every request to change something is refused right away, without a question.",
+  "safe.refused": "Safe mode: the request “{action}” was refused",
 }
 

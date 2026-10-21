@@ -871,6 +871,11 @@ export const ru = {
   "project.modeDiff": "Изменения",
   "project.diffEmpty": "Git не видит изменений",
   "project.diffHint": "Что git видит в рабочей папке",
+  "export.jsonl": "JSONL",
+  "export.jsonlWorking": "Готовим JSONL…",
+  "set.safeMode": "Безопасный режим",
+  "set.safeModeHint": "Агент может читать, но не может ничего менять: любой запрос на изменение отклоняется сразу, без вопроса.",
+  "safe.refused": "Безопасный режим: запрос «{action}» отклонён",
 } as const
 
 export type DictKey = keyof typeof ru

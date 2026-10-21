@@ -849,5 +849,10 @@ export const de: Dict = {
   "project.modeDiff": "Änderungen",
   "project.diffEmpty": "Git sieht keine Änderungen",
   "project.diffHint": "Was git im Arbeitsbaum sieht",
+  "export.jsonl": "JSONL",
+  "export.jsonlWorking": "JSONL wird vorbereitet…",
+  "set.safeMode": "Sicherer Modus",
+  "set.safeModeHint": "Der Agent darf lesen, aber nichts ändern: jede Änderungsanfrage wird sofort abgelehnt, ohne zu fragen.",
+  "safe.refused": "Sicherer Modus: die Anfrage „{action}“ wurde abgelehnt",
 }
 

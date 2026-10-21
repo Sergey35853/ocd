@@ -278,8 +278,10 @@ const api = {
       sessionId: string
       title: string
       markdown: string
-      format: "markdown" | "html" | "pdf"
+      format: "markdown" | "html" | "pdf" | "jsonl"
       messages: number
+      /** The conversation as records, for the JSONL export. */
+      records?: Array<{ role: "user" | "assistant" | "tool"; content: string; name?: string }>
     }) => call<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>(
       "app:exportConversation",
       payload,
