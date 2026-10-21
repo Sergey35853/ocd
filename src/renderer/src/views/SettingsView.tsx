@@ -6,6 +6,7 @@ import { IconFolder, IconPanel, IconRefresh, IconTerminal } from "../components/
 import { BusyAnimation } from "../components/BusyAnimation"
 import { ViewBack } from "../components/ViewBack"
 import { HotkeyRecorder } from "../components/HotkeyRecorder"
+import { NotifyRules } from "../components/NotifyRules"
 import { SHORTCUTS, acceleratorFor } from "../lib/shortcuts"
 import { LANGUAGES, useT } from "../i18n"
 import type {
@@ -784,6 +785,11 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               onChange={(value) => void store.updateSettings({ safeMode: value })}
             />
           </Field>
+
+          <NotifyRules
+            rules={settings.notifyRules ?? []}
+            onChange={(rules) => void store.updateSettings({ notifyRules: rules })}
+          />
         </div>
       ),
     },

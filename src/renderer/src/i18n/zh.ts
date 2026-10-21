@@ -849,5 +849,17 @@ export const zh: Dict = {
   "set.pairCopy": "复制链接",
   "set.pairCopied": "链接已复制",
   "set.pairExpires": "代码约 {minutes} 分钟内有效，只能使用一次。",
+  "notifyRule.error": "该轮以错误结束",
+  "notifyRule.keyword": "回答中包含“{word}”",
+  "notifyRule.cost": "该轮花费 {cost} $",
+  "set.notifyRules": "通知规则",
+  "set.notifyRulesHint": "由你决定应用何时主动出声：回答里出现某个词、这一轮花费过高、这一轮失败。无需开启通用的结束通知——规则自己就能工作。",
+  "set.ruleAdd": "添加规则",
+  "set.ruleKeyword": "回答中的关键词",
+  "set.ruleCost": "单轮花费",
+  "set.ruleError": "轮次失败",
+  "set.ruleWord": "词语",
+  "set.ruleAmount": "金额，$",
+  "set.ruleEmpty": "还没有规则",
 }
 

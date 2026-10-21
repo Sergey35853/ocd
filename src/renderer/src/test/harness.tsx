@@ -233,6 +233,10 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
         record("notify:finish", [notice])
         return true
       },
+      rule: async (notice: Record<string, unknown>) => {
+        record("notify:rule", [notice])
+        return true
+      },
     },
     permission: { list: async () => [], reply: async () => undefined },
     form: { list: async () => [], reply: async () => undefined, cancel: async () => undefined },

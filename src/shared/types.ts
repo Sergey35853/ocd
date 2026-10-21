@@ -615,6 +615,27 @@ export interface ManagedPlugin {
   error?: string
 }
 
+/**
+ * A rule that makes the app speak up on its own.
+ *
+ * The general notification is all or nothing: either every finished turn is
+ * announced, or none is. A rule is for the cases in between — the answer
+ * mentions a word, the turn cost too much, the turn failed.
+ */
+export interface NotifyRule {
+  id: string
+  /** What the rule watches for. */
+  kind: "keyword" | "cost" | "error"
+  /**
+   * The word to look for, or the amount in dollars.
+   *
+   * A number for the cost rule, a word for the keyword rule; the error rule
+   * needs nothing.
+   */
+  value: string
+  enabled: boolean
+}
+
 export interface AppSettings {
   /** Default directory for new chats/projects. Empty means last used. */
   defaultDirectory: string
@@ -653,6 +674,8 @@ export interface AppSettings {
   showThinking: boolean
   /** Windows toast when a turn ends while the window is in the background. */
   notifyOnFinish: boolean
+  /** The rules that make the app speak up on its own. */
+  notifyRules?: NotifyRule[]
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */
@@ -1283,6 +1306,8 @@ export interface OcdApi {
   notify: {
     /** Windows toast for a finished turn; the renderer decides when. */
     finish(notice: FinishNotice): Promise<boolean>
+    /** A toast the user asked for in advance, by a rule. */
+    rule(notice: { title: string; body: string }): Promise<boolean>
   }
   shell: {
     /**

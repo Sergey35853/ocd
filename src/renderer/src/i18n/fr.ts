@@ -860,5 +860,17 @@ export const fr: Dict = {
   "set.pairCopy": "Copier le lien",
   "set.pairCopied": "Lien copié",
   "set.pairExpires": "Le code vit environ {minutes} min et ne sert qu'une fois.",
+  "notifyRule.error": "Le tour s'est terminé par une erreur",
+  "notifyRule.keyword": "La réponse contient « {word} »",
+  "notifyRule.cost": "Le tour a coûté {cost} $",
+  "set.notifyRules": "Règles de notification",
+  "set.notifyRulesHint": "Vos propres conditions pour que l'application prenne la parole : la réponse contient un mot, le tour a coûté trop cher, le tour a échoué. La notification générale de fin de tour n'est pas nécessaire — une règle fonctionne sans elle.",
+  "set.ruleAdd": "Ajouter une règle",
+  "set.ruleKeyword": "Un mot dans la réponse",
+  "set.ruleCost": "Le coût d'un tour",
+  "set.ruleError": "Un tour en échec",
+  "set.ruleWord": "Mot",
+  "set.ruleAmount": "Montant, $",
+  "set.ruleEmpty": "Aucune règle pour l'instant",
 }
 

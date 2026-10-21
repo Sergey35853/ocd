@@ -50,7 +50,7 @@ import { clear as clearRequestLedger, countRequest, markRateLimited, setLimit, s
 import { log, readLogTail, logFolder } from "./log"
 import { setHudData, toggleHud } from "./hud"
 import { sshTunnel } from "./sshTunnel"
-import { flashTaskbar, notifyFinish, type FinishNotice } from "./notify"
+import { flashTaskbar, notifyFinish, notifyRule, type FinishNotice } from "./notify"
 import { dismissNotice, showFinishNotice } from "./notice"
 import { openInTerminal } from "./terminal"
 import { probeRuntime } from "./runtimeProbe"
@@ -1352,6 +1352,18 @@ async function fetchSessions(): Promise<SessionInfo[]> {
     showFinishNotice(notice)
     if (notice.focused) return true
     return notifyFinish(notice, owner)
+  })
+
+  /**
+   * A toast the user asked for in advance.
+   *
+   * The rule's own switch decides this, not the general one: a rule that
+   * never fires because a different switch is off is not a rule.
+   */
+  handle<boolean>("notify:rule", (notice: { title: string; body: string }) => {
+    const owner = getWindow()
+    flashTaskbar(owner, false)
+    return notifyRule(notice, owner)
   })
 
   /** The card was clicked: bring that conversation forward. */

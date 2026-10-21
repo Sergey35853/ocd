@@ -346,6 +346,15 @@ const api = {
     /** Toast when a turn ends while this window is in the background. */
     finish: (notice: FinishNotice) =>
       call<boolean>("notify:finish", notice),
+    /**
+     * A toast the user asked for in advance.
+     *
+     * The rule's own switch decides this one, not the general notification
+     * switch: a rule that never fires because a different switch is off is
+     * not a rule.
+     */
+    rule: (notice: { title: string; body: string }) =>
+      call<boolean>("notify:rule", notice),
   },
   shell: {
     /**

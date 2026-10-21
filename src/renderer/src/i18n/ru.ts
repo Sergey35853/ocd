@@ -883,6 +883,18 @@ export const ru = {
   "set.pairCopy": "Скопировать ссылку",
   "set.pairCopied": "Ссылка скопирована",
   "set.pairExpires": "Код действует около {minutes} мин и срабатывает один раз.",
+  "notifyRule.error": "Ход закончился ошибкой",
+  "notifyRule.keyword": "В ответе есть «{word}»",
+  "notifyRule.cost": "Ход стоил {cost} $",
+  "set.notifyRules": "Правила уведомлений",
+  "set.notifyRulesHint": "Свои условия, по которым приложение заговорит само: ответ содержит слово, ход стоил слишком много, ход упал. Общее уведомление о конце хода при этом не нужно — правило работает и без него.",
+  "set.ruleAdd": "Добавить правило",
+  "set.ruleKeyword": "Слово в ответе",
+  "set.ruleCost": "Стоимость хода",
+  "set.ruleError": "Ошибка хода",
+  "set.ruleWord": "Слово",
+  "set.ruleAmount": "Сумма, $",
+  "set.ruleEmpty": "Правил пока нет",
 } as const
 
 export type DictKey = keyof typeof ru

@@ -861,5 +861,17 @@ export const de: Dict = {
   "set.pairCopy": "Link kopieren",
   "set.pairCopied": "Link kopiert",
   "set.pairExpires": "Der Code lebt etwa {minutes} Min. und gilt einmal.",
+  "notifyRule.error": "Der Zug ist mit einem Fehler geendet",
+  "notifyRule.keyword": "Die Antwort enthält „{word}“",
+  "notifyRule.cost": "Der Zug hat {cost} $ gekostet",
+  "set.notifyRules": "Benachrichtigungsregeln",
+  "set.notifyRulesHint": "Eigene Bedingungen, unter denen die App von sich aus spricht: die Antwort enthält ein Wort, der Zug war zu teuer, der Zug ist gescheitert. Die allgemeine Benachrichtigung am Zugende wird dafür nicht gebraucht — eine Regel funktioniert auch ohne sie.",
+  "set.ruleAdd": "Regel hinzufügen",
+  "set.ruleKeyword": "Ein Wort in der Antwort",
+  "set.ruleCost": "Die Kosten eines Zuges",
+  "set.ruleError": "Ein gescheiterter Zug",
+  "set.ruleWord": "Wort",
+  "set.ruleAmount": "Betrag, $",
+  "set.ruleEmpty": "Noch keine Regeln",
 }
 

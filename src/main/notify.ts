@@ -58,3 +58,34 @@ export function flashTaskbar(owner: BrowserWindow | null, failed: boolean): void
     /* not supported everywhere */
   }
 }
+
+/**
+ * A toast the user asked for in advance.
+ *
+ * The general notification is switched off in the settings, and it is right
+ * that it is: not every turn deserves an interruption. A rule is the user
+ * saying "this one does" — so the rule's toast is shown whatever the general
+ * switch says, or the rule would be a rule that never fires.
+ */
+export function notifyRule(notice: { title: string; body: string }, owner: BrowserWindow | null): boolean {
+  if (!Notification.isSupported()) return false
+  try {
+    const notification = new Notification({
+      title: notice.title,
+      body: notice.body,
+      silent: false,
+      timeoutType: "default",
+    })
+    notification.on("click", () => {
+      if (!owner || owner.isDestroyed()) return
+      if (owner.isMinimized()) owner.restore()
+      owner.show()
+      owner.focus()
+    })
+    notification.show()
+    return true
+  } catch (err) {
+    console.error("Notification failed:", err)
+    return false
+  }
+}

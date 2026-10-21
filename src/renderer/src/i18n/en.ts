@@ -855,5 +855,17 @@ export const en: Dict = {
   "set.pairCopy": "Copy the link",
   "set.pairCopied": "Link copied",
   "set.pairExpires": "The code lives about {minutes} min and works once.",
+  "notifyRule.error": "The turn ended in an error",
+  "notifyRule.keyword": "The answer contains “{word}”",
+  "notifyRule.cost": "The turn cost {cost} $",
+  "set.notifyRules": "Notification rules",
+  "set.notifyRulesHint": "Your own conditions for the app to speak up: the answer contains a word, the turn cost too much, the turn failed. The general end-of-turn notification is not needed for this — a rule works without it.",
+  "set.ruleAdd": "Add a rule",
+  "set.ruleKeyword": "A word in the answer",
+  "set.ruleCost": "The cost of a turn",
+  "set.ruleError": "A failed turn",
+  "set.ruleWord": "Word",
+  "set.ruleAmount": "Amount, $",
+  "set.ruleEmpty": "No rules yet",
 }
 

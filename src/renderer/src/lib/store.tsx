@@ -545,6 +545,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    */
   const [shellRuns, setShellRuns] = useState<Record<string, ShellRun[]>>({})
   const [usage, setUsage] = useState<Record<string, Usage>>({})
+  /**
+   * The spend, per conversation, readable from a callback made once.
+   *
+   * The event handler is made at mount and never rebuilt, so the usage it
+   * reads has to come from a ref: the state it closed over is the one from
+   * the first render.
+   */
+  const usageRef = useRef<Record<string, Usage>>({})
+  usageRef.current = usage
+  /**
+   * The text of the last answer, per conversation.
+   *
+   * The live buffer is dropped when the turn ends, and the rules have to look
+   * at the answer before that: "tell me when the answer says so" is about the
+   * words that were just written.
+   */
+  const answerTextRef = useRef<Record<string, string>>({})
+  /**
+   * What the conversation had cost when the turn began, per conversation.
+   *
+   * The server's counters are cumulative for the session, so the cost of a
+   * turn is the difference between the two.
+   */
+  const turnCostRef = useRef<Record<string, number>>({})
   const [limits, setLimits] = useState<Record<string, RequestLimits>>({})
   const [live, setLive] = useState<Record<string, LiveTurn>>({})
   const [models, setModels] = useState<ModelInfo[]>([])
@@ -743,6 +767,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
+   * The rules that make the app speak up on its own.
+   *
+   * The general notification is all or nothing: either every finished turn is
+   * announced, or none is. A rule is for the cases in between — the answer
+   * mentions a word, the turn cost too much, the turn failed.
+   *
+   * A rule raises a toast of its own. The general switch has nothing to do
+   * with it: a rule that never fires because a different switch is off is not
+   * a rule.
+   */
+  const checkNotifyRules = useCallback(
+    (sessionId: string, failed: boolean) => {
+      const rules = settingsRef.current?.notifyRules ?? []
+      if (!rules.length) return
+      const text = answerTextRef.current[sessionId] ?? ""
+      const spent = Math.max(
+        0,
+        (usageRef.current[sessionId]?.cost ?? 0) - (turnCostRef.current[sessionId] ?? 0),
+      )
+      const title =
+        sessionsRef.current.find((session) => session.id === sessionId)?.title ??
+        translate("session.untitled")
+
+      for (const rule of rules) {
+        if (!rule.enabled) continue
+        let matched = false
+        let body = ""
+        if (rule.kind === "error") {
+          matched = failed
+          body = translate("notifyRule.error")
+        } else if (rule.kind === "keyword") {
+          const word = rule.value.trim().toLowerCase()
+          matched = Boolean(word) && text.toLowerCase().includes(word)
+          body = translate("notifyRule.keyword", { word: rule.value })
+        } else {
+          const limit = Number(rule.value)
+          matched = Number.isFinite(limit) && spent >= limit
+          body = translate("notifyRule.cost", { cost: spent.toFixed(2) })
+        }
+        if (!matched) continue
+        void window.ocd.notify.rule({ title, body }).catch(() => undefined)
+        toast(body, "info")
+      }
+    },
+    [toast],
+  )
+
+  /**
    * Bring a message into view.
    *
    * The search finds a phrase in a conversation that may not even be open.
@@ -875,6 +947,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // this the net never had anything to look at, and a turn the server
       // dropped stayed busy for good.
       sentAtRef.current[sessionId] = Date.now()
+      // What the conversation had cost when the turn began: the server's
+      // counters are cumulative, and the cost of the turn is the difference.
+      turnCostRef.current[sessionId] = usageRef.current[sessionId]?.cost ?? 0
+      answerTextRef.current[sessionId] = ""
       setTurnStart((current) => ({ ...current, [sessionId]: turnStartRef.current[sessionId] }))
       setLive((current) => ({
         ...current,
@@ -1655,6 +1731,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               setTurnStart((current) => ({ ...current, [sessionID]: turnStartRef.current[sessionID] }))
             }
             sentAtRef.current[sessionID] = Date.now()
+            // What the conversation had cost when the turn began: the server's
+            // counters are cumulative, and the cost of the turn is the
+            // difference.
+            turnCostRef.current[sessionID] = usageRef.current[sessionID]?.cost ?? 0
+            answerTextRef.current[sessionID] = ""
           }
           break
 
@@ -1685,7 +1766,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           // Cleaned on the way in, not on the way out: a NUL would otherwise
           // sit in the buffer, be re-appended on every redraw, and reach the
           // screen as a replacement glyph.
-          patchLive((turn) => ({ ...turn, text: turn.text + cleanText(String(data.delta ?? "")) }))
+          {
+            const delta = cleanText(String(data.delta ?? ""))
+            patchLive((turn) => ({ ...turn, text: turn.text + delta }))
+            // The rules read the answer when the turn ends, and the live
+            // buffer is gone by then.
+            if (sessionID) answerTextRef.current[sessionID] = (answerTextRef.current[sessionID] ?? "") + delta
+          }
           break
 
         case "session.text.ended":
@@ -1695,6 +1782,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             if (!full || full.length <= turn.text.length) return turn
             return { ...turn, text: full }
           })
+          if (sessionID && typeof data.text === "string") {
+            answerTextRef.current[sessionID] = data.text
+          }
           break
 
         case "session.reasoning.delta":
@@ -1776,6 +1866,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             })
             void refreshSessions()
             void notifyOutcome(sessionID, event.type === "session.execution.failed")
+            checkNotifyRules(sessionID, event.type === "session.execution.failed")
 
             // The server delivers anything it was holding as the turn ends, so
             // there is nothing to send from here — only to look at what is
@@ -1866,7 +1957,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // flight. It reads both through refs instead, which is why an older copy
     // stays correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox])
+  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules])
 
   // ---------- boot ----------
 
