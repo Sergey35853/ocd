@@ -853,5 +853,12 @@ export const fr: Dict = {
   "set.safeMode": "Mode sans risque",
   "set.safeModeHint": "L'agent peut lire, mais ne peut rien modifier : toute demande de modification est refusée sur-le-champ, sans question.",
   "safe.refused": "Mode sans risque : la demande « {action} » a été refusée",
+  "set.pairTitle": "Associer un autre appareil",
+  "set.pairHint": "Un code pour un téléphone ou un second ordinateur : ouvrez le lien sur cet appareil, il devient un autre client de ce serveur.",
+  "set.pairGet": "Obtenir un code",
+  "set.pairBusy": "Demande…",
+  "set.pairCopy": "Copier le lien",
+  "set.pairCopied": "Lien copié",
+  "set.pairExpires": "Le code vit environ {minutes} min et ne sert qu'une fois.",
 }
 

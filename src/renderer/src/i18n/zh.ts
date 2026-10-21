@@ -842,5 +842,12 @@ export const zh: Dict = {
   "set.safeMode": "安全模式",
   "set.safeModeHint": "智能体可以读取，但不能修改任何内容：所有修改请求都会立即拒绝，不再询问。",
   "safe.refused": "安全模式：请求“{action}”已被拒绝",
+  "set.pairTitle": "配对其他设备",
+  "set.pairHint": "为手机或第二台电脑生成一个代码：在那台设备上打开链接，它就会成为此服务器的另一个客户端。",
+  "set.pairGet": "获取代码",
+  "set.pairBusy": "请求中…",
+  "set.pairCopy": "复制链接",
+  "set.pairCopied": "链接已复制",
+  "set.pairExpires": "代码约 {minutes} 分钟内有效，只能使用一次。",
 }
 

@@ -848,5 +848,12 @@ export const en: Dict = {
   "set.safeMode": "Safe mode",
   "set.safeModeHint": "The agent may read, but it may not change anything: every request to change something is refused right away, without a question.",
   "safe.refused": "Safe mode: the request “{action}” was refused",
+  "set.pairTitle": "Pair another device",
+  "set.pairHint": "A code for a phone or a second computer: open the link on that device, and it becomes another client of this server.",
+  "set.pairGet": "Get a code",
+  "set.pairBusy": "Asking…",
+  "set.pairCopy": "Copy the link",
+  "set.pairCopied": "Link copied",
+  "set.pairExpires": "The code lives about {minutes} min and works once.",
 }
 

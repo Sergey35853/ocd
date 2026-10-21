@@ -376,6 +376,16 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     url: null,
   })
   /**
+   * A code another device can be paired with.
+   *
+   * The server hands out a code and a link that redeems it. The code is
+   * single-use and expires, so it is made when it is asked for and shown
+   * with the link that opens it — a phone that opens the link becomes
+   * another client of the same server.
+   */
+  const [pairCode, setPairCode] = useState<{ code: string; expires: number } | null>(null)
+  const [pairBusy, setPairBusy] = useState(false)
+  /**
    * The voices the engine has.
    *
    * The list used to be four names written into the screen, so a machine with
@@ -430,6 +440,30 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     hue: 145,
     density: 16,
   }
+
+  /** Ask the server for a code another device can be paired with. */
+  const makePairCode = async () => {
+    setPairBusy(true)
+    try {
+      const pair = await window.ocd.api.pair()
+      setPairCode({ code: pair.code, expires: pair.expires_in })
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setPairBusy(false)
+    }
+  }
+
+  /**
+   * The link the other device opens.
+   *
+   * The address of the server the app is talking to — not the tunnel and not
+   * the tunnel's local port: the phone has to reach the same server the
+   * window does, and that is the one the app is connected to.
+   */
+  const pairLink = pairCode && store.status?.url
+    ? `${store.status.url.replace(/\/+$/, "")}/auth/connect/${pairCode.code}`
+    : ""
 
   // Sliders fire on every step, so the slider keeps its own copy while the
   // drag lasts and pushes the whole object up in one go at the end of it.
@@ -1179,6 +1213,43 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           {remoteError ? <div className="field-note warn">{remoteError}</div> : null}
           {remote.active ? (
             <div className="field-note">{t("set.remoteActive", { url: remote.url ?? "" })}</div>
+          ) : null}
+
+          <Field label={t("set.pairTitle")} hint={t("set.pairHint")}>
+            <div className="hstack">
+              <button
+                type="button"
+                className="btn"
+                disabled={pairBusy}
+                onClick={() => void makePairCode()}
+              >
+                {pairBusy ? t("set.pairBusy") : t("set.pairGet")}
+              </button>
+              {pairLink ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(pairLink)
+                      .then(() => store.toast(t("set.pairCopied"), "info"))
+                      .catch((err: unknown) =>
+                        store.toast(err instanceof Error ? err.message : String(err), "error"),
+                      )
+                  }}
+                >
+                  {t("set.pairCopy")}
+                </button>
+              ) : null}
+            </div>
+          </Field>
+
+          {pairCode ? (
+            <div className="field-note">
+              <div className="mono">{pairCode.code}</div>
+              <div>{t("set.pairExpires", { minutes: Math.max(1, Math.round(pairCode.expires / 60)) })}</div>
+              {pairLink ? <div className="mono">{pairLink}</div> : null}
+            </div>
           ) : null}
         </div>
       ),

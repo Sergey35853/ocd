@@ -854,5 +854,12 @@ export const de: Dict = {
   "set.safeMode": "Sicherer Modus",
   "set.safeModeHint": "Der Agent darf lesen, aber nichts ändern: jede Änderungsanfrage wird sofort abgelehnt, ohne zu fragen.",
   "safe.refused": "Sicherer Modus: die Anfrage „{action}“ wurde abgelehnt",
+  "set.pairTitle": "Gerät koppeln",
+  "set.pairHint": "Ein Code für ein Telefon oder einen zweiten Rechner: den Link dort öffnen, und das Gerät wird ein weiterer Client dieses Servers.",
+  "set.pairGet": "Code holen",
+  "set.pairBusy": "Wird gefragt…",
+  "set.pairCopy": "Link kopieren",
+  "set.pairCopied": "Link kopiert",
+  "set.pairExpires": "Der Code lebt etwa {minutes} Min. und gilt einmal.",
 }
 

@@ -140,6 +140,8 @@ const api = {
     /** The contents of one file. */
     fsRead: (path: string, directory?: string) => call<string>("api:fsRead", path, directory),
     // ---- the server's own capabilities ----
+    /** A short-lived code another device can be paired with. */
+    pair: () => call<{ code: string; expires_in: number }>("api:pair"),
     websearchProviders: (directory?: string) =>
       call<WebSearchProvider[]>("api:websearchProviders", directory),
     sessionStats: (from?: number, to?: number, project?: string) =>

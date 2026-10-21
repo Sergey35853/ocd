@@ -1156,8 +1156,23 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     service.post(`/api/experimental/mcp/${encodeURIComponent(server)}/disconnect`, undefined, locationQuery(directory)),
   )
 
-  // ---------- app ----------
+  // ---------- pairing a device ----------
 
+  /**
+   * A short-lived code another device can be paired with.
+   *
+   * The server hands out a code and a link that redeems it; a phone that opens
+   * the link becomes another client of the same server. The code is single-use
+   * and expires, which is why it is made on demand and not kept.
+   */
+  handle<{ code: string; expires_in: number }>("api:pair", async () => {
+    const body = await service.post<{ data?: { code: string; expires_in: number } }>("/api/pair")
+    const pair = (body as { data?: { code: string; expires_in: number } }).data ?? (body as never)
+    if (!pair?.code) throw new Error("Сервер не выдал код сопряжения")
+    return { code: pair.code, expires_in: pair.expires_in }
+  })
+
+  // ---------- app ----------
   handle<AppSettings>("app:getSettings", () => getSettings())
   handle<AppSettings>("app:setSettings", (patch: Partial<AppSettings>) => {
     const before = getSettings()

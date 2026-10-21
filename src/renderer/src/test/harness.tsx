@@ -155,6 +155,7 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
       fsRead: async () => "",
       vcsDiff: async () => [],
       // ---- what the server can do ----
+      pair: async () => ({ code: "test-code", expires_in: 600 }),
       websearchProviders: async () => [],
       sessionStats: async () => ({
         range: { from: 0, to: 0 },

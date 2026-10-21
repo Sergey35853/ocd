@@ -1103,6 +1103,8 @@ export interface OcdApi {
     /** The contents of one file. */
     fsRead(path: string, directory?: string): Promise<string>
     // ---- the server's own capabilities ----
+    /** A short-lived code another device can be paired with. */
+    pair(): Promise<{ code: string; expires_in: number }>
     websearchProviders(directory?: string): Promise<WebSearchProvider[]>
     sessionStats(from?: number, to?: number, project?: string): Promise<SessionStats>
     // ---- one conversation, on the server's side ----
