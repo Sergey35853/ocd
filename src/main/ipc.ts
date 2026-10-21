@@ -69,6 +69,7 @@ import { backendConfigured, sendFeedback, type FeedbackInput } from "./feedback"
 import { repoFiles, searchRepos, type FileGroup, type RepoHit } from "./hfBrowse"
 import type {
   AgentInfo,
+  AgentDetails,
   AppSettings,
   AttemptStatus,
   CommandInfo,
@@ -281,6 +282,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<AgentInfo[]>("api:agents", async () =>
     unwrap<AgentInfo>(await service.get("/api/agent")).filter((agent) => agent && agent.id),
   )
+
+  /**
+   * One agent in full.
+   *
+   * The list says only the name and the mode. The description and the rights
+   * live here, and they are what a person wants to know before picking an
+   * agent: what it is for and what it is allowed to do.
+   */
+  handle<AgentDetails>("api:agent", async (id: string) => {
+    const body = await service.get<{ data?: AgentDetails }>(`/api/agent/${id}`)
+    const data = body?.data
+    if (!data) throw new Error(`Unknown agent: ${id}`)
+    return {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      mode: data.mode,
+      steps: data.steps,
+      permissions: data.permissions ?? [],
+    }
+  })
 
   handle<unknown>("api:plugins", () => service.get("/api/plugin"))
   handle<unknown>("api:updatePlugins", () => service.post("/api/plugin/update"))

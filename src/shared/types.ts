@@ -78,6 +78,30 @@ export interface ProviderInfo {
   models?: Record<string, ModelInfo>
 }
 
+/** One rule of what an agent may do. */
+export interface AgentPermission {
+  action: string
+  resource: string
+  effect: "allow" | "ask" | "deny" | string
+}
+
+/**
+ * What an agent is, in full.
+ *
+ * The list of agents carries only the name and the mode; the description and
+ * the rights come from the agent itself, and they are the interesting part:
+ * "may it write files" and "will it ask before reading .env" are questions a
+ * person asks before choosing an agent, not after.
+ */
+export interface AgentDetails {
+  id: string
+  name: string
+  description?: string
+  mode?: string
+  steps?: number
+  permissions?: AgentPermission[]
+}
+
 export interface AgentInfo {
   id: string
   name: string
@@ -867,6 +891,8 @@ export interface OcdApi {
     providers(location?: string): Promise<ProviderInfo[]>
     models(location?: string): Promise<ModelInfo[]>
     agents(): Promise<AgentInfo[]>
+    /** One agent in full: what it does and what it may do. */
+    agent(id: string): Promise<AgentDetails>
     plugins(): Promise<PluginEntry[]>
     updatePlugins(): Promise<unknown>
     mcp(): Promise<McpServerInfo[]>

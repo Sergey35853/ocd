@@ -1835,6 +1835,34 @@ input[type="color"] {
   word-break: break-word;
 }
 
+/* What an agent is allowed to do. */
+.agent-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.agent-rule {
+  padding: 2px 7px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font: 500 10.5px/1.5 var(--font);
+  white-space: nowrap;
+}
+.agent-rule.ask {
+  border-color: rgba(196, 132, 0, 0.4);
+  color: #a97400;
+}
+.agent-rule.deny {
+  border-color: rgba(190, 60, 60, 0.4);
+  color: #b03c3c;
+}
+.agent-rule.more {
+  color: var(--text-faint);
+}
+
 /* The list of remembered permission answers. */
 .rule-list {
   list-style: none;

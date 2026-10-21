@@ -55,6 +55,7 @@ const api = {
     providers: (directory?: string) => call("api:providers", directory),
     models: (directory?: string) => call("api:models", directory),
     agents: () => call("api:agents"),
+    agent: (id: string) => call("api:agent", id),
     plugins: () => call("api:plugins"),
     updatePlugins: () => call("api:updatePlugins"),
     mcp: () => call("api:mcp"),

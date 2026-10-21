@@ -1798,13 +1798,17 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     () =>
       store.agents
         .filter((agent) => !agent.hidden)
-        .map((agent) => ({
-          key: agent.id,
-          label: agent.name || agent.id,
-          hint: agent.mode,
-          group: agent.mode ? agent.mode : "",
-        })),
-    [store.agents],
+        .map((agent) => {
+          const details = store.agentDetails[agent.id]
+          return {
+            key: agent.id,
+            label: agent.name || agent.id,
+            // What the agent is for beats the word "subagent" as a hint.
+            hint: details?.description ?? agent.mode,
+            group: agent.mode ? agent.mode : "",
+          }
+        }),
+    [store.agents, store.agentDetails],
   )
 
   // Ctrl+Shift+V starts/stops dictation, matching the oc-dictate plugin.

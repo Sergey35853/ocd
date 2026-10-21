@@ -10,6 +10,7 @@ import {
 } from "react"
 import type {
   AgentInfo,
+  AgentDetails,
   AppSettings,
   CommandInfo,
   FormAnswer,
@@ -128,6 +129,8 @@ interface Store {
   live: Record<string, LiveTurn>
 
   models: ModelInfo[]
+  /** What each agent is and what it may do. */
+  agentDetails: Record<string, AgentDetails>
   /** The model each conversation is pinned to, per conversation. */
   sessionModels: Record<string, ModelRef | null>
   /** The agent each conversation is pinned to, per conversation. */
@@ -445,6 +448,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [sessionAgents, setSessionAgents] = useState<Record<string, string>>({})
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [agents, setAgents] = useState<AgentInfo[]>([])
+  /**
+   * What each agent is and what it may do.
+   *
+   * The list of agents carries only names; the description and the rights are
+   * asked for separately, because "may it write files" is a question a person
+   * asks *before* choosing an agent.
+   */
+  const [agentDetails, setAgentDetails] = useState<Record<string, AgentDetails>>({})
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [commands, setCommands] = useState<CommandInfo[]>([])
   const [mcp, setMcp] = useState<McpServerInfo[]>([])
@@ -523,6 +534,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setModels(modelList)
     setProviders(providerList)
     setAgents(agentList)
+    // The details of every agent, in the background: the picker shows the
+    // description, and a person choosing an agent wants to know what it does
+    // before the first message is sent.
+    void Promise.all(
+      agentList.map(async (agent) => {
+        try {
+          const details = await window.ocd.api.agent(agent.id)
+          return [agent.id, details] as const
+        } catch {
+          return null
+        }
+      }),
+    ).then((pairs) => {
+      const found = pairs.filter((pair): pair is readonly [string, AgentDetails] => pair !== null)
+      if (found.length) {
+        setAgentDetails((current) => {
+          const next = { ...current }
+          for (const [id, details] of found) next[id] = details
+          return next
+        })
+      }
+    })
     setSkills(skillList)
     setCommands(commandList)
     setMcp(mcpList)
@@ -1849,6 +1882,7 @@ useEffect(() => {
       cancelForm,
       live,
       models,
+      agentDetails,
       sessionModels,
       sessionAgents,
       providers,
@@ -1913,6 +1947,7 @@ useEffect(() => {
       settledCalls,
       live,
       models,
+      agentDetails,
       sessionModels,
       sessionAgents,
       providers,

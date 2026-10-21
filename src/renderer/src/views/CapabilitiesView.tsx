@@ -4,7 +4,7 @@ import { cx, truncate } from "../lib/format"
 import { describeAgent, modeLabel } from "../lib/agentDescriptions"
 import { IconRefresh, IconSearch } from "../components/Icon"
 import { ViewBack } from "../components/ViewBack"
-import { useT, type DictKey } from "../i18n"
+import { translateLoose, useT, type DictKey } from "../i18n"
 
 type Tab = "agents" | "commands" | "skills" | "mcp"
 
@@ -106,28 +106,54 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
           {agents.length === 0 ? (
             <div className="card-body" style={{ color: "var(--text-faint)" }}>{t("cap.noAgents")}</div>
           ) : (
-            agents.map((agent) => (
-              <div className="row" key={agent.id}>
-                <div className="grow">
-                  <div className="name">{agent.name || agent.id}</div>
-                  <div className="desc">
-                    {truncate(describeAgent(agent.id, agent.mode), 200)}
+            agents.map((agent) => {
+              const details = store.agentDetails[agent.id]
+              const rules = (details?.permissions ?? []).filter(
+                (rule) => rule.effect !== "allow" || rule.resource !== "*",
+              )
+              return (
+                <div className="row" key={agent.id}>
+                  <div className="grow">
+                    <div className="name">{agent.name || agent.id}</div>
+                    <div className="desc">
+                      {truncate(details?.description ?? describeAgent(agent.id, agent.mode), 200)}
+                    </div>
+                    {rules.length ? (
+                      <div className="agent-rules">
+                        {rules.slice(0, 6).map((rule) => (
+                          <span
+                            key={`${rule.action}:${rule.resource}`}
+                            className={cx("agent-rule", rule.effect)}
+                            title={`${rule.action} ${rule.resource}`}
+                          >
+                            {rule.action} {rule.resource} ·{" "}
+                            {translateLoose(`perm.effect.${rule.effect}`, rule.effect)}
+                          </span>
+                        ))}
+                        {rules.length > 6 ? (
+                          <span className="agent-rule more">+{rules.length - 6}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
+                  {details?.steps ? (
+                    <span className="badge">{t("cap.agentSteps", { n: details.steps })}</span>
+                  ) : null}
+                  {agent.mode ? <span className="badge">{modeLabel(agent.mode)}</span> : null}
+                  {agent.id === store.settings?.defaultAgent ? (
+                    <span className="badge accent">{t("common.default")}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void store.updateSettings({ defaultAgent: agent.id })}
+                    >
+                      {t("prov.pick")}
+                    </button>
+                  )}
                 </div>
-                {agent.mode ? <span className="badge">{modeLabel(agent.mode)}</span> : null}
-                {agent.id === store.settings?.defaultAgent ? (
-                  <span className="badge accent">{t("common.default")}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => void store.updateSettings({ defaultAgent: agent.id })}
-                  >
-                    {t("prov.pick")}
-                  </button>
-                )}
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       ) : null}
