@@ -133,6 +133,9 @@ interface Store {
   agentDetails: Record<string, AgentDetails>
   /** The sessions the server is working on, by id. */
   activeSessions: Record<string, { type: string }>
+  /** What the model will read on the next turn, per conversation. */
+  contexts: Record<string, { count: number; tokens: number }>
+  refreshContext(sessionId: string): Promise<void>
   /** The model each conversation is pinned to, per conversation. */
   sessionModels: Record<string, ModelRef | null>
   /** The agent each conversation is pinned to, per conversation. */
@@ -460,6 +463,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [agentDetails, setAgentDetails] = useState<Record<string, AgentDetails>>({})
   /** The sessions the server is working on, by id. */
   const [activeSessions, setActiveSessions] = useState<Record<string, { type: string }>>({})
+  /** What the model will read on the next turn, per conversation. */
+  const [contexts, setContexts] = useState<Record<string, { count: number; tokens: number }>>({})
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [commands, setCommands] = useState<CommandInfo[]>([])
   const [mcp, setMcp] = useState<McpServerInfo[]>([])
@@ -1801,6 +1806,22 @@ const refreshActiveSessions = useCallback(async () => {
   }
 }, [])
 
+/**
+ * What the model will read on the next turn.
+ *
+ * The app counts the context by itself, from the last answer's token counts;
+ * the server knows better. After a compaction the difference is the whole
+ * point — the app's own count would still be the pre-compaction one.
+ */
+const refreshContext = useCallback(async (sessionId: string) => {
+  try {
+    const context = await window.ocd.api.sessionContext(sessionId)
+    setContexts((current) => ({ ...current, [sessionId]: context }))
+  } catch {
+    /* the server is not there; the ring keeps its own count */
+  }
+}, [])
+
 useEffect(() => {
   void refreshActiveSessions()
   const timer = setInterval(() => void refreshActiveSessions(), 5000)
@@ -1909,6 +1930,8 @@ useEffect(() => {
       models,
       agentDetails,
       activeSessions,
+      contexts,
+      refreshContext,
       sessionModels,
       sessionAgents,
       providers,
@@ -1975,6 +1998,8 @@ useEffect(() => {
       models,
       agentDetails,
       activeSessions,
+      contexts,
+      refreshContext,
       sessionModels,
       sessionAgents,
       providers,

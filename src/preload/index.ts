@@ -266,6 +266,12 @@ const api = {
         "app:saveText",
         payload,
       ),
+    /** Saves every conversation of a project as one file. */
+    exportProjectSessions: (directory?: string) =>
+      call<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>(
+        "app:exportProjectSessions",
+        directory,
+      ),
     /** Commands pushed from main: tray items, hotkey, tray language switch. */
     onCommand: (cb: (command: { kind: string; sessionId?: string; language?: string }) => void) => {
       const listener = (

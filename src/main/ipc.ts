@@ -1422,6 +1422,47 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<unknown>("api:deleteCredential", (id: string) =>
     service.del(`/api/credential/${id}`),
   )
+  /**
+   * Save every conversation of a project as one file.
+   *
+   * The server exports a session at a time, and the point of this is to have
+   * them together: an archive of a project that can be read elsewhere, or
+   * handed to someone who has to see what happened.
+   */
+  handle("app:exportProjectSessions", async (directory?: string) => {
+    const sessions = await service.get<unknown>(
+      "/api/session",
+      directory ? { "location[directory]": directory } : undefined,
+    )
+    const list = Array.isArray(sessions) ? sessions.slice(0, 50) : []
+    const exported: unknown[] = []
+    // A few at a time: fifty requests in a row would take a minute, and the
+    // server answers them all the same way.
+    for (let i = 0; i < list.length; i += 8) {
+      const batch = list.slice(i, i + 8)
+      const parts = await Promise.all(
+        batch.map(async (session) => {
+          const id = (session as { id?: string }).id
+          if (!id) return null
+          try {
+            const body = await service.get<{ data?: unknown }>(
+              `/api/experimental/session/${id}/export`,
+            )
+            return body?.data ?? null
+          } catch {
+            // One session that will not export is not worth stopping for.
+            return null
+          }
+        }),
+      )
+      for (const part of parts) if (part) exported.push(part)
+    }
+    return saveText(
+      { name: "sessions", content: JSON.stringify({ sessions: exported }, null, 2), ext: "json" },
+      getWindow(),
+    )
+  })
+
   // ---------- terminal ----------
 
   /** Run a command in the server's terminal and attach to it. */

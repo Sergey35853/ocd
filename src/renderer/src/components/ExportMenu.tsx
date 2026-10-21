@@ -52,12 +52,15 @@ export function ExportMenu({
   sessionId,
   title,
   messages,
+  directory,
   onDone,
   onFailed,
 }: {
   sessionId: string
   title: string
   messages: MessageInfo[]
+  /** The project the conversations belong to, for the "all sessions" export. */
+  directory?: string
   onDone: (path: string) => void
   onFailed: () => void
 }) {
@@ -129,6 +132,21 @@ export function ExportMenu({
     }
   }
 
+  /** Every conversation of the project, in one file. */
+  const runProjectFile = async () => {
+    setOpen(false)
+    setBusy("project" as Format)
+    try {
+      const result = await window.ocd.app.exportProjectSessions(directory)
+      if (result.ok && result.path) onDone(result.path)
+      else if (!result.canceled) onFailed()
+    } catch {
+      onFailed()
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const menu = (
     <div
       className="menu-pop"
@@ -156,6 +174,15 @@ export function ExportMenu({
         onClick={() => void runSessionFile()}
       >
         <span>{t("export.sessionFile")}</span>
+        <span className="kbd">.json</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="menu-pop-item"
+        onClick={() => void runProjectFile()}
+      >
+        <span>{t("export.projectSessions")}</span>
         <span className="kbd">.json</span>
       </button>
       <div className="menu-pop-sep" />

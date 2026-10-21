@@ -18,6 +18,8 @@ interface Props {
   models: ModelInfo[]
   providerID?: string
   modelID?: string
+  /** What the server says is in the context: the messages and their tokens. */
+  server?: { count: number; tokens: number }
 }
 
 export interface ContextUsage {
@@ -84,8 +86,17 @@ export function ContextRing(props: Props) {
     percent,
   })
 
+  // What the server will actually read is worth more than the app's own
+  // estimate: after a compaction the two differ, and the server is right.
+  const serverNote = props.server
+    ? translate("chat.contextServer", {
+        count: props.server.count,
+        tokens: props.server.tokens.toLocaleString(locale),
+      })
+    : null
+
   return (
-    <span className="ctxring" title={title} role="img" aria-label={title}>
+    <span className="ctxring" title={serverNote ? `${title}\n${serverNote}` : title} role="img" aria-label={title}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle
           cx={size / 2}

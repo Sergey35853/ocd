@@ -922,6 +922,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const { speak: storeSpeak, abort: storeAbort } = store
   /** The store's answer about a conversation, for the header to show. */
   const refreshSessionInfo = store.refreshSessionInfo
+  /** What the model will read on the next turn. */
+  const refreshContext = store.refreshContext
   /** The active interface language, so labels follow the switch. */
   const language = getLanguage()
   const [messages, setMessages] = useState<MessageInfo[]>([])
@@ -1415,12 +1417,15 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
 
   useEffect(() => {
     void load()
+    // What the model will read on the next turn: the server knows it better
+    // than the app's own count does.
+    if (sessionId) void refreshContext(sessionId)
     // Restore this conversation's unsent prompt, not a stale one from the tab
     // the user just left. This has to write into the field itself, not only into
     // state — otherwise switching conversations leaves the old words on screen
     // while the draft belongs to the new one.
     applyDraft(readDraft(sessionId ?? ""))
-  }, [load, sessionId, applyDraft])
+  }, [load, sessionId, applyDraft, refreshContext])
 
   // The stream arrives over SSE and never reloads the history, so without this
   // the last reply stays invisible until something else happens to trigger a
@@ -2408,6 +2413,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
           models={store.models}
           providerID={sessionModel?.providerID ?? store.settings?.defaultProvider}
           modelID={sessionModel?.id ?? store.settings?.defaultModel}
+          server={sessionId ? store.contexts[sessionId] : undefined}
         />
 
         <button
@@ -2442,6 +2448,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
           sessionId={sessionId}
           title={session?.title ?? ""}
           messages={turns}
+          directory={store.directory || undefined}
           onDone={(path) => store.toast(t("export.done", { path }), "info")}
           onFailed={() => store.toast(t("export.failed"), "error")}
         />

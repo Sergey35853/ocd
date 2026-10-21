@@ -1146,6 +1146,10 @@ export interface OcdApi {
       content: string
       ext: string
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /** Saves every conversation of a project as one file. */
+    exportProjectSessions(
+      directory?: string,
+    ): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
     /** Commands pushed from main: tray entries, hotkey, tray language switch. */
     onCommand(cb: (command: { kind: string; sessionId?: string; language?: string }) => void): () => void
   }
