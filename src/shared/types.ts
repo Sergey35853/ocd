@@ -535,6 +535,8 @@ export interface AppSettings {
   /** Reasoning level of the default model, e.g. "high". Empty means the model's own. */
   defaultModelVariant?: string
   defaultAgent: string
+  /** The user's own key combinations, by action. Empty means "not assigned". */
+  shortcuts?: Record<string, string>
   /** "system" | "light" | "dark" | "auto" */
   theme: string
   /** System material behind the window: "micaAlt" (like an Explorer folder) or "acrylic". */

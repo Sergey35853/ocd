@@ -6,6 +6,7 @@ import { IconFolder, IconPanel, IconRefresh, IconTerminal } from "../components/
 import { BusyAnimation } from "../components/BusyAnimation"
 import { ViewBack } from "../components/ViewBack"
 import { HotkeyRecorder } from "../components/HotkeyRecorder"
+import { SHORTCUTS, acceleratorFor } from "../lib/shortcuts"
 import { LANGUAGES, useT } from "../i18n"
 import type {
   BusyAnimationKind,
@@ -823,6 +824,29 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               <IconRefresh size={14} /> {t("set.restart")}
             </button>
           </Field>
+        </div>
+      ),
+    },
+    {
+      id: "shortcuts",
+      label: t("set.shortcutsTitle"),
+      note: t("set.noteShortcuts"),
+      render: () => (
+        <div className="card">
+          {SHORTCUTS.map((action) => (
+            <Field key={action.id} label={t(action.label as never)}>
+              <HotkeyRecorder
+                value={acceleratorFor(action.id, settings.shortcuts)}
+                onChange={async (accelerator) => {
+                  const next = { ...(settings.shortcuts ?? {}) }
+                  if (accelerator) next[action.id] = accelerator
+                  else delete next[action.id]
+                  await store.updateSettings({ shortcuts: next })
+                  return { ok: true }
+                }}
+              />
+            </Field>
+          ))}
         </div>
       ),
     },

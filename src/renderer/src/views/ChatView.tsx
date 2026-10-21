@@ -31,6 +31,8 @@ import { SessionActions } from "../components/SessionActions"
 import { FileSearch } from "../components/FileSearch"
 import { TerminalPanel } from "../components/TerminalPanel"
 import { mentionAt } from "./mention"
+import { actionFor } from "../lib/shortcuts"
+import { onChatCommand } from "../lib/commands"
 import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
 import { DiffView } from "../components/DiffView"
@@ -1817,6 +1819,53 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [store])
+
+  /**
+   * The keys that belong to the conversation itself.
+   *
+   * The terminal and the rename are here rather than in the shell: they mean
+   * something only where there is a conversation to act on.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest("input, textarea, [contenteditable]")) return
+      const action = actionFor(event, store.settings?.shortcuts)
+      if (action === "terminal") {
+        event.preventDefault()
+        setTerminalOpen((value) => !value)
+        return
+      }
+      if (action === "rename") {
+        event.preventDefault()
+        setEditingTitle(true)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [store.settings?.shortcuts])
+
+  /**
+   * What the palette asks of the open conversation.
+   *
+   * The palette is the app's "do anything" door, and the things it can do to
+   * a conversation live here.
+   */
+  useEffect(() => {
+    return onChatCommand((command) => {
+      if (command === "terminal") {
+        setTerminalOpen((value) => !value)
+        return
+      }
+      if (command === "fileSearch") {
+        setFileSearch({ query: "" })
+        return
+      }
+      if (!sessionId) return
+      if (command === "compact") void store.compactSession(sessionId)
+      if (command === "move") void store.moveSession(sessionId, store.directory ?? "")
+    })
+  }, [sessionId, store])
 
   const addPicked = useCallback(
     (picked: PickedFiles) => {

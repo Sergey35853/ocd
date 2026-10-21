@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SearchHit } from "@shared/types"
 import { StoreProvider, useStore } from "./lib/store"
 import { cx, groupSessions, shortAge } from "./lib/format"
+import { actionFor } from "./lib/shortcuts"
+import { askChat } from "./lib/commands"
 import { ToastStack } from "./components/ui"
 import { PermissionPrompt } from "./components/PermissionPrompt"
 import { CommandPalette, type Command } from "./components/CommandPalette"
@@ -154,6 +156,8 @@ function Shell() {
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [navOpen, setNavOpen] = useState(false)
+  /** The sessions search box, so a key can put the caret into it. */
+  const searchRef = useRef<HTMLInputElement>(null)
   // Full-text results. Separate from `query`: titles filter instantly while
   // the body index is consulted in the background, so typing never waits.
   const [searchHits, setSearchHits] = useState<SearchHit[]>([])
@@ -322,10 +326,6 @@ function Shell() {
   // Ctrl+N creates a session and jumps to the chat.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === "n") {
-        event.preventDefault()
-        void createAndOpen()
-      }
       if (event.key === "Escape") {
         setQuery("")
         setNavOpen(false)
@@ -335,7 +335,7 @@ function Shell() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [createAndOpen, goChat, view])
+  }, [goChat, view])
 
   // Publish what this window is doing for the HUD. Main reads it with
   // executeJavaScript, so it has to sit on `window` in the page's own world —
@@ -407,18 +407,64 @@ function Shell() {
 
   const isConnected = Boolean(store.status?.connected)
 
-  // Ctrl+K opens the palette. Taken here rather than in the chat so it works
-  // from Settings and Providers too.
+  /**
+   * The keys the app answers to.
+   *
+   * One handler for all of them, and the combinations belong to the user: the
+   * settings screen can hand any action another key. The handler is here
+   * rather than in the chat, so a key works from every screen.
+   */
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === "k") {
-        event.preventDefault()
-        setPaletteOpen((value) => !value)
+      const target = event.target as HTMLElement | null
+      // A field that is being typed into keeps its own keys: Ctrl+F in a
+      // search box should not be taken away from the browser's own meaning.
+      const typing = target?.closest("input, textarea, [contenteditable]")
+      const action = actionFor(event, store.settings?.shortcuts)
+      if (!action) return
+      if (typing && action !== "palette" && action !== "search") return
+      event.preventDefault()
+      switch (action) {
+        case "palette":
+          setPaletteOpen((value) => !value)
+          break
+        case "newSession":
+          void createAndOpen()
+          break
+        case "search":
+          setSidebarOpen(true)
+          searchRef.current?.focus()
+          break
+        case "closeTab":
+          if (store.activeTab) void store.closeTab(store.activeTab)
+          break
+        case "nextTab":
+        case "prevTab": {
+          const tabs = store.tabs
+          if (!tabs.length) break
+          const index = tabs.findIndex((tab) => tab.sessionId === store.activeTab)
+          const step = action === "nextTab" ? 1 : -1
+          const next = tabs[(index + step + tabs.length) % tabs.length]
+          if (next) store.openSession(next.sessionId)
+          break
+        }
+        case "settings":
+          setView("settings")
+          break
+        case "sidebar":
+          setSidebarOpen((value) => !value)
+          break
+        case "log":
+          setView("log")
+          break
+        default:
+          // The rest belong to the chat and are handled there.
+          break
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  }, [createAndOpen, store])
 
   const commands = useMemo<Command[]>(
     () => [
@@ -431,7 +477,10 @@ function Shell() {
       { id: "view:about", label: t("nav.about"), keywords: "о программе версия обновление about version", group: "nav", run: () => setView("about") },
       { id: "view:log", label: t("nav.log"), keywords: "журнал лог ошибки log errors", group: "app", run: () => setView("log") },
       { id: "hud", label: t("set.hudToggle"), keywords: "панель индикатор hud", group: "app", run: () => void window.ocd.hud.toggle() },
-      { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void store.restartService() },
+      { id: "chat:compact", label: t("session.compact"), keywords: "сжать контекст compact context", group: "app", run: () => askChat("compact") },
+      { id: "chat:terminal", label: t("terminal.open"), keywords: "терминал консоль terminal console", group: "app", run: () => askChat("terminal") },
+      { id: "chat:file", label: t("files.title"), keywords: "найти файл file search", group: "app", run: () => askChat("fileSearch") },
+      { id: "chat:move", label: t("session.move"), keywords: "перенести проект move project", group: "app", run: () => askChat("move") },      { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void store.restartService() },
       { id: "sidebar", label: t("chat.toggleSidebar"), keywords: "панель сессий sidebar", group: "app", run: () => setSidebarOpen((value) => !value) },
       { id: "focus", label: t("chat.expand"), keywords: "фокус во весь экран", group: "app", run: () => setExpanded((value) => !value) },
     ],
@@ -601,6 +650,7 @@ function Shell() {
           <div className="search">
             <IconSearch size={14} className="mag" />
             <input
+              ref={searchRef}
               placeholder={t("shell.searchSessions")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
