@@ -133,6 +133,16 @@ interface Store {
   agentDetails: Record<string, AgentDetails>
   /** The sessions the server is working on, by id. */
   activeSessions: Record<string, { type: string }>
+  /**
+   * A message the chat is asked to bring into view.
+   *
+   * The search finds a phrase in a conversation the window may not have open,
+   * and the answer is only useful if the reader lands on the message that
+   * matched — not on the end of the conversation.
+   */
+  jumpTo: { sessionId: string; messageId: string } | null
+  /** Ask the chat to bring a message into view. */
+  jumpToMessage(sessionId: string, messageId: string): void
   /** What the model will read on the next turn, per conversation. */
   contexts: Record<string, { count: number; tokens: number }>
   refreshContext(sessionId: string): Promise<void>
@@ -537,6 +547,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [agentDetails, setAgentDetails] = useState<Record<string, AgentDetails>>({})
   /** The sessions the server is working on, by id. */
   const [activeSessions, setActiveSessions] = useState<Record<string, { type: string }>>({})
+  /** A message the chat is asked to bring into view. */
+  const [jumpTo, setJumpTo] = useState<{ sessionId: string; messageId: string } | null>(null)
   /** What the model will read on the next turn, per conversation. */
   const [contexts, setContexts] = useState<Record<string, { count: number; tokens: number }>>({})
   const [skills, setSkills] = useState<SkillInfo[]>([])
@@ -705,6 +717,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     )
     setActiveTab(sessionId)
     activeTabRef.current = sessionId
+  }, [])
+
+  /**
+   * Bring a message into view.
+   *
+   * The search finds a phrase in a conversation that may not even be open.
+   * Landing on the end of that conversation is not an answer to "where is
+   * this" — the reader wants the message that matched, with the words in it.
+   */
+  const jumpToMessage = useCallback((sessionId: string, messageId: string) => {
+    setJumpTo({ sessionId, messageId })
   }, [])
 
   const closeTab = useCallback((sessionId: string) => {
@@ -2061,6 +2084,8 @@ useEffect(() => {
       models,
       agentDetails,
       activeSessions,
+      jumpTo,
+      jumpToMessage,
       contexts,
       refreshContext,
       sessionModels,
@@ -2128,6 +2153,8 @@ useEffect(() => {
       models,
       agentDetails,
       activeSessions,
+      jumpTo,
+      jumpToMessage,
       contexts,
       refreshContext,
       sessionModels,

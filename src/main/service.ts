@@ -453,12 +453,20 @@ export class OpenCodeService extends EventEmitter {
     return this.request<T>("POST", path, { body, query })
   }
 
+  put<T>(
+    path: string,
+    body?: unknown,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<T> {
+    return this.request<T>("PUT", path, { body, query })
+  }
+
   patch<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>("PATCH", path, { body })
   }
 
-  del<T>(path: string): Promise<T> {
-    return this.request<T>("DELETE", path)
+  del<T>(path: string, query?: Record<string, string | number | undefined>): Promise<T> {
+    return this.request<T>("DELETE", path, { query })
   }
 
   /**

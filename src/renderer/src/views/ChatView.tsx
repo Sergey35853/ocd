@@ -30,6 +30,8 @@ import { BusyAnimation } from "../components/BusyAnimation"
 import { ExportMenu } from "../components/ExportMenu"
 import { SessionActions } from "../components/SessionActions"
 import { FileSearch } from "../components/FileSearch"
+import { TemplatePicker } from "../components/TemplatePicker"
+import { placeholders } from "../lib/templates"
 import { TerminalPanel } from "../components/TerminalPanel"
 import { mentionAt } from "./mention"
 import { actionFor } from "../lib/shortcuts"
@@ -806,7 +808,7 @@ function TurnInner({
   if (message.type === "user") {
     const body = message.text ?? ""
     return (
-      <div className="msg-user">
+      <div className="msg-user" data-message-id={message.id}>
         {message.attachments?.length ? (
           <div className="msg-user-files">
             {message.attachments.map((item) => (
@@ -1463,6 +1465,39 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
 
   const forgetEdit = useCallback(() => setEditTarget(null), [])
 
+  /**
+   * Put a text into the field, and mark where the typing starts.
+   *
+   * A template is a skeleton: the holes in it are what the user has to fill
+   * in, and the first hole is where the caret belongs. The write waits for
+   * the keyboard to let go of a word, exactly as the app's own changes do —
+   * writing under a live input method is what leaves the field dead.
+   */
+  const insertText = useCallback(
+    (text: string) => {
+      const node = textareaRef.current
+      if (!node) {
+        applyDraft(text)
+        return
+      }
+      if (composingRef.current || fieldFocused.current || Date.now() < imeBusyUntil.current) {
+        pendingDraft.current = text
+        return
+      }
+      pendingDraft.current = null
+      node.value = text
+      const first = placeholders(text)[0]
+      if (first) node.setSelectionRange(first.at, first.at + first.length)
+      else node.setSelectionRange(text.length, text.length)
+      fitField(node)
+      // The field listens for `input`, and that is what tells it there is
+      // something to send.
+      node.dispatchEvent(new Event("input", { bubbles: true }))
+      node.focus()
+    },
+    [applyDraft, fitField],
+  )
+
   const resendEdited = useCallback(async () => {
     if (!editTarget || !sessionId) return
     // The field owns the text, not the state. The state is only brought up to
@@ -1683,6 +1718,40 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     node.addEventListener("scroll", onScroll, { passive: true })
     return () => node.removeEventListener("scroll", onScroll)
   }, [sessionId, loadOlder])
+
+  /**
+   * Bring the message the search pointed at into view.
+   *
+   * The reader asked "where is this", not "show me the end of the
+   * conversation" — so the message that matched is scrolled to and marked,
+   * and the stream stops following the tail while it is being read.
+   *
+   * The message may not be on the page yet: the history is loaded a page at a
+   * time, so the effect waits for the transcript to grow and tries again.
+   */
+  useEffect(() => {
+    const request = store.jumpTo
+    if (!request || request.sessionId !== sessionId) return
+    const node = streamRef.current?.querySelector(
+      `[data-message-id="${CSS.escape(request.messageId)}"]`,
+    )
+    if (!node) {
+      // The match may be in a page that is not on screen: the history is
+      // fetched a page at a time, and an old match lives in the page before
+      // the oldest one shown. Loading it is how the jump gets there — the
+      // effect runs again when the transcript grows.
+      if (!historyStart) void loadOlder()
+      return
+    }
+    node.scrollIntoView({ block: "center" })
+    // The tail stops following: the reader asked for a place, and a stream
+    // that keeps yanking the view back would not let them stay there.
+    pinnedRef.current = false
+    const holder = node as HTMLElement
+    holder.classList.add("msg-hit")
+    const timer = setTimeout(() => holder.classList.remove("msg-hit"), 2400)
+    return () => clearTimeout(timer)
+  }, [store.jumpTo, sessionId, messages, historyStart, loadOlder])
 
   /**
    * Follow the tail as the stream keeps growing after the last text arrived.
@@ -3048,6 +3117,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                 >
                   <IconSearch size={15} />
                 </button>
+                <TemplatePicker onInsert={insertText} />
                 <button
                   type="button"
                   className={cx("iconbtn", terminalOpen && "active")}

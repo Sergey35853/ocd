@@ -471,6 +471,70 @@ export interface FileEntry {
   type: "file" | "directory" | string
 }
 
+/**
+ * A web search provider the server can use.
+ *
+ * The server has its own search and knows which provider answers for it; the
+ * app only has to say so.
+ */
+export interface WebSearchProvider {
+  id: string
+  name: string
+}
+
+/**
+ * An instruction attached to one conversation.
+ *
+ * The value is whatever the server keeps: a note, a rule, a piece of context
+ * that belongs to this conversation and to no other.
+ */
+export interface InstructionEntry {
+  key: string
+  value: unknown
+}
+
+/** How many tokens a stretch of work cost. */
+export interface ToolUsage {
+  name: string
+  calls: number
+  succeeded: number
+  failed: number
+  unfinished: number
+  durationP50?: number
+}
+
+/**
+ * The server's own accounting for a stretch of time.
+ *
+ * The server counts what happened; the app only draws it. Nothing here is
+ * guessed locally.
+ */
+export interface SessionStats {
+  range: { from: number; to: number }
+  sessions: number
+  subagents: number
+  prompts: number
+  steps: number
+  tokens: TokenUsage
+  cost: number
+  tools: {
+    mode: "none" | "summary" | "detail"
+    totals?: Record<string, unknown>
+    usage?: ToolUsage[]
+  }  /** How many days had work in them. */
+  activeDays: number
+  /** How many days in a row had work in them, ending today. */
+  streak: number
+  /** One point per day. */
+  activity: Array<{ date: string; steps: number }>
+  models: Array<{
+    model: { providerID?: string; id: string }
+    steps: number
+    tokens: TokenUsage
+    cost: number
+  }>
+}
+
 /** The branch a project is on. */
 export interface VcsBranch {
   current?: string
@@ -874,6 +938,10 @@ export interface SearchHit {
   snippet: string
   /** Session's last activity, used to order results. */
   updated: number
+  /** The id of the message the match is in, when the index knows it. */
+  messageId?: string
+  /** 1-based number of that message in the transcript. */
+  messageIndex?: number
 }
 
 export interface OcdApi {
@@ -1001,8 +1069,31 @@ export interface OcdApi {
     ): Promise<{ messageID: string; files: FileDiffInfo[] }>
     /** Applies a staged rewind. */
     revertCommit(sessionId: string): Promise<unknown>
-    /** Model the server would pick on its own. */
-    serverDefaultModel(): Promise<ModelInfo | null>
+    // ---- the project's files, as the server sees them ----
+    /** What the repository says it changed. */
+    vcsDiff(
+      mode: "working" | "branch" | "committed",
+      directory?: string,
+      base?: string,
+    ): Promise<FileDiffInfo[]>
+    /** One directory of the project. The path is relative to the project root. */
+    fsList(path?: string, directory?: string): Promise<FileEntry[]>
+    /** The contents of one file. */
+    fsRead(path: string, directory?: string): Promise<string>
+    // ---- the server's own capabilities ----
+    websearchProviders(directory?: string): Promise<WebSearchProvider[]>
+    sessionStats(from?: number, to?: number, project?: string): Promise<SessionStats>
+    // ---- one conversation, on the server's side ----
+    sessionEnvironment(sessionId: string, variables: Record<string, string>): Promise<unknown>
+    sessionBackground(sessionId: string): Promise<unknown>
+    sessionInstructions(sessionId: string): Promise<InstructionEntry[]>
+    sessionInstructionPut(sessionId: string, key: string, value: unknown): Promise<unknown>
+    sessionInstructionRemove(sessionId: string, key: string): Promise<unknown>
+    // ---- the MCP servers ----
+    mcpSet(server: string, config: Record<string, unknown>, directory?: string): Promise<unknown>
+    mcpRemove(server: string, directory?: string): Promise<unknown>
+    mcpConnect(server: string, directory?: string): Promise<unknown>
+    mcpDisconnect(server: string, directory?: string): Promise<unknown>
   }
   plugins: {
     list(): Promise<ManagedPlugin[]>

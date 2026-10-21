@@ -13,6 +13,7 @@ import {
   IconChip,
   IconClose,
   IconDownload,
+  IconFolder,
   IconGear,
   IconInfo,
   IconFile,
@@ -22,6 +23,7 @@ import {
   IconMinimize,
   IconPlus,
   IconPuzzle,
+  IconRefresh,
   IconSearch,
   IconSpark,
 } from "./components/Icon"
@@ -34,12 +36,29 @@ import { ProvidersView } from "./views/ProvidersView"
 import { CapabilitiesView } from "./views/CapabilitiesView"
 import { SettingsView } from "./views/SettingsView"
 import { AboutView } from "./views/AboutView"
+import { FilesView } from "./views/FilesView"
 import { LogView } from "./views/LogView"
 import { useT, type DictKey } from "./i18n"
 
-type ViewId = "chat" | "capabilities" | "plugins" | "providers" | "settings" | "about" | "log"
+type ViewId =
+  | "chat"
+  | "files"
+  | "capabilities"
+  | "plugins"
+  | "providers"
+  | "settings"
+  | "about"
+  | "log"
 
-const VIEWS: ViewId[] = ["chat", "capabilities", "plugins", "providers", "settings", "about"]
+const VIEWS: ViewId[] = [
+  "chat",
+  "files",
+  "capabilities",
+  "plugins",
+  "providers",
+  "settings",
+  "about",
+]
 
 const VIEW_KEY = "ocd.view.v1"
 
@@ -69,6 +88,7 @@ function initialView(): ViewId {
 
 const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: string }> = [
   { id: "chat", label: "nav.newSession", icon: IconPlus, kbd: "Ctrl+N" },
+  { id: "files", label: "nav.files", icon: IconFolder },
   { id: "capabilities", label: "nav.capabilities", icon: IconSpark },
   { id: "plugins", label: "nav.plugins", icon: IconPuzzle },
   { id: "providers", label: "nav.providers", icon: IconChip },
@@ -174,6 +194,17 @@ function Shell() {
   // the body index is consulted in the background, so typing never waits.
   const [searchHits, setSearchHits] = useState<SearchHit[]>([])
   const [searchPending, setSearchPending] = useState(false)
+  /**
+   * What the reader is narrowing the results by.
+   *
+   * The index holds every conversation on the machine, so a search for a
+   * common word answers with dozens of hits. The filters are the difference
+   * between "here are forty conversations" and "here are the three of last
+   * Tuesday that ran on that model".
+   */
+  const [modelFilter, setModelFilter] = useState("")
+  const [projectFilter, setProjectFilter] = useState("")
+  const [dateFilter, setDateFilter] = useState("")
   const [indexReady, setIndexReady] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   // Focus mode hides both the sidebar and the tab strip so the chat owns the window.
@@ -246,10 +277,93 @@ function Shell() {
     [narrow],
   )
 
+  /**
+   * Open the conversation and bring the matched message into view.
+   *
+   * Opening the conversation is not enough: the reader asked where something
+   * is, and the end of a long conversation is not where it is. The message
+   * itself is what the search found, so that is what the window scrolls to.
+   */
+  const openHit = useCallback((hit: SearchHit) => {
+    storeRef.current.openSession(hit.sessionId)
+    if (hit.messageId) storeRef.current.jumpToMessage(hit.sessionId, hit.messageId)
+    if (narrow) setSidebarOpen(false)
+  }, [narrow])
+
+  /**
+   * Build the index again from scratch.
+   *
+   * The index is a cache of what the server said; when a conversation changed
+   * while the app was closed, the cache is behind. Rebuilding it by hand is
+   * the way out of a search that does not know about a conversation.
+   */
+  const reindex = useCallback(() => {
+    setIndexReady(false)
+    setSearchPending(true)
+    void window.ocd.search
+      .build(true)
+      .then(() => setIndexReady(true))
+      .catch(() => undefined)
+      .finally(() => setSearchPending(false))
+  }, [])
+
+  /**
+   * What there is to narrow by.
+   *
+   * The models and the projects come from the sessions themselves: the server
+   * knows which model a conversation ran on and which folder it ran in, and
+   * the list of things to filter by is exactly the list of things that have
+   * been used.
+   */
+  const filterOptions = useMemo(() => {
+    const models = new Set<string>()
+    const projects = new Set<string>()
+    for (const session of store.sessions) {
+      if (session.model?.id) models.add(`${session.model.providerID ?? ""}/${session.model.id}`)
+      const project = session.location?.directory ?? session.projectID ?? ""
+      if (project) projects.add(project)
+    }
+    return { models: [...models].sort(), projects: [...projects].sort() }
+  }, [store.sessions])
+
+  /**
+   * The hits that survive the filters.
+   *
+   * The filters are read off the session, not off the hit: the index holds
+   * the words of a conversation, and which model and which project it belongs
+   * to is the session's own business.
+   */
+  const visibleHits = useMemo(() => {
+    const now = Date.now()
+    const day = 24 * 60 * 60 * 1000
+    return searchHits.filter((hit) => {
+      if (dateFilter) {
+        const age = now - (hit.updated || 0)
+        if (dateFilter === "today" && age > day) return false
+        if (dateFilter === "week" && age > 7 * day) return false
+        if (dateFilter === "month" && age > 30 * day) return false
+      }
+      if (!modelFilter && !projectFilter) return true
+      const session = store.sessions.find((item) => item.id === hit.sessionId)
+      if (!session) return false
+      if (modelFilter) {
+        const model = session.model?.id
+          ? `${session.model.providerID ?? ""}/${session.model.id}`
+          : ""
+        if (model !== modelFilter) return false
+      }
+      if (projectFilter) {
+        const project = session.location?.directory ?? session.projectID ?? ""
+        if (project !== projectFilter) return false
+      }
+      return true
+    })
+  }, [searchHits, store.sessions, modelFilter, projectFilter, dateFilter])
+
   const filteredSessions = useMemo(() => {
     const needle = query.trim().toLowerCase()
     // Sessions already listed above as a body match are not repeated below.
-    const shown = new Set(searchHits.map((hit) => hit.sessionId))
+    const shown = new Set(visibleHits.map((hit) => hit.sessionId))
     const list = needle
       ? store.sessions.filter(
           (session) =>
@@ -258,7 +372,7 @@ function Shell() {
         )
       : store.sessions.filter((session) => !shown.has(session.id))
     return groupSessions(list)
-  }, [store.sessions, query, searchHits])
+  }, [store.sessions, query, visibleHits])
 
   // Build the body index once the session list is on screen, then keep it
   // fresh in the background. Failures are silent: search simply falls back to
@@ -515,6 +629,7 @@ function Shell() {
     () => [
       { id: "new", label: t("nav.newSession"), keywords: "создать новая сессия create", group: "nav", run: () => void createAndOpen() },
       { id: "view:chat", label: t("palette.backToChat"), keywords: "беседы чат chat", group: "nav", run: goChat },
+      { id: "view:files", label: t("nav.files"), keywords: "файлы дерево проекта files tree project", group: "nav", run: () => setView("files") },
       { id: "view:capabilities", label: t("nav.capabilities"), keywords: "возможности агенты", group: "nav", run: () => setView("capabilities") },
       { id: "view:plugins", label: t("nav.plugins"), keywords: "плагины расширения", group: "nav", run: () => setView("plugins") },
       { id: "view:providers", label: t("nav.providers"), keywords: "провайдеры модели", group: "nav", run: () => setView("providers") },
@@ -701,20 +816,73 @@ function Shell() {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
+          {/* The filters only matter once there is something to narrow: the
+              index holds every conversation on the machine, and a search for a
+              common word answers with dozens of hits. */}
+          {store.sessions.length > 0 ? (
+            <div className="search-filters">
+              <select
+                className="input"
+                value={modelFilter}
+                title={t("search.filterModel")}
+                onChange={(event) => setModelFilter(event.target.value)}
+              >
+                <option value="">{t("search.filterModel")}</option>
+                {filterOptions.models.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={projectFilter}
+                title={t("search.filterProject")}
+                onChange={(event) => setProjectFilter(event.target.value)}
+              >
+                <option value="">{t("search.filterProject")}</option>
+                {filterOptions.projects.map((project) => (
+                  <option key={project} value={project}>
+                    {project.split(/[\\/]/).pop() || project}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={dateFilter}
+                title={t("search.filterDate")}
+                onChange={(event) => setDateFilter(event.target.value)}
+              >
+                <option value="">{t("search.filterDate")}</option>
+                <option value="today">{t("session.today")}</option>
+                <option value="week">{t("session.week")}</option>
+                <option value="month">{t("session.month")}</option>
+              </select>
+              <button
+                type="button"
+                className="iconbtn"
+                title={searchPending ? t("search.reindexing") : t("search.reindex")}
+                disabled={searchPending}
+                onClick={reindex}
+              >
+                <IconRefresh size={14} />
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="side-scroll">
           {view !== "chat" ? null : (
             <>
-              {searchHits.length > 0 ? (
+              {visibleHits.length > 0 ? (
                 <>
                   <div className="group-label">{t("search.inMessages")}</div>
-                  {searchHits.map((hit) => (
+                  {visibleHits.map((hit) => (
                     <button
                       key={hit.sessionId}
                       type="button"
                       className={cx("sess", "hit", hit.sessionId === store.activeTab && "active")}
-                      onClick={() => pickSession(hit.sessionId)}
+                      onClick={() => openHit(hit)}
                       title={hit.snippet}
                     >
                       <span className="t">{hit.title || t("session.untitled")}</span>
@@ -723,6 +891,10 @@ function Shell() {
                   ))}
                   <div className="navmenu-sep" />
                 </>
+              ) : null}
+
+              {searchHits.length > 0 && visibleHits.length === 0 ? (
+                <div className="search-state">{t("search.noFilterMatch")}</div>
               ) : null}
 
               {searchPending ? (
@@ -798,6 +970,7 @@ function Shell() {
             onToggleSidebar={() => setSidebarOpen((value) => !value)}
           />
         ) : null}
+        {view === "files" ? <FilesView onBack={goChat} /> : null}
         {view === "capabilities" ? <CapabilitiesView onBack={goChat} /> : null}
         {view === "plugins" ? <PluginsView onBack={goChat} /> : null}
         {view === "providers" ? <ProvidersView onBack={goChat} /> : null}

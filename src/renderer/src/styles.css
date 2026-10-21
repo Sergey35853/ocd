@@ -626,6 +626,34 @@ select {
   pointer-events: none;
 }
 
+/*
+ * The filters under the search box.
+ *
+ * The index holds every conversation on the machine, so a search for a common
+ * word answers with dozens of hits. The filters are what turn that into an
+ * answer, so they sit right under the box they narrow.
+ */
+.search-filters {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.search-filters select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  outline: none;
+  text-overflow: ellipsis;
+}
+.search-filters .iconbtn {
+  flex: none;
+}
+
 .side-scroll {
   flex: 1;
   min-height: 0;
@@ -822,6 +850,120 @@ select {
 .about-check.err {
   color: var(--danger);
   background: var(--danger-soft);
+}
+
+/* ---- statistics on the About screen ---- */
+/* The figures: a number with its name under it. The number is the loudest
+   thing on the card — it is what the screen was opened for. */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+.stats-cell {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+}
+.stats-value {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.stats-name {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+/* A block with a name of its own: the days, the models, the tools. */
+.stats-block {
+  display: grid;
+  gap: 6px;
+}
+.stats-section {
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The table of models. The head and the rows are the same grid on purpose:
+   columns of numbers that answer to each other have to line up. */
+.stats-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 84px 76px;
+  gap: 8px;
+  align-items: center;
+}
+.stats-table-head {
+  color: var(--text-faint);
+  font-size: 11px;
+  text-align: right;
+}
+.stats-num {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Model and tool names are longer than the space they are given, so they are
+   cut rather than allowed to push the numbers out of the row. */
+.stats-table .name,
+.stats-tool .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One tool and its counters. The icons say what the three numbers mean, so
+   the block needs no words of its own. */
+.stats-tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 56px 56px 56px;
+  gap: 8px;
+  align-items: center;
+}
+.stats-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.stats-mark.ok {
+  color: var(--ok);
+}
+.stats-mark.err {
+  color: var(--danger);
+}
+.stats-mark.wait {
+  color: var(--text-faint);
+}
+
+/* The strip of days: one column per day, as tall as the work in it was.
+   It scrolls sideways, because a year of days is wider than any window. */
+.stats-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 58px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.stats-bar {
+  flex: 1 1 0;
+  min-width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  opacity: 0.85;
 }
 
 /* ---- feedback form on the About screen ---- */
@@ -2058,6 +2200,27 @@ input[type="color"] {
 /* Formats with their own viewer paint a dark surface regardless of theme. */
 .preview-body.dark {
   background: #1e1e1e;
+}
+
+/*
+ * The message a search pointed at.
+ *
+ * The reader asked where something is; the answer has to be findable at a
+ * glance, and the mark fades on its own so that the next jump is not fighting
+ * the previous one.
+ */
+.msg-hit {
+  animation: msg-hit 2.4s ease-out;
+  border-radius: 6px;
+}
+
+@keyframes msg-hit {
+  0% {
+    background: rgba(15, 108, 189, 0.24);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 /* A conversion failure must not leave a stale guest painted underneath. */
@@ -4716,6 +4879,112 @@ select.input {
   50% {
     transform: translateY(-11px);
     opacity: 1;
+  }
+}
+
+/* ---- the project's files ----
+   Two panels: the tree on the left, the file on the right. A narrow window has
+   room for one of them, so the layout becomes a stack — the same two panels,
+   one under the other, rather than a second design. */
+.files-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 300px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.files-panel {
+  min-width: 0;
+}
+/* The tree scrolls on its own: a project has more folders than a page has
+   room for, and the file next to it should not move when they open. */
+.files-tree {
+  padding: 6px;
+  max-height: calc(100vh - 210px);
+  overflow: auto;
+}
+.files-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: 500 12.5px/1.4 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.files-node:hover {
+  background: var(--surface-hover);
+}
+.files-node-selected {
+  background: var(--accent-soft);
+}
+.files-caret {
+  display: inline-flex;
+  flex: none;
+  width: 12px;
+  color: var(--text-faint);
+}
+/* The chevron points right; an open folder points down. */
+.files-open {
+  transform: rotate(90deg);
+}
+.files-icon {
+  flex: none;
+  color: var(--text-faint);
+}
+.files-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.files-note {
+  padding: 12px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.files-content {
+  min-height: 180px;
+}
+/* The file itself, as the model would read it: wrapped, so a long line does
+   not push the window sideways. */
+.files-preview {
+  margin: 0;
+  padding: 12px;
+  max-height: calc(100vh - 250px);
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text-dim);
+  font: 500 11.5px/1.55 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* A path is long and has to stay selectable, so it is cut with an ellipsis
+   rather than with a wrap. */
+.files-path {
+  font-family: var(--mono);
+  max-width: 44%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .files-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .files-tree {
+    max-height: 38vh;
+  }
+  .files-preview {
+    max-height: 46vh;
+  }
+  .files-path {
+    max-width: 100%;
   }
 }
 

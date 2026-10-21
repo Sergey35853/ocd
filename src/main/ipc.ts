@@ -96,6 +96,9 @@ import type {
   PermissionRequest,
   PermissionRule,
   FileEntry,
+  InstructionEntry,
+  SessionStats,
+  WebSearchProvider,
   VcsBranch,
   VcsFileStatus,
   WorktreeInfo,
@@ -1018,6 +1021,140 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     dictationRun = null
     broadcastVoiceState({ dictation: "idle" })
   })
+
+  // ---------- the project's files ----------
+
+  /**
+   * What the repository itself says it changed.
+   *
+   * The agent's own diff is what the conversation did; this is what the
+   * working tree looks like to git — the changes that are waiting to be
+   * committed, including the ones nobody made in this window.
+   *
+   * The modes are the server's: the working tree, a branch against its base,
+   * and what is already committed.
+   */
+  handle<FileDiffInfo[]>("api:vcsDiff", async (
+    mode: "working" | "branch" | "committed",
+    directory?: string,
+    base?: string,
+  ) => {
+    const body = await service.get<unknown>("/api/vcs/diff", {
+      ...locationQuery(directory),
+      mode,
+      ...(base ? { base } : {}),
+    })
+    return unwrap<FileDiffInfo>(body)
+  })
+
+  /**
+   * One directory of the project, as the server sees it.
+   *
+   * The server reads the filesystem for the project the conversation runs in,
+   * and it knows where that project is — which the window does not. The app
+   * asks for a directory and gets the entries back with their paths.
+   */
+  handle<FileEntry[]>("api:fsList", async (path?: string, directory?: string) => {
+    const body = await service.get<unknown>("/api/fs/list", {
+      ...locationQuery(directory),
+      ...(path ? { path } : {}),
+    })
+    return unwrap<FileEntry>(body)
+  })
+
+  /**
+   * The contents of one file.
+   *
+   * The path goes into the URL rather than into a query: the route is
+   * `/api/fs/read/*`, and the star is the path.
+   */
+  handle<string>("api:fsRead", async (path: string, directory?: string) => {
+    const encoded = path
+      .split("/")
+      .map((part) => encodeURIComponent(part))
+      .join("/")
+    const body = await service.get<unknown>(`/api/fs/read/${encoded}`, locationQuery(directory))
+    return typeof body === "string" ? body : String((body as { data?: unknown })?.data ?? body)
+  })
+
+  // ---------- the server's own capabilities ----------
+
+  /** Which web search provider answers for the server. */
+  handle<WebSearchProvider[]>("api:websearchProviders", async (directory?: string) => {
+    const body = await service.get<unknown>("/api/websearch/provider", locationQuery(directory))
+    return unwrap<WebSearchProvider>(body)
+  })
+
+  /** What the server counts for a stretch of time. */
+  handle<SessionStats>("api:sessionStats", async (from?: number, to?: number, project?: string) => {
+    const body = await service.get<{ data?: SessionStats } | SessionStats>("/api/experimental/session/stats", {
+      ...(from !== undefined ? { from: String(from) } : {}),
+      ...(to !== undefined ? { to: String(to) } : {}),
+      ...(project ? { project } : {}),
+    })
+    return ("data" in (body as { data?: SessionStats }) ? (body as { data: SessionStats }).data : body) as SessionStats
+  })
+
+  // ---------- one conversation, on the server's side ----------
+
+  /**
+   * The variables the agent's commands run with.
+   *
+   * A conversation of its own, so a key that belongs to this project does not
+   * have to be written into the machine's environment for every other
+   * conversation.
+   */
+  handle<unknown>("api:sessionEnvironment", (sessionId: string, variables: Record<string, string>) =>
+    service.put(`/api/session/${sessionId}/environment`, { variables }),
+  )
+
+  /**
+   * Send the blocking tools to the background.
+   *
+   * A long tool call then does not hold the turn: the answer arrives when it
+   * is ready, and the conversation keeps taking messages meanwhile.
+   */
+  handle<unknown>("api:sessionBackground", (sessionId: string) =>
+    service.post(`/api/session/${sessionId}/background`),
+  )
+
+  /** The instructions this conversation carries. */
+  handle<InstructionEntry[]>("api:sessionInstructions", async (sessionId: string) => {
+    const body = await service.get<unknown>(`/api/experimental/session/${sessionId}/instructions/entries`)
+    return unwrap<InstructionEntry>(body)
+  })
+
+  /** Add or change one of them. */
+  handle<unknown>("api:sessionInstructionPut", (sessionId: string, key: string, value: unknown) =>
+    service.put(`/api/experimental/session/${sessionId}/instructions/entries/${encodeURIComponent(key)}`, { value }),
+  )
+
+  /** Forget one of them. */
+  handle<unknown>("api:sessionInstructionRemove", (sessionId: string, key: string) =>
+    service.del(`/api/experimental/session/${sessionId}/instructions/entries/${encodeURIComponent(key)}`),
+  )
+
+  // ---------- the MCP servers ----------
+
+  /** Add or change one MCP server's configuration. */
+  handle<unknown>("api:mcpSet", (server: string, config: Record<string, unknown>, directory?: string) =>
+    service.put(`/api/experimental/mcp/${encodeURIComponent(server)}`, { config }, locationQuery(directory)),
+  )
+
+  /** Remove one MCP server. */
+  handle<unknown>("api:mcpRemove", (server: string, directory?: string) =>
+    service.del(`/api/experimental/mcp/${encodeURIComponent(server)}`, locationQuery(directory)),
+  )
+
+  /** Ask the server to start talking to one of its servers. */
+  handle<unknown>("api:mcpConnect", (server: string, directory?: string) =>
+    service.post(`/api/experimental/mcp/${encodeURIComponent(server)}/connect`, undefined, locationQuery(directory)),
+  )
+
+  /** Ask the server to stop talking to one of its servers. */
+  handle<unknown>("api:mcpDisconnect", (server: string, directory?: string) =>
+    service.post(`/api/experimental/mcp/${encodeURIComponent(server)}/disconnect`, undefined, locationQuery(directory)),
+  )
 
   // ---------- app ----------
 

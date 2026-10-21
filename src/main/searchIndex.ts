@@ -41,6 +41,14 @@ interface MessageMark {
    * server handed the messages over.
    */
   number: number
+  /**
+   * The message's own id.
+   *
+   * The number is only true for the order the server happened to hand the
+   * messages over in; the id is true everywhere. It is what lets the chat jump
+   * to the message the hit came from.
+   */
+  id: string
 }
 
 interface IndexFile {
@@ -55,6 +63,13 @@ export interface SearchHit {
   snippet: string
   /** 1-based index of the matching message, so the chat can jump to it. */
   messageIndex: number
+  /**
+   * The id of the matching message.
+   *
+   * The number above is only true for the order the server handed the messages
+   * over in; the id is true everywhere, and it is what the chat jumps to.
+   */
+  messageId?: string
   updated: number
 }
 
@@ -130,7 +145,7 @@ function conversationText(messages: MessageInfo[]): {
     }
     const chunk = blocks.join("\n").toLowerCase()
     if (chunk) {
-      if (offset < MAX_TEXT) marks.push({ at: offset, number: index + 1 })
+      if (offset < MAX_TEXT) marks.push({ at: offset, number: index + 1, id: message.id })
       parts.push(chunk)
       // The separator join() adds between two parts.
       offset += chunk.length + 1
@@ -144,15 +159,15 @@ function conversationText(messages: MessageInfo[]): {
  * The message a character offset falls into.
  *
  * Zero when nothing is known about it: the index is a summary, and a hit
- * without a message number is still a hit.
+ * without a message is still a hit.
  */
-function messageAt(marks: MessageMark[], offset: number): number {
-  let number = 0
+function messageAt(marks: MessageMark[], offset: number): MessageMark | null {
+  let found: MessageMark | null = null
   for (const mark of marks) {
     if (mark.at > offset) break
-    number = mark.number
+    found = mark
   }
-  return number
+  return found
 }
 
 /**
@@ -250,11 +265,13 @@ export function search(query: string, sessions: SessionInfo[]): SearchHit[] {
     const slice = entry.text.slice(from, from + SNIPPET).replace(/\s+/g, " ").trim()
 
     const session = byId.get(sessionId)
+    const message = messageAt(entry.marks ?? [], start)
     hits.push({
       sessionId,
       title: session?.title ?? entry.title ?? sessionId,
       snippet: from > 0 ? "…" + slice : slice,
-      messageIndex: messageAt(entry.marks ?? [], start),
+      messageIndex: message?.number ?? 0,
+      messageId: message?.id,
       updated: session?.time?.updated ?? entry.updated,
     })
   }

@@ -150,6 +150,37 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
       mcpResources: async () => ({ resources: [], templates: [] }),
       sessionLog: async () => [],
       serverDefaultModel: async () => null,
+      // ---- the project's files ----
+      fsList: async () => [],
+      fsRead: async () => "",
+      vcsDiff: async () => [],
+      // ---- what the server can do ----
+      websearchProviders: async () => [],
+      sessionStats: async () => ({
+        range: { from: 0, to: 0 },
+        sessions: 0,
+        subagents: 0,
+        prompts: 0,
+        steps: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        cost: 0,
+        tools: { mode: "none" as const },
+        activeDays: 0,
+        streak: 0,
+        activity: [],
+        models: [],
+      }),
+      // ---- one conversation, on the server's side ----
+      sessionEnvironment: async () => undefined,
+      sessionBackground: async () => undefined,
+      sessionInstructions: async () => [],
+      sessionInstructionPut: async () => undefined,
+      sessionInstructionRemove: async () => undefined,
+      // ---- the MCP servers ----
+      mcpSet: async () => undefined,
+      mcpRemove: async () => undefined,
+      mcpConnect: async () => undefined,
+      mcpDisconnect: async () => undefined,
     },
     configFile: {
       read: async () => ({ path: "", text: "{}", exists: true }),
@@ -227,16 +258,26 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
   ;(globalThis as unknown as { window: { ocd: unknown } }).window.ocd = api
 
   /**
-   * Remember every call.
+   * Remember every call, and let a test answer one of them.
    *
    * The bridge is a tree of functions, and the channel a call went down is the
    * path to it — "app.getSettings", "notify.finish". Wrapping the whole tree
    * is what makes every call countable, not only the ones a test thought of.
+   *
+   * An override is named the way the main process names it — "api:fsList" —
+   * because that is the name the channel has everywhere else.
    */
   const instrument = (node: unknown, path: string[] = []): unknown => {
     if (typeof node === "function") {
       return (...args: unknown[]) => {
-        record(path.join("."), args)
+        const channel = path.join(".")
+        record(channel, args)
+        const override = path.length >= 2 ? overrides[`${path[0]}:${path[1]}`] : undefined
+        if (override !== undefined) {
+          // A function override answers for itself: the same channel may have
+          // to answer differently depending on what it was asked.
+          return typeof override === "function" ? override(...args) : override
+        }
         return (node as (...a: unknown[]) => unknown)(...args)
       }
     }

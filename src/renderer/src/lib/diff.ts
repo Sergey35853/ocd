@@ -571,8 +571,44 @@ export interface ChangeTotals {
   removed: number
 }
 
-export function changeTotals(changes: FileChange[]): ChangeTotals {
-  let added = 0
+/**
+ * The changes a repository says it has.
+ *
+ * The server computes the diff of the working tree against git itself, so
+ * this is the real thing: the files that are waiting to be committed, with
+ * the lines that differ. The conversation's own changes are a different
+ * question — what the agent did — and this is what the repository knows.
+ */
+export function serverChanges(files: FileDiffInfo[]): FileChange[] {
+  return files.map((file) => {
+    const lines = parsePatch(file.patch)
+    return {
+      path: file.file,
+      edits: 1,
+      // The server's diff describes the file in one pass, so it is exact.
+      exact: true,
+      lines,
+      stats: diffStats(lines),
+      whole: false,
+      authoritative: true,
+      steps: [
+        {
+          kind: "patch",
+          path: file.file,
+          before: "",
+          after: file.patch,
+          lines,
+          patch: file.patch,
+          fromServer: true,
+          status: file.status ?? null,
+          key: `git:${file.file}`,
+        },
+      ],
+    }
+  })
+}
+
+export function changeTotals(changes: FileChange[]): ChangeTotals {  let added = 0
   let removed = 0
   for (const change of changes) {
     added += change.stats.added

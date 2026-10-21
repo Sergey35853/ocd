@@ -5,6 +5,8 @@ import { useStore } from "../lib/store"
 import { useT } from "../i18n"
 import { IconMore } from "./Icon"
 import { PermissionRules } from "./PermissionRules"
+import { SessionEnvironmentDialog } from "./SessionEnvironmentDialog"
+import { SessionInstructionsDialog } from "./SessionInstructionsDialog"
 import { Modal, useAnchoredMenu } from "./ui"
 
 /**
@@ -13,7 +15,9 @@ import { Modal, useAnchoredMenu } from "./ui"
  * The server can shrink a long chat, branch it, move it to another project,
  * run one of its commands and remember the permission answers. All of that
  * used to be reachable only from the command line, which made it a part of
- * OpenCode the app did not have.
+ * OpenCode the app did not have. The same goes for the things a conversation
+ * carries with it — its environment, its instructions, the way into the
+ * background — which the server keeps but the app could not reach.
  *
  * The menu is drawn in the document body: the chat header scrolls sideways
  * and a scroll container clips its children.
@@ -34,6 +38,10 @@ export function SessionActions({
   const [worktrees, setWorktrees] = useState<WorktreeInfo[]>([])
   /** Whether the list of remembered permission answers is on screen. */
   const [rulesOpen, setRulesOpen] = useState(false)
+  /** Whether the environment of the conversation is on screen. */
+  const [envOpen, setEnvOpen] = useState(false)
+  /** Whether the instructions of the conversation are on screen. */
+  const [instructionsOpen, setInstructionsOpen] = useState(false)
   /** The server's own log of this session, when it was asked for. */
   const [logLines, setLogLines] = useState<string[] | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -228,6 +236,47 @@ export function SessionActions({
             type="button"
             className="item"
             role="menuitem"
+            title={t("session.envHint")}
+            onClick={() => {
+              close()
+              setEnvOpen(true)
+            }}
+          >
+            <span className="grow">{t("session.env")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
+            title={t("session.instructionsHint")}
+            onClick={() => {
+              close()
+              setInstructionsOpen(true)
+            }}
+          >
+            <span className="grow">{t("session.instructions")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
+            title={t("session.backgroundHint")}
+            onClick={() => {
+              close()
+              void window.ocd.api
+                .sessionBackground(sessionId)
+                .then(() => store.toast(t("session.backgroundDone")))
+                .catch((err: unknown) =>
+                  store.toast(err instanceof Error ? err.message : String(err), "error"),
+                )
+            }}
+          >
+            <span className="grow">{t("session.background")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
             onClick={() => {
               close()
               void window.ocd.api
@@ -261,6 +310,12 @@ export function SessionActions({
       {open && box ? createPortal(menu, document.body) : null}
       {rulesOpen ? (
         <PermissionRules projectID={projectID} onClose={() => setRulesOpen(false)} />
+      ) : null}
+      {envOpen ? (
+        <SessionEnvironmentDialog sessionId={sessionId} onClose={() => setEnvOpen(false)} />
+      ) : null}
+      {instructionsOpen ? (
+        <SessionInstructionsDialog sessionId={sessionId} onClose={() => setInstructionsOpen(false)} />
       ) : null}
       {logLines ? (
         <Modal title={t("session.log")} onClose={() => setLogLines(null)}>

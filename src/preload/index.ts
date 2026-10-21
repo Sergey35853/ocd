@@ -5,9 +5,14 @@ import type {
   FeedbackKind,
   FinishNotice,
   ConfigProviderSummary,
+  FileDiffInfo,
+  FileEntry,
+  InstructionEntry,
   IntegrationAttempt,
   IntegrationInfo,
   LocalRuntimeStatus,
+  SessionStats,
+  WebSearchProvider,
   FileGroup,
   HardwareFacts,
   PullProgress,
@@ -123,6 +128,42 @@ const api = {
     revertStage: (sessionId: string, messageId: string) =>
       call("api:revertStage", sessionId, messageId),
     revertCommit: (sessionId: string) => call("api:revertCommit", sessionId),
+    // ---- the project's files, as the server sees them ----
+    /** What the repository says it changed. */
+    vcsDiff: (
+      mode: "working" | "branch" | "committed",
+      directory?: string,
+      base?: string,
+    ) => call<FileDiffInfo[]>("api:vcsDiff", mode, directory, base),
+    /** One directory of the project. The path is relative to the project root. */
+    fsList: (path?: string, directory?: string) => call<FileEntry[]>("api:fsList", path, directory),
+    /** The contents of one file. */
+    fsRead: (path: string, directory?: string) => call<string>("api:fsRead", path, directory),
+    // ---- the server's own capabilities ----
+    websearchProviders: (directory?: string) =>
+      call<WebSearchProvider[]>("api:websearchProviders", directory),
+    sessionStats: (from?: number, to?: number, project?: string) =>
+      call<SessionStats>("api:sessionStats", from, to, project),
+    // ---- one conversation, on the server's side ----
+    /** The variables the agent's commands run with, for this conversation only. */
+    sessionEnvironment: (sessionId: string, variables: Record<string, string>) =>
+      call("api:sessionEnvironment", sessionId, variables),
+    /** Send the blocking tools to the background. */
+    sessionBackground: (sessionId: string) => call("api:sessionBackground", sessionId),
+    /** The instructions this conversation carries. */
+    sessionInstructions: (sessionId: string) =>
+      call<InstructionEntry[]>("api:sessionInstructions", sessionId),
+    sessionInstructionPut: (sessionId: string, key: string, value: unknown) =>
+      call("api:sessionInstructionPut", sessionId, key, value),
+    sessionInstructionRemove: (sessionId: string, key: string) =>
+      call("api:sessionInstructionRemove", sessionId, key),
+    // ---- the MCP servers ----
+    mcpSet: (server: string, config: Record<string, unknown>, directory?: string) =>
+      call("api:mcpSet", server, config, directory),
+    mcpRemove: (server: string, directory?: string) => call("api:mcpRemove", server, directory),
+    mcpConnect: (server: string, directory?: string) => call("api:mcpConnect", server, directory),
+    mcpDisconnect: (server: string, directory?: string) =>
+      call("api:mcpDisconnect", server, directory),
   },
   plugins: {
     list: () => call("plugins:list"),
