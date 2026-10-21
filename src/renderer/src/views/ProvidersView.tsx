@@ -46,6 +46,17 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
   const store = useStore()
   const t = useT()
 
+  /**
+   * The store, in a ref.
+   *
+   * The store is a new object on every tick of a running turn, so an effect
+   * that depends on it asks the server for the whole catalog again, once a
+   * second, for as long as the model writes. The ref holds the same store
+   * without making that a reason to start over.
+   */
+  const storeRef = useRef(store)
+  storeRef.current = store
+
   const [query, setQuery] = useState("")
   const [onlyReady, setOnlyReady] = useState(false)
 
@@ -79,9 +90,9 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
     try {
       setIntegrations(await window.ocd.integration.list())
     } catch (err) {
-      store.toast(err instanceof Error ? err.message : String(err), "error")
+      storeRef.current.toast(err instanceof Error ? err.message : String(err), "error")
     }
-  }, [store])
+  }, [])
 
   /** The keys the server keeps: what is stored and which one is in use. */
   const reloadCredentials = useCallback(async () => {
@@ -116,11 +127,15 @@ export function ProvidersView({ onBack }: { onBack: () => void }) {
     [],
   )
 
+  // The catalog comes from the server, so it is asked for again when the
+  // connection changes: a server that was down has a catalog of its own, and
+  // one that was replaced has another.
+  const connected = Boolean(store.status?.connected)
   useEffect(() => {
     void reloadInstalled()
     void reloadCatalog()
     void reloadCredentials()
-  }, [reloadInstalled, reloadCatalog, reloadCredentials])
+  }, [reloadInstalled, reloadCatalog, reloadCredentials, connected])
 
   const catalog = useMemo(
     () => buildCatalog(integrations ?? [], statuses),

@@ -21,5 +21,9 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
+    // The stubs Chromium gives and jsdom does not. The files that need a
+    // browser say so with a `@vitest-environment jsdom` line; this runs for
+    // every test and does nothing where there is no window.
+    setupFiles: ["./src/renderer/src/test/setup.ts"],
   },
 })

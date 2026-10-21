@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import type { McpServerInfo } from "@shared/types"
 import { useStore } from "../lib/store"
 import { cx, truncate } from "../lib/format"
 import { describeAgent, modeLabel } from "../lib/agentDescriptions"
@@ -55,6 +56,7 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
     () => store.mcp.filter((server) => match(`${server.name ?? server.id ?? ""}`)),
     [store.mcp, match],
   )
+  const mcpKeys = useMemo(() => mcpKeysOf(mcp), [mcp])
   /** The resources the MCP servers publish: files the agent can read. */
   const [mcpResources, setMcpResources] = useState({ resources: [] as string[], templates: [] as string[] })
 
@@ -218,7 +220,7 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
             </div>
           ) : (
             mcp.map((server, index) => (
-              <div className="row" key={server.id ?? server.name ?? index}>
+              <div className="row" key={mcpKeys[index]}>
                 <div className="grow">
                   <div className="name">{server.name ?? server.id}</div>
                   {server.error ? (
@@ -270,4 +272,30 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
       ) : null}
     </div>
   )
+}
+
+/**
+ * A key for every MCP server.
+ *
+ * A server names itself; when it does not, the tools it publishes are what
+ * tell one from another. The place in the list is not part of the key, so a
+ * server that moves keeps its row — and whatever state it had — with it.
+ */
+function mcpKeysOf(servers: McpServerInfo[]): string[] {
+  const seen = new Map<string, number>()
+  return servers.map((server) => {
+    const base =
+      server.id ??
+      server.name ??
+      [
+        server.status ?? "",
+        server.transport?.type ?? "",
+        Object.keys(server.tools ?? {})
+          .sort()
+          .join(","),
+      ].join(":")
+    const count = (seen.get(base) ?? 0) + 1
+    seen.set(base, count)
+    return `${base}:${count}`
+  })
 }

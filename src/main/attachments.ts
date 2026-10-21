@@ -2,9 +2,12 @@ import { clipboard, dialog } from "electron"
 import { readFile, readdir, stat } from "node:fs/promises"
 import { basename, join } from "node:path"
 import { pathToFileURL } from "node:url"
-import { execFileSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 import type { Attachment, PickedFiles } from "@shared/types"
 import { isImage, isShortcut, mimeOf, nameForBytes, samePath } from "./fileKinds"
+
+const execFileAsync = promisify(execFile)
 
 /**
  * The field separator used to get three strings out of one line of output.
@@ -105,7 +108,7 @@ interface Shortcut {
  * and that is not something this can fix — so the caller falls back to the file
  * itself rather than pretending to know.
  */
-export function resolveShortcut(path: string): Shortcut | null {
+export async function resolveShortcut(path: string): Promise<Shortcut | null> {
   const script = [
     // Without this the output goes out in the console's own code page, and a
     // path containing anything outside ASCII comes back as mojibake — which then
@@ -122,19 +125,24 @@ export function resolveShortcut(path: string): Shortcut | null {
     `[Console]::Out.Write([string]::Join([char]${SEP.charCodeAt(0)}, @($l.TargetPath, $l.Arguments, $l.WorkingDirectory)))`,
   ].join("; ")
 
-  // Synchronous because a drop is a user action waiting on an answer: the
-  // caller is about to render the result and has nothing to overlap it with.
+  // Asynchronous because a shortcut is asked about while the user is waiting
+  // for the whole drop to be assembled: Windows can take seconds to answer, and
+  // a blocking call in the main process freezes the whole app meanwhile.
   // `-NoProfile` because a profile can print banners into the stdout this
   // parses.
   let out: string
   try {
-    out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-      timeout: 8000,
-      encoding: "utf8",
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "ignore"],
-      env: { ...process.env, OCD_SHORTCUT: path },
-    })
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        timeout: 8000,
+        encoding: "utf8",
+        windowsHide: true,
+        env: { ...process.env, OCD_SHORTCUT: path },
+      },
+    )
+    out = stdout
   } catch {
     return null
   }
@@ -338,7 +346,7 @@ async function fromPath(
   // A shortcut is a pointer; what the user means is what it points at.
   if (isShortcut(path)) {
     const name = basename(path)
-    const shortcut = resolveShortcut(path)
+    const shortcut = await resolveShortcut(path)
 
     if (shortcut) {
       const where = await stat(shortcut.target).catch(() => null)
@@ -501,16 +509,12 @@ export async function attachmentFromDataUrl(
     }
   }
 
-  const { mkdtemp, writeFile } = await import("node:fs/promises")
-  const { tmpdir } = await import("node:os")
-  const dir = await mkdtemp(join(tmpdir(), "ocd-attach-"))
-
   // The name decides the extension, and an extension is invented only for a
-  // picture that arrived without one. See nameForBytes.
+  // picture that arrived without one. See nameForBytes — the name is made safe
+  // there, because it is about to be used as a file name.
   const named = nameForBytes(nameHint, mime)
-  const file = join(dir, named)
-  await writeFile(file, data)
-
+  // Nothing is written to disk: the answer is a data URL, and a file that
+  // nobody reads is only litter in the temp directory.
   const picture = mime.startsWith("image/")
   // The name is the better source when the two disagree, which is the normal
   // case for plain text: the browser sends it as `application/octet-stream`,

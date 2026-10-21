@@ -207,6 +207,16 @@ export interface EditStep {
    * conversation is read back.
    */
   patch: string | null
+  /**
+   * Whether the patch came from the server or from the tool's own input.
+   *
+   * The two are not the same thing, even though both are unified diffs: the
+   * server's patch was computed against the file as it stood when the call
+   * ran, and a patch handed over in the tool input is only the caller's own
+   * account of what it did. Only the first one may be laid end to end with
+   * the others as the history of the file.
+   */
+  fromServer: boolean
   /** Status the server reported: added, deleted or modified. */
   status: string | null
   /** Stable key for React. */
@@ -303,6 +313,7 @@ export function stepsOf(block: MessageContent): EditStep[] {
       after: "",
       lines: parsePatch(file.patch),
       patch: file.patch,
+      fromServer: true,
       status: file.status ?? null,
       key: `${call}:${index}`,
     }))
@@ -323,6 +334,9 @@ export function stepsOf(block: MessageContent): EditStep[] {
         after: "",
         lines: parsePatch(raw),
         patch: raw,
+        // The call's own patch, not the server's: it says what the tool meant
+        // to do, not what the file looked like afterwards.
+        fromServer: false,
         status: null,
         key: `${call}:patch`,
       },
@@ -348,6 +362,7 @@ export function stepsOf(block: MessageContent): EditStep[] {
         after,
         lines: diffLines(before, after),
         patch: null,
+        fromServer: false,
         status: null,
         key: `${call}:${index}`,
       })
@@ -368,6 +383,7 @@ export function stepsOf(block: MessageContent): EditStep[] {
         after: next,
         lines: diffLines(old, next),
         patch: null,
+        fromServer: false,
         status: null,
         key: call,
       },
@@ -384,6 +400,7 @@ export function stepsOf(block: MessageContent): EditStep[] {
         after: content,
         lines: diffLines("", content),
         patch: null,
+        fromServer: false,
         status: null,
         key: call,
       },
@@ -508,8 +525,10 @@ function newFile(path: string): FileChange & { base: string | null; head: string
 function applyStep(entry: FileChange & { base: string | null; head: string | null }, step: EditStep): void {
   if (step.kind === "patch") {
     // A patch from the server is exact on its own: it was computed against the
-    // file as it stood. A raw patch from a tool is not, so it stands alone.
-    if (step.patch !== null) return
+    // file as it stood. A raw patch from a tool is not — it is the caller's own
+    // account of the change, made without the file — so it stands alone and
+    // the file is no longer the server's own diff.
+    if (step.fromServer) return
     entry.authoritative = false
     entry.exact = false
     return

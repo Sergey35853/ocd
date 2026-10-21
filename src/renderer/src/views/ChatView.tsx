@@ -11,7 +11,7 @@ import type {
   PromptFile,
   SessionInfo,
 } from "@shared/types"
-import { useStore } from "../lib/store"
+import { useNow, useStore } from "../lib/store"
 import {
   chatTurns,
   cx,
@@ -149,22 +149,77 @@ function readDraft(sessionId: string): string {
   }
 }
 
-function writeDraft(sessionId: string, text: string): void {
+/**
+ * The draft keys this app has written.
+ *
+ * Trimming used to read every key out of local storage on every keystroke —
+ * a scan of the whole storage for the sake of a handful of drafts.
+ */
+const draftKeys = new Set<string>()
+/** Whether the set above has been filled from the storage yet. */
+let draftKeysRead = false
+
+/** Write the draft through, and keep the storage from growing without end. */
+function persistDraft(sessionId: string, text: string): void {
   if (!sessionId) return
+  const key = DRAFT_PREFIX + sessionId
   try {
     if (!text.trim()) {
-      localStorage.removeItem(DRAFT_PREFIX + sessionId)
+      localStorage.removeItem(key)
+      draftKeys.delete(key)
       return
     }
-    localStorage.setItem(DRAFT_PREFIX + sessionId, text)
+    localStorage.setItem(key, text)
+    draftKeys.add(key)
     // Trim the oldest entries; the key order is insertion order.
-    const keys = Object.keys(localStorage).filter((key) => key.startsWith(DRAFT_PREFIX))
-    if (keys.length > DRAFT_LIMIT) {
-      for (const key of keys.slice(0, keys.length - DRAFT_LIMIT)) localStorage.removeItem(key)
+    if (!draftKeysRead) {
+      draftKeysRead = true
+      for (const existing of Object.keys(localStorage)) {
+        if (existing.startsWith(DRAFT_PREFIX)) draftKeys.add(existing)
+      }
+    }
+    if (draftKeys.size > DRAFT_LIMIT) {
+      for (const old of [...draftKeys].slice(0, draftKeys.size - DRAFT_LIMIT)) {
+        localStorage.removeItem(old)
+        draftKeys.delete(old)
+      }
     }
   } catch {
     /* private mode or full quota: the draft simply will not survive */
   }
+}
+
+/**
+ * Drafts are written on a pause, not on every keystroke.
+ *
+ * The field writes here on every character, and the write is a storage round
+ * trip plus a scan of every key in it. One write per pause says the same
+ * thing.
+ */
+const draftTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function writeDraft(sessionId: string, text: string): void {
+  if (!sessionId) return
+  // An empty draft is a removal, and a removal has to happen now: a draft that
+  // outlives the prompt it belonged to would come back on the next visit.
+  if (!text.trim()) {
+    const pending = draftTimers.get(sessionId)
+    if (pending) {
+      clearTimeout(pending)
+      draftTimers.delete(sessionId)
+    }
+    persistDraft(sessionId, text)
+    return
+  }
+  const pending = draftTimers.get(sessionId)
+  if (pending) clearTimeout(pending)
+  draftTimers.set(
+    sessionId,
+    setTimeout(() => {
+      draftTimers.delete(sessionId)
+      persistDraft(sessionId, text)
+    }, 250),
+  )
 }
 
 /** A tool call worth showing when the log is filtered: anything not clean. */
@@ -240,12 +295,20 @@ function useSnippetStager() {
 function AssistantText({
   text,
   openPreview,
+  toast,
 }: {
   text: string
   openPreview: OpenPreview
+  /**
+   * How to say something went wrong.
+   *
+   * Passed in rather than taken from the store: a component that reads the
+   * store subscribes to all of it, and the store changes on every token of
+   * the answer — so the whole history was redrawn while it streamed.
+   */
+  toast: (text: string, kind?: "info" | "error") => void
 }) {
   const t = useT()
-  const store = useStore()
   const stage = useSnippetStager()
   const rootRef = useRef<HTMLDivElement | null>(null)
 
@@ -265,13 +328,17 @@ function AssistantText({
           }),
         )
         .catch((err: unknown) =>
-          store.toast(err instanceof Error ? err.message : String(err), "error"),
+          toast(err instanceof Error ? err.message : String(err), "error"),
         )
     },
-    [openPreview, stage, store, t],
+    [openPreview, stage, t, toast],
   )
 
-  const markdown = useMarkdown({ onPreview: previewSnippet })
+  // The actions object is remembered. A new one on every render rebuilt the
+  // markdown renderer and re-parsed the text with it — and this component is
+  // drawn for every message in the conversation.
+  const markdownActions = useMemo(() => ({ onPreview: previewSnippet }), [previewSnippet])
+  const markdown = useMarkdown(markdownActions)
   const html = useMemo(() => markdown.render(text), [markdown, text])
 
   // Delegated so the copy / preview buttons inside rendered HTML work without
@@ -310,16 +377,15 @@ function AssistantText({
         // in injected HTML, and the pane rendering plain text looks like a
         // crash rather than a refusal.
         if (!htmlSnippets(source).length && !/<\s*(html|body|div|svg|!doctype)/i.test(source)) {
-          store.toast(t("preview.notMarkup"), "error")
+          toast(t("preview.notMarkup"), "error")
           return
         }
         const label = block?.querySelector(".code-lang")?.textContent ?? "HTML"
         previewSnippet(source, label)
       }
     },
-    // `store` is in here because the handler raises a toast through it. Leaving
-    // it out meant the handler kept the store it closed over on first render.
-    [previewSnippet, store, t],
+    // `toast` is in here because the handler raises a message through it.
+    [previewSnippet, t, toast],
   )
 
   /**
@@ -460,6 +526,8 @@ function ToolBlock({
   openPreview,
   onPreparing,
   form,
+  toast,
+  directory,
 }: {
   block: MessageContent
   openPreview: OpenPreview
@@ -474,8 +542,17 @@ function ToolBlock({
   form?: PendingForm
   /** How long the turn this prompt started took, in ms. */
   turnMs?: number
+  /**
+   * How to say something went wrong, and where the project is.
+   *
+   * Both are passed in rather than read from the store: a component that
+   * reads the store subscribes to all of it, and the store changes on every
+   * token of the answer — so the whole history was redrawn while it streamed.
+   */
+  toast: (text: string, kind?: "info" | "error") => void
+  /** The folder the project is in; the terminal opens there. */
+  directory?: string
 }) {
-  const store = useStore()
   const t = useT()
   const status = block.state?.status ?? "completed"
 
@@ -522,7 +599,7 @@ function ToolBlock({
         error: prepared.error,
       })
     } catch (err) {
-      store.toast(err instanceof Error ? err.message : String(err), "error")
+      toast(err instanceof Error ? err.message : String(err), "error")
     } finally {
       setBusy(null)
       onPreparing?.(null)
@@ -539,14 +616,14 @@ function ToolBlock({
   const openTerminal = async (command: string) => {
     setBusy(command)
     try {
-      const result = await window.ocd.shell.openTerminal(command, store.directory ?? undefined)
+      const result = await window.ocd.shell.openTerminal(command, directory ?? undefined)
       if (!result.opened) {
-        store.toast(t("tool.noTerminal"), "error")
+        toast(t("tool.noTerminal"), "error")
         return
       }
-      store.toast(t("tool.openedIn", { launcher: result.launcher }), "info")
+      toast(t("tool.openedIn", { launcher: result.launcher }), "info")
     } catch (err) {
-      store.toast(err instanceof Error ? err.message : String(err), "error")
+      toast(err instanceof Error ? err.message : String(err), "error")
     } finally {
       setBusy(null)
     }
@@ -655,6 +732,8 @@ function TurnInner({
   onSpeak,
   formsByTool,
   turnMs,
+  toast,
+  directory,
 }: {
   message: MessageInfo
   showThinking: boolean
@@ -683,6 +762,16 @@ function TurnInner({
   formsByTool?: Map<string, PendingForm>
   /** How long the turn this prompt started took, in ms. */
   turnMs?: number
+  /**
+   * How to say something went wrong, and where the project is.
+   *
+   * Both are passed down instead of read from the store: a component that
+   * reads the store subscribes to all of it, and the store changes on every
+   * token of the answer — so the whole history was redrawn while it streamed.
+   */
+  toast: (text: string, kind?: "info" | "error") => void
+  /** The folder the project is in. */
+  directory?: string
 }) {
   const t = useT()
 
@@ -808,13 +897,15 @@ function TurnInner({
               openPreview={openPreview}
               onPreparing={onPreparing}
               form={callKey(block) ? formsByTool?.get(callKey(block)!) : undefined}
+              toast={toast}
+              directory={directory}
             />
           ))}
         </div>
       ) : null}
 
       {text ? (
-        <AssistantText text={text} openPreview={openPreview} />
+        <AssistantText text={text} openPreview={openPreview} toast={toast} />
       ) : null}
       {message.error ? (
         <div className="callout err">
@@ -919,6 +1010,11 @@ interface ChatViewProps {
 
 export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }: ChatViewProps) {
   const store = useStore()
+  // The clock is on its own context: reading it here redraws this view once a
+  // second while a turn runs, and nothing else. It used to be part of the
+  // store, which meant the whole app redrew — every message in the history
+  // included — once a second.
+  const now = useNow()
   const t = useT()
   /**
    * Two actions, taken out of the store once.
@@ -927,11 +1023,29 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * inside it do not. Taking them out here is what lets the transcript stay
    * memoised while the model writes.
    */
-  const { speak: storeSpeak, abort: storeAbort } = store
+  const { speak: storeSpeak, abort: storeAbort, refreshLimits: storeRefreshLimits } = store
+  /**
+   * The toast is a stable function of the store; taking it out here lets an
+   * effect or a callback depend on it without depending on the whole store —
+   * which changes on every tick of a running conversation.
+   */
+  const { toast: storeToast } = store
   /** The store's answer about a conversation, for the header to show. */
   const refreshSessionInfo = store.refreshSessionInfo
   /** What the model will read on the next turn. */
   const refreshContext = store.refreshContext
+  /**
+   * Reading the ledger for the meter.
+   *
+   * Taken out of the store on purpose: the meter asks for it from an effect,
+   * and an effect that depends on a callback gets a new callback on every
+   * render — which asked again, which changed the store, which redrew the
+   * header. The loop never ended.
+   */
+  const refreshLimits = useCallback(
+    (model: string) => void storeRefreshLimits(model),
+    [storeRefreshLimits],
+  )
   /** The active interface language, so labels follow the switch. */
   const language = getLanguage()
   /**
@@ -1037,7 +1151,16 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       draftRef.current = text
       setDraft(text)
       const node = textareaRef.current
-      if (!node) return
+      // No field yet: the text waits for it.
+      //
+      // The field is built in an effect, and the effect that restores the
+      // draft runs before that one — so on a fresh window there was nothing
+      // to write to, and the words stayed in the state alone. The box looked
+      // empty while Send had something to send, and the draft was lost.
+      if (!node) {
+        pendingDraft.current = text
+        return
+      }
       // Yanking the value out from under an input method that is still holding
       // an unfinished word is what makes the view appear to hang on send: the
       // text it is holding is deleted underneath it, and the WebView stops
@@ -1111,21 +1234,28 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    * it. Scoped to the session on purpose: it is display state for one sitting,
    * not something to persist to disk.
    */
-  const sentFiles = useRef(new Map<string, Attachment[]>())
+  const sentFiles = useRef(new Map<string, Attachment[][]>())
   /**
    * Put the attachments of sent prompts back on the messages that carry them.
    *
    * The server's history names the files but carries none of their display
    * state, so without this a sent attachment vanishes the moment the turn
    * lands.
+   *
+   * The same prompt can be sent twice with different files, so the files of
+   * each prompt are kept in a queue and handed out in order: matching by the
+   * text alone gave both messages the files of the last one.
    */
-  const withAttachments = useCallback((list: MessageInfo[]) =>
-    list.map((message) => {
+  const withAttachments = useCallback((list: MessageInfo[]) => {
+    const seen = new Map<string, number>()
+    return list.map((message) => {
       if (message.type !== "user" || !message.text) return message
-      const files = sentFiles.current.get(message.text)
+      const occurrence = seen.get(message.text) ?? 0
+      seen.set(message.text, occurrence + 1)
+      const files = sentFiles.current.get(message.text)?.[occurrence]
       return files ? { ...message, attachments: files } : message
-    }),
-  [])
+    })
+  }, [])
   /** Path being converted for the pane; non-null while LibreOffice runs. */
   const [preparing, setPreparing] = useState<string | null>(null)
 
@@ -1335,7 +1465,13 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
 
   const resendEdited = useCallback(async () => {
     if (!editTarget || !sessionId) return
-    const done = await store.editAndResend(sessionId, editTarget.id, draft)
+    // The field owns the text, not the state. The state is only brought up to
+    // date when the keyboard lets go of a word, so it could still hold the
+    // original message — and then the edit was discarded and the old prompt
+    // was sent again.
+    const text = (textareaRef.current?.value ?? draftRef.current).trim()
+    if (!text) return
+    const done = await store.editAndResend(sessionId, editTarget.id, text)
     if (done) {
       setEditTarget(null)
       applyDraft("")
@@ -1348,7 +1484,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       }
       dismissedFor.current = null
     }
-  }, [applyDraft, draft, editTarget, sessionId, previewPinned, store])
+  }, [applyDraft, editTarget, sessionId, previewPinned, store])
 
   const isBusy = sessionId ? Boolean(store.busy[sessionId]) : false
   const turnStart = sessionId ? store.turnStart[sessionId] : undefined
@@ -1928,8 +2064,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       // forty files and left out a build directory did what it was asked, and
       // showing that in the error colour would train the user to ignore the one
       // place where something really went wrong.
-      if (picked.notes?.length) store.toast(picked.notes.join("; "), "info")
-      if (picked.errors.length) store.toast(picked.errors.join("; "), "error")
+      if (picked.notes?.length) storeToast(picked.notes.join("; "), "info")
+      if (picked.errors.length) storeToast(picked.errors.join("; "), "error")
       if (picked.attachments.length) {
         setAttachments((current) => {
           const seen = new Set(current.map((item) => `${item.name}:${item.size}`))
@@ -1940,8 +2076,16 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         })
       }
     },
-    [store],
+    [storeToast],
   )
+
+  // The context menu can attach files: "Прикрепить файл…" hands the picked
+  // files over here. Nothing was listening to that channel, so the item of the
+  // menu did nothing at all — the user chose a file and nothing happened.
+  useEffect(() => {
+    const off = window.ocd.contextMenu.onAttach((picked) => addPicked(picked))
+    return off
+  }, [addPicked])
 
   const onPaste = useCallback(
     async (event: ClipboardEvent) => {
@@ -1995,7 +2139,12 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         .map((file) => (file as File & { path?: string }).path ?? "")
         .filter(Boolean)
       if (paths.length) {
-        void window.ocd.attachments.fromPaths(paths).then(addPicked)
+        void window.ocd.attachments
+          .fromPaths(paths)
+          .then(addPicked)
+          .catch((err: unknown) =>
+            storeToast(err instanceof Error ? err.message : String(err), "error"),
+          )
         return
       }
       void Promise.all(
@@ -2024,7 +2173,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       window.removeEventListener("dragleave", onDragLeave)
       window.removeEventListener("drop", onDrop)
     }
-  }, [addPicked])
+  }, [addPicked, storeToast])
 
   // The server retires models, and a session keeps the one it was pinned to. A
   // prompt sent to a model the server no longer has is accepted and then never
@@ -2116,8 +2265,20 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       })
       // The server's copy of this turn arrives without attachments, so they are
       // remembered here and re-attached when it lands. Keyed by the prompt body
-      // because that is what the server message is matched on anyway.
-      if (attachments.length) sentFiles.current.set(body, [...attachments])
+      // because that is what the server message is matched on anyway — and in a
+      // queue, because the same prompt can be sent twice with different files.
+      if (attachments.length) {
+        const queue = sentFiles.current.get(body) ?? []
+        queue.push([...attachments])
+        sentFiles.current.set(body, queue)
+        // The map is a cache of one sitting, not a history: it is trimmed so
+        // that a long conversation does not keep every prompt's files in
+        // memory for as long as the window is open.
+        if (sentFiles.current.size > 50) {
+          const oldest = sentFiles.current.keys().next()
+          if (!oldest.done) sentFiles.current.delete(oldest.value)
+        }
+      }
     }
     // A session always exists by this point: the branch above returns otherwise.
     const fire = async () => {
@@ -2144,7 +2305,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
           }
         }
       }
-      await store.send(sessionId, body, store.settings?.defaultAgent, files)
+      const sent = await store.send(sessionId, body, store.settings?.defaultAgent, files)
+      // The prompt is on screen before the server has it. If it never got
+      // there, the bubble would stay for good — nothing was sent, so nothing
+      // would ever replace it.
+      if (!sent) setPending(null)
     }
     void fire()
     // The keyboard is still up, holding its own idea of what the field says, and
@@ -2211,6 +2376,16 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     host.appendChild(node)
     textareaRef.current = node
 
+    // A draft that arrived before this field existed goes in now. The restore
+    // runs in an effect that is declared earlier, so it found no field to
+    // write to and left the words waiting.
+    if (pendingDraft.current !== null) {
+      const queued = pendingDraft.current
+      pendingDraft.current = null
+      node.value = queued
+      fitField(node)
+    }
+
     const sync = () => {
       const text = node.value
       draftRef.current = text
@@ -2223,9 +2398,13 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       // Measured, not guessed: the field types the whole word with this call out
       // of `setDraft`, and takes one character with it in.
       //
-      // So the button is enabled here directly, and `draft` is brought up to
-      // date when the word is finished. Sending reads the element rather than the
-      // state, so a word that has not been committed yet still goes.
+      // So the state is left alone while a word is being assembled, and brought
+      // up to date the moment the keyboard is out of the way. Without that the
+      // state kept the text from before the edit, and everything that reads it
+      // — the send button, "edit and resend" — acted on the old words.
+      if (!composingRef.current) setDraft(text)
+      // The button is enabled here directly as well, so that it is right even
+      // in the window where the state is deliberately not touched.
       const send = node.closest(".composer")?.querySelector("button.send")
       if (send instanceof HTMLButtonElement) send.disabled = !text.trim()
       // A file mention: `@` opens the file search, and what follows it is the
@@ -2433,7 +2612,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         ) : null}
 
         {isBusy && turnStart ? (
-          <TurnTimer startedAt={turnStart} samples={turnSamples} now={store.now} />
+          <TurnTimer startedAt={turnStart} samples={turnSamples} now={now} />
         ) : null}
 
         <ContextRing
@@ -2504,9 +2683,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         <LimitMeter
           model={`${sessionModel?.providerID ?? store.settings?.defaultProvider ?? "opencode"}/${sessionModel?.id ?? store.settings?.defaultModel ?? ""}`}
           limits={store.limits}
-          now={store.now}
+          now={now}
           visible={store.settings?.showLimits !== false}
-          onRefresh={(model) => void store.refreshLimits(model)}
+          onRefresh={refreshLimits}
           onSetLimit={(model, window, limit) => void store.setModelLimit(model, window, limit)}
           onReset={(model) => void store.resetLimits(model)}
         />
@@ -2604,6 +2783,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   stopTargetId={stopTargetId}
                   onStop={stopTurn}
                   onSpeak={speakText}
+                  toast={store.toast}
+                  directory={store.directory}
                 />
               ))}
 
@@ -2671,7 +2852,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                           <TurnTimer
                             startedAt={turnStart}
                             samples={turnSamples}
-                            now={store.now}
+                            now={now}
                           />
                         ) : null}
                       </summary>
@@ -2680,7 +2861,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   ) : null}
 
                   {live.text ? (
-                    <AssistantText text={live.text} openPreview={openPreview} />
+                    <AssistantText text={live.text} openPreview={openPreview} toast={store.toast} />
                   ) : null}
 
                   {!live.text && !live.tools.length ? (
@@ -2756,7 +2937,11 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                 directory={store.directory || undefined}
                 initialQuery={fileSearch.query}
                 onPick={async (paths) => {
-                  addPicked(await window.ocd.attachments.fromPaths(paths))
+                  try {
+                    addPicked(await window.ocd.attachments.fromPaths(paths))
+                  } catch (err) {
+                    store.toast(err instanceof Error ? err.message : String(err), "error")
+                  }
                   setFileSearch(null)
                 }}
                 onClose={() => setFileSearch(null)}

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import { applyEdits, modify, parse, type Edit, type ParseError } from "jsonc-parser"
@@ -46,15 +46,33 @@ export function writeConfig(text: string): { ok: boolean; error?: string } {
     const first = errors[0]
     return { ok: false, error: `Invalid JSON at offset ${first?.offset}: ${first?.error ?? "parse error"}` }
   }
-  // Keep a single backup so a bad manual edit is recoverable.
+  // Keep a single backup so a bad manual edit is recoverable. It belongs next
+  // to the config: a backup in the working directory of the process is a
+  // backup nobody ever finds.
+  const backup = join(dirname(path), `${basename(path)}.ocd-backup`)
+  const tmp = join(dirname(path), `${basename(path)}.ocd-tmp`)
+  let moved = false
   try {
-    if (existsSync(path)) {
-      renameSync(path, `${basename(path)}.ocd-backup`)
-    }
     mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(path, text, "utf8")
+    // Write-then-rename: the original stays where it is until the new
+    // document is on disk, so a write that fails cannot leave the user
+    // without a config at all.
+    writeFileSync(tmp, text, "utf8")
+    if (existsSync(path)) {
+      renameSync(path, backup)
+      moved = true
+    }
+    renameSync(tmp, path)
     return { ok: true }
   } catch (err) {
+    try {
+      if (existsSync(tmp)) rmSync(tmp, { force: true })
+      // The original was moved aside and the new one did not land: put it
+      // back, so a failed write never costs the user their config.
+      if (moved && !existsSync(path) && existsSync(backup)) renameSync(backup, path)
+    } catch {
+      /* nothing more to try */
+    }
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }

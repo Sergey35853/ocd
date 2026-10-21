@@ -67,11 +67,25 @@ export function LimitMeter({
   const [editing, setEditing] = useState<LimitWindow | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
+  /**
+   * The callback, kept out of the dependencies.
+   *
+   * It arrives as an inline arrow from the chat, so it is a new function on
+   * every render: depending on it called it again on every render, and its
+   * answer started the next round. The tally is asked for when the model
+   * changes and not otherwise.
+   */
+  const refreshRef = useRef(onRefresh)
+  useEffect(() => {
+    refreshRef.current = onRefresh
+  }, [onRefresh])
+
   // The tally only moves when a request goes out, so it is fetched on mount
   // and whenever the pinned model changes — not on a timer.
   useEffect(() => {
-    if (model) onRefresh(model)
-  }, [model, onRefresh])
+    if (!model) return
+    refreshRef.current(model)
+  }, [model])
 
   useEffect(() => {
     if (!open) return

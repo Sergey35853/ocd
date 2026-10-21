@@ -88,7 +88,13 @@ export function getSettings(): AppSettings {
 }
 
 export function setSettings(patch: Partial<AppSettings>): AppSettings {
-  const next = { ...getSettings(), ...patch }
+  // Only the keys the app knows: the patch comes from the renderer, and a
+  // field OCD never reads would sit in the file looking configured - the same
+  // reason importSettings drops what it does not know.
+  const known = Object.fromEntries(
+    Object.entries(patch).filter(([key]) => key in DEFAULTS),
+  ) as Partial<AppSettings>
+  const next = { ...getSettings(), ...known }
   cached = next
   const file = settingsFile()
   try {

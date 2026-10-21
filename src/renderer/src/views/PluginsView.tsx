@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ManagedPlugin, NpmPluginHit } from "@shared/types"
 import { useStore } from "../lib/store"
 import { cx, truncate } from "../lib/format"
@@ -68,7 +68,13 @@ function PluginRow({ plugin, onChanged }: { plugin: ManagedPlugin; onChanged: ()
           type="button"
           className="iconbtn"
           title={t("plugins.reveal")}
-          onClick={() => void window.ocd.plugins.revealLocal(plugin.path!)}
+          onClick={() =>
+            void window.ocd.plugins
+              .revealLocal(plugin.path!)
+              .catch((err: unknown) =>
+                store.toast(err instanceof Error ? err.message : String(err), "error"),
+              )
+          }
         >
           <IconFolder size={15} />
         </button>
@@ -86,8 +92,19 @@ function PluginRow({ plugin, onChanged }: { plugin: ManagedPlugin; onChanged: ()
 export function PluginsView({ onBack }: { onBack: () => void }) {
   const store = useStore()
   const t = useT()
+  /**
+   * The store, in a ref.
+   *
+   * The store is a new object on every tick of a running turn, so an effect
+   * that depends on it reads the plugin list again, once a second, for as
+   * long as the model writes.
+   */
+  const storeRef = useRef(store)
+  storeRef.current = store
   const [plugins, setPlugins] = useState<ManagedPlugin[]>([])
   const [loading, setLoading] = useState(true)
+  /** The "update everything" run is in flight. */
+  const [updating, setUpdating] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [hits, setHits] = useState<NpmPluginHit[]>([])
@@ -100,16 +117,19 @@ export function PluginsView({ onBack }: { onBack: () => void }) {
     try {
       setPlugins(await window.ocd.plugins.list())
     } catch (err) {
-      store.toast(err instanceof Error ? err.message : String(err), "error")
+      storeRef.current.toast(err instanceof Error ? err.message : String(err), "error")
       setPlugins([])
     } finally {
       setLoading(false)
     }
-  }, [store])
+  }, [])
 
+  // The list is read again when the connection changes: a plugin the server
+  // has just announced is only known to the main process afterwards.
+  const connected = Boolean(store.status?.connected)
   useEffect(() => {
     void reload()
-  }, [reload])
+  }, [reload, connected])
 
   const grouped = useMemo(() => {
     const managed = plugins.filter((plugin) => plugin.kind !== "builtin")
@@ -162,9 +182,33 @@ export function PluginsView({ onBack }: { onBack: () => void }) {
   }
 
   const addLocal = async () => {
-    const dir = await window.ocd.app.pickDirectory()
-    if (!dir) return
-    await install(dir)
+    try {
+      const dir = await window.ocd.app.pickDirectory()
+      if (!dir) return
+      await install(dir)
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    }
+  }
+
+  /**
+   * Ask the server to bring the installed plugins up to date.
+   *
+   * The route existed and nothing called it: plugins could be installed from
+   * npm, but there was no way to update the ones already there.
+   */
+  const updateAll = async () => {
+    setUpdating(true)
+    try {
+      await window.ocd.api.updatePlugins()
+      store.toast(t("toast.pluginsUpdated"), "info")
+      await reload()
+      await store.refreshCatalog()
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setUpdating(false)
+    }
   }
 
   return (
@@ -179,6 +223,9 @@ export function PluginsView({ onBack }: { onBack: () => void }) {
           })}
         </span>
         <div className="spacer" />
+        <button type="button" className="btn" disabled={updating} onClick={() => void updateAll()}>
+          <IconRefresh size={14} /> {t("plugins.updateAll")}
+        </button>
         <button type="button" className="btn" onClick={addLocal}>
           <IconFolder size={14} /> {t("plugins.localFolder")}
         </button>

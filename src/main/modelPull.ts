@@ -184,6 +184,11 @@ function spawnLmStudioPull(
         status: "error",
         message: err instanceof Error ? err.message : String(err),
       })
+    } finally {
+      // The handle has served its purpose: the download is over and nobody can
+      // cancel it any more. Keeping it would make the map grow for as long as
+      // the app is open.
+      running.delete(id)
     }
   })()
 
@@ -261,6 +266,10 @@ function streamPull(
         status: "error",
         message: err instanceof Error ? err.message : String(err),
       })
+    } finally {
+      // The download is over, so the handle is dead weight: the map of
+      // running pulls would otherwise keep every model ever pulled.
+      running.delete(id)
     }
   })()
 

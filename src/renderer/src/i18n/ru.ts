@@ -235,6 +235,8 @@ export const ru = {
 
   // ---- plugins ----
   "plugins.title": "Плагины",
+  "toast.pluginsUpdated": "Плагины обновлены",
+  "plugins.updateAll": "Обновить все",
   "plugins.install": "Установить",
   "plugins.reveal": "Показать в проводнике",
   "plugins.noResults": "Ничего не найдено",
@@ -457,6 +459,7 @@ export const ru = {
   "set.voiceJenny": "Jenny (en)",
   "set.voiceAria": "Aria (en)",
   "set.ttsRate": "Темп",
+  "set.ttsVolume": "Громкость голоса",
   "set.ttsPitch": "Высота тона",
   "set.playbackVolume": "Громкость озвучки",
   "set.ttsMaxChars": "Максимум символов",
@@ -755,6 +758,7 @@ export const ru = {
   "prov.needsAuth": "нужна авторизация",
   "prov.needsAuthHint": "Ключ или вход больше не работают. Подключите заново.",
   "prov.connectedHint": "На сервере хранится учётных данных: {n}",
+  "model.engine": "Движок",
   "model.pull": "Скачать",
   "model.pullPlaceholder": "имя модели, например qwen2.5:14b",
   "model.pullHint": "Скачать эту модель выбранным движком. Ничего не качается без вашего запроса.",

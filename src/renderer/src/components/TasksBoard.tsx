@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import type { MessageInfo } from "@shared/types"
 import { cx } from "../lib/format"
-import { sessionTasks, taskProgress } from "../lib/tasks"
+import { sessionTasks, taskProgress, type TaskItem } from "../lib/tasks"
 import { useT } from "../i18n"
 import { IconClose, IconTasks } from "./Icon"
 
@@ -24,6 +24,7 @@ export function TasksBoard({
   const t = useT()
   const items = useMemo(() => sessionTasks(messages), [messages])
   const progress = useMemo(() => taskProgress(items), [items])
+  const keys = useMemo(() => taskKeys(items), [items])
 
   if (items.length === 0) return null
 
@@ -63,7 +64,7 @@ export function TasksBoard({
           ) : (
             <ul className="tasks-list">
               {items.map((item, index) => (
-                <li key={`${index}-${item.text}`} className={cx("task", item.done && "done")}>
+                <li key={keys[index]} className={cx("task", item.done && "done")}>
                   <span className="task-mark" aria-hidden="true">
                     {item.done ? "✓" : ""}
                   </span>
@@ -76,4 +77,21 @@ export function TasksBoard({
       ) : null}
     </div>
   )
+}
+
+/**
+ * A key for every task of the list.
+ *
+ * The text of the task is its id: two lines of one checklist rarely say the
+ * same thing, and a counter tells a repeated line apart from the first one.
+ * The place of the task in the list is not part of the key, so a task that
+ * moves keeps its place in the DOM and whatever state it had with it.
+ */
+function taskKeys(items: TaskItem[]): string[] {
+  const seen = new Map<string, number>()
+  return items.map((item) => {
+    const count = (seen.get(item.text) ?? 0) + 1
+    seen.set(item.text, count)
+    return `${item.text}:${count}`
+  })
 }

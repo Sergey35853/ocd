@@ -20,6 +20,15 @@ export function LocalModels({ online }: { online: boolean }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [wanted, setWanted] = useState("")
+  /**
+   * The engines this machine can run models on.
+   *
+   * The list used to be one name written into the code, so a machine with
+   * LM Studio saw no models at all — the engine was there, the screen simply
+   * never asked about it.
+   */
+  const [engines, setEngines] = useState<Array<{ id: string; label: string; baseURL: string }>>([])
+  const [engine, setEngine] = useState("ollama")
 
   // ---- the search ----
   const [query, setQuery] = useState("")
@@ -35,18 +44,29 @@ export function LocalModels({ online }: { online: boolean }) {
     void window.ocd.local.hardware().then(setHardware).catch(() => setHardware(null))
   }, [])
 
+  // The engines are a fact about the machine, not about the server.
+  useEffect(() => {
+    void window.ocd.model
+      .engines()
+      .then((list) => {
+        setEngines(list)
+        setEngine((current) => (list.some((item) => item.id === current) ? current : (list[0]?.id ?? current)))
+      })
+      .catch(() => setEngines([]))
+  }, [])
+
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      setModels(await window.ocd.model.list("ollama"))
+      setModels(await window.ocd.model.list(engine))
     } catch (err) {
       setModels([])
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [engine])
 
   // The list is only worth reading when there is something to answer.
   useEffect(() => {
@@ -90,7 +110,7 @@ export function LocalModels({ online }: { online: boolean }) {
     if (!name) return
     setWanted("")
     try {
-      await window.ocd.model.pull("ollama", name)
+      await window.ocd.model.pull(engine, name)
       setDownload(name)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -109,7 +129,7 @@ export function LocalModels({ online }: { online: boolean }) {
     const ref = `hf.co/${repo}:${quant}`
     setDownload(ref)
     try {
-      await window.ocd.model.pull("ollama", ref)
+      await window.ocd.model.pull(engine, ref)
       await reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -118,7 +138,7 @@ export function LocalModels({ online }: { online: boolean }) {
 
   const remove = async (name: string) => {
     try {
-      await window.ocd.model.delete("ollama", name)
+      await window.ocd.model.delete(engine, name)
       await reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -136,7 +156,26 @@ export function LocalModels({ online }: { online: boolean }) {
           {hardware ? <HardwareLine hw={hardware} /> : null}
 
           <div className="lmodels-bar">
-            <span className="badge">Ollama</span>
+            {engines.length > 1 ? (
+              // Only when there is a choice: one engine is not a question.
+              <select
+                className="input"
+                value={engine}
+                title={t("model.engine")}
+                onChange={(event) => {
+                  setEngine(event.target.value)
+                  setModels([])
+                }}
+              >
+                {engines.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="badge">{engines[0]?.label ?? "Ollama"}</span>
+            )}
             <input
               className="input grow"
               placeholder={t("model.pullPlaceholder")}

@@ -92,8 +92,12 @@ async function writeChunk(id: string, data: unknown): Promise<void> {
   let text = ""
   if (typeof data === "string") text = data
   else if (data instanceof ArrayBuffer) text = Buffer.from(data).toString("utf8")
-  else if (ArrayBuffer.isView(data)) text = Buffer.from(data.buffer).toString("utf8")
-  else if (data && typeof (data as Blob).text === "function") {
+  // A view is only a window on a buffer: the bytes outside it belong to
+  // somebody else, and reading the whole buffer would send them to the
+  // terminal as well.
+  else if (ArrayBuffer.isView(data)) {
+    text = Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8")
+  } else if (data && typeof (data as Blob).text === "function") {
     text = await (data as Blob).text()
   }
   if (!text) return

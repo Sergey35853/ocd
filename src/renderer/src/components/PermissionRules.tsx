@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { PermissionRule } from "@shared/types"
 import { useStore } from "../lib/store"
 import { useT } from "../i18n"
@@ -23,11 +23,21 @@ export function PermissionRules({
   const t = useT()
   const [rules, setRules] = useState<PermissionRule[]>([])
 
+  /**
+   * The store, in a ref.
+   *
+   * The store is a new object on every tick of a running turn, so an effect
+   * that depends on it asks the server for the rules again, once a second,
+   * for as long as the model writes.
+   */
+  const storeRef = useRef(store)
+  storeRef.current = store
+
   const load = () => {
-    void store.permissionRules(projectID).then(setRules)
+    void storeRef.current.permissionRules(projectID).then(setRules)
   }
 
-  useEffect(load, [projectID, store])
+  useEffect(load, [projectID])
 
   return (
     <Modal title={t("perm.rulesTitle")} onClose={onClose}>

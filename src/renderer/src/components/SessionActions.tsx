@@ -65,10 +65,14 @@ export function SessionActions({
   }
 
   const move = async () => {
-    const directory = await window.ocd.app.pickDirectory()
-    if (!directory) return
-    close()
-    await store.moveSession(sessionId, directory)
+    try {
+      const directory = await window.ocd.app.pickDirectory()
+      if (!directory) return
+      close()
+      await store.moveSession(sessionId, directory)
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    }
   }
 
   const menu = (
@@ -180,7 +184,12 @@ export function SessionActions({
             role="menuitem"
             onClick={() => {
               setMode("move")
-              void window.ocd.api.worktrees().then((list) => setWorktrees(list))
+              void window.ocd.api
+                .worktrees()
+                .then((list) => setWorktrees(list))
+                .catch((err: unknown) =>
+                  store.toast(err instanceof Error ? err.message : String(err), "error"),
+                )
             }}
           >
             <span className="grow">{t("session.move")}</span>

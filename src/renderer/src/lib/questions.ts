@@ -101,7 +101,9 @@ export function pendingQuestions(
   const taken = new Set<string>()
 
   for (const message of chronological(messages)) {
-    for (const block of message.content ?? []) {
+    const blocks = message.content ?? []
+    for (let index = 0; index < blocks.length; index += 1) {
+      const block = blocks[index]
       if (block.type !== "tool") continue
       const fallback = questionOf(block)
       if (!fallback) continue
@@ -113,7 +115,11 @@ export function pendingQuestions(
       // block on every render and outlives the answer.
       if (!form && (block.state?.status === "completed" || (call && done.has(call)))) continue
       asked.push({
-        key: call ?? `${message.id}-${asked.length}`,
+        // The place of the question in the conversation, not its place in this
+        // list: the list grows and shrinks as other questions are answered,
+        // and a key that moves remounts the card and throws away what the user
+        // had typed into it.
+        key: call ?? `${message.id}-${index}`,
         ...(form ? { form } : {}),
         fallback,
       })

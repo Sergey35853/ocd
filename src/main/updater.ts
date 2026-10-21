@@ -194,6 +194,10 @@ function ensureListeners(): void {
     // Clears the badge: a check that finds nothing after an earlier hit means
     // the badge is now lying about the state. Silence is the reply to the
     // caller - it shows what the check found.
+    // The version that was found goes with it: the channel holds nothing
+    // newer than what is running, so the state must stop claiming that an
+    // update is waiting - forever, otherwise.
+    foundVersion = ""
     clearUpdateBadge()
     publish()
     notify(t("updateNone"))
@@ -350,7 +354,13 @@ export function installUpdate(): { ok: boolean; message: string } {
   const t = (key: Parameters<typeof mainText>[0]) => mainText(key, language())
   if (!app.isPackaged) return { ok: false, message: t("updateDevOnly") }
   if (!staged) return { ok: false, message: t("updateNoPending") }
-  setImmediate(() => autoUpdater.quitAndInstall(false, true))
+  setImmediate(() => {
+    // The updater hands back a promise where it can: nothing awaits it here,
+    // so a rejection has to be caught or it takes the process down with it.
+    void Promise.resolve(autoUpdater.quitAndInstall(false, true)).catch((err) => {
+      log.warn(`update install failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+  })
   return { ok: true, message: t("updateInstalling") }
 }
 

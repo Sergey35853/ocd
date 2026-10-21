@@ -121,7 +121,7 @@ interface Store {
   /** Request tallies per "<provider>/<id>", as of the last read. */
   limits: Record<string, RequestLimits>
   /** Re-read the ledger for one model (or all of them when given nothing). */
-  refreshLimits(model?: string): Promise<void>
+  refreshLimits(model: string): Promise<void>
   /** Type in a limit for one window; null forgets it and falls back. */
   setModelLimit(model: string, window: LimitWindow, limit: number | null): Promise<void>
   /** Forget the tally for one model, or for every model. */
@@ -173,7 +173,7 @@ interface Store {
     text: string,
     agent?: string,
     files?: PromptFile[],
-  ): Promise<void>
+  ): Promise<boolean>
   /** Prompts the server is holding for the running turn, per conversation. */
   inbox: Record<string, InboxItem[]>
   /** Re-read what the server has waiting for this conversation. */
@@ -244,6 +244,48 @@ export function useStore(): Store {
   const store = useContext(StoreContext)
   if (!store) throw new Error("useStore must be used inside <StoreProvider>")
   return store
+}
+
+/**
+ * The clock, on its own.
+ *
+ * The store is one context, and everything in it is one object — so a value
+ * that changes every second rebuilt that object every second, and every
+ * component that reads the store redrew with it. During a turn that was a
+ * full redraw of the chat once per second, markdown and all.
+ *
+ * The clock therefore lives in its own context. A component that wants the
+ * time asks for it here; everything else is not disturbed by the tick.
+ */
+const NowContext = createContext<number>(Date.now())
+
+/** The current time, redrawn once a second while a turn runs. */
+export function useNow(): number {
+  return useContext(NowContext)
+}
+
+/**
+ * Whether two ledger snapshots say the same thing.
+ *
+ * The meter polls the ledger from an effect, and a fresh object for the same
+ * numbers is what turned that into a loop of redraws. Comparing the numbers
+ * is what lets an unchanged ledger leave the state alone.
+ */
+function sameLimits(a: RequestLimits, b: RequestLimits): boolean {
+  if (a.model !== b.model) return false
+  if (a.source !== b.source) return false
+  if (a.cooldownUntil !== b.cooldownUntil) return false
+  if (a.windows.length !== b.windows.length) return false
+  return a.windows.every((window, index) => {
+    const other = b.windows[index]
+    if (!other) return false
+    return (
+      window.window === other.window &&
+      window.used === other.used &&
+      window.limit === other.limit &&
+      window.resetAt === other.resetAt
+    )
+  })
 }
 
 /** "#1b1430" -> "27, 20, 48" so it can be used inside rgba(var(--tint), a). */
@@ -397,6 +439,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettingsState] = useState<AppSettings | null>(null)
   const [directory, setDirectoryState] = useState("")
   const [sessions, setSessions] = useState<SessionInfo[]>([])
+  /**
+   * The last known settings and session list, readable from a callback that
+   * was made once.
+   *
+   * The event handler subscribes to the server once, at mount, and that
+   * subscription is never rebuilt — it would tear the stream down in the
+   * middle of a turn. A callback made at that moment would close over the
+   * values of that first render, and the ones it needs (whether to notify,
+   * what the conversation is called) change during the run. These refs are
+   * how it reads the current values anyway.
+   */
+  const settingsRef = useRef<AppSettings | null>(null)
+  const sessionsRef = useRef<SessionInfo[]>([])
+  settingsRef.current = settings
+  sessionsRef.current = sessions
+  /** False once the window is gone, so late timers do not write to it. */
+  const aliveRef = useRef(true)
+  useEffect(() => {
+    aliveRef.current = true
+    return () => {
+      aliveRef.current = false
+    }
+  }, [])
   const [tabs, setTabs] = useState<OpenTab[]>(() =>
     readPersistedTabs().tabs.map((sessionId) => ({ sessionId, openedAt: 0 })),
   )
@@ -414,6 +479,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * several times a second for nothing.
    */
   const [now, setNow] = useState(() => Date.now())
+  /**
+   * The same clock, readable without subscribing to it.
+   *
+   * The store hands this out instead of the state, so a tick does not have to
+   * rebuild the store object — the clock lives in its own context now, and
+   * only the components that ask for it are redrawn by it.
+   */
+  const nowRef = useRef(now)
+  nowRef.current = now
   const [inbox, setInbox] = useState<Record<string, InboxItem[]>>({})
   const [pendingPermissions, setPendingPermissions] = useState<PermissionRequest[]>([])
   /** Questions the model is waiting on, per conversation. */
@@ -503,7 +577,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((text: string, kind: "info" | "error" = "info") => {
     const id = toastSeq++
     setToasts((current) => [...current.slice(-3), { id, text, kind }])
-    setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 5200)
+    setTimeout(() => {
+      // The window may be gone by now: the timer outlives it, and a state
+      // update after the unmount is a write to nothing.
+      if (!aliveRef.current) return
+      setToasts((current) => current.filter((item) => item.id !== id))
+    }, 5200)
   }, [])
 
   const dismissToast = useCallback((id: number) => {
@@ -709,7 +788,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ) => {
       const body = text.trim()
       const attachments = files ?? []
-      if (!body && attachments.length === 0) return
+      // The answer says whether the prompt went out. The window shows the
+      // prompt right away and takes it away when the server lists it — and a
+      // prompt that never arrived would stay on screen for good.
+      if (!body && attachments.length === 0) return false
 
       // A turn is already running. The server can take this message two ways:
       // fold it into the answer being written (steer), or hold it until that
@@ -736,12 +818,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         } catch (err) {
           toast(err instanceof Error ? err.message : String(err), "error")
+          return false
         }
-        return
+        return true
       }
       setBusy((current) => ({ ...current, [sessionId]: true }))
       busyRef.current[sessionId] = true
       turnStartRef.current[sessionId] = Date.now()
+      // The safety net times the turn from the moment it went out. Without
+      // this the net never had anything to look at, and a turn the server
+      // dropped stayed busy for good.
+      sentAtRef.current[sessionId] = Date.now()
       setTurnStart((current) => ({ ...current, [sessionId]: turnStartRef.current[sessionId] }))
       setLive((current) => ({
         ...current,
@@ -762,12 +849,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         toast(err instanceof Error ? err.message : String(err), "error")
         setBusy((current) => ({ ...current, [sessionId]: false }))
+        // The prompt never went out, so there is no turn to time — and the
+        // clock it started has to go with it.
+        busyRef.current[sessionId] = false
+        delete sentAtRef.current[sessionId]
+        delete turnStartRef.current[sessionId]
+        setTurnStart((current) => {
+          if (!(sessionId in current)) return current
+          const next = { ...current }
+          delete next[sessionId]
+          return next
+        })
         setLive((current) => {
           const next = { ...current }
           delete next[sessionId]
           return next
         })
+        return false
       }
+      return true
     },
     [settings?.busySendMode, refreshInbox, toast],
   )
@@ -1042,8 +1142,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         delete next[sessionId]
         return next
       })
-      await send(sessionId, body, settings?.defaultAgent)
-      return true
+      const sent = await send(sessionId, body, settings?.defaultAgent)
+      // The rewind already happened: the history is gone whether the prompt
+      // went out or not. But the caller needs to know that the prompt did not
+      // go out — the words are in the field again, and the screen says so.
+      return sent
     },
     [send, settings, toast],
   )
@@ -1281,10 +1384,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const notifyOutcome = useCallback(
     async (sessionId: string, failed: boolean) => {
       try {
-        if (!settings?.notifyOnFinish) return
+        // Read through the refs: this callback is made once, when the
+        // subscription to the server is made, and the values it needs have
+        // changed many times since.
+        const currentSettings = settingsRef.current
+        if (!currentSettings?.notifyOnFinish) return
 
         const title =
-          sessions.find((session) => session.id === sessionId)?.title ??
+          sessionsRef.current.find((session) => session.id === sessionId)?.title ??
           translate("session.untitled")
 
         // Whether the window has the focus is not a reason to stay silent any
@@ -1302,7 +1409,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // A refused notification must never surface as a chat error.
       }
     },
-    [settings, sessions],
+    [],
   )
 
   const startDictation = useCallback(async () => {
@@ -1352,7 +1459,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const refreshLimits = useCallback(async (model: string) => {
     try {
       const snapshot = await window.ocd.limits.snapshot(model)
-      setLimits((current) => ({ ...current, [model]: snapshot }))
+      // The same snapshot must not become a new object.
+      //
+      // The meter asks for the ledger from an effect, and the effect depends
+      // on a callback that the header hands it — a new callback on every
+      // render. A new state object here rebuilt the store, which redrew the
+      // header, which asked again: a loop that never ended and never let the
+      // chat alone. The ledger only moves when a request goes out, so an
+      // unchanged snapshot is not worth a redraw.
+      setLimits((current) => {
+        const before = current[model]
+        if (before && sameLimits(before, snapshot)) return current
+        return { ...current, [model]: snapshot }
+      })
     } catch {
       /* the meter is decoration; a failed read must not disturb the chat */
     }
@@ -1463,6 +1582,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               turnStartRef.current[sessionID] = Date.now()
               setTurnStart((current) => ({ ...current, [sessionID]: turnStartRef.current[sessionID] }))
             }
+            sentAtRef.current[sessionID] = Date.now()
           }
           break
 
@@ -1572,6 +1692,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (sessionID) {
             busyRef.current[sessionID] = false
             setBusy((current) => ({ ...current, [sessionID]: false }))
+            // The turn is over, so the safety net has nothing left to time.
+            delete sentAtRef.current[sessionID]
             recordTurnTime(sessionID)
             // Drop the buffer so the persisted history becomes the only copy.
             setLive((current) => {
@@ -1594,6 +1716,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (sessionID) {
             busyRef.current[sessionID] = false
             setBusy((current) => ({ ...current, [sessionID]: false }))
+            delete sentAtRef.current[sessionID]
             setLive((current) => {
               const next = { ...current }
               delete next[sessionID]
@@ -1710,6 +1833,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (current.connected) {
         await refreshCatalog()
         await refreshSessions()
+        // Ask for the server's events. The stream lives in the main process and
+        // is already running, but the window that just opened has to be able
+        // to say so — and a main process that was restarted underneath the
+        // window answers this by starting the stream again.
+        void window.ocd.events.subscribe().catch(() => undefined)
       } else {
         await connect(loaded.serverUrlOverride || undefined)
       }
@@ -1906,7 +2034,10 @@ useEffect(() => {
       busy,
       turnStart,
       turnLog,
-      now,
+      // A getter, not a snapshot: the store must not be rebuilt by the clock.
+      get now() {
+        return nowRef.current
+      },
       usage,
       limits,
       refreshLimits,
@@ -1982,7 +2113,6 @@ useEffect(() => {
       sessions,
       turnStart,
       turnLog,
-      now,
       tabs,
       activeTab,
       busy,
@@ -2061,7 +2191,11 @@ useEffect(() => {
     ],
   )
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+  return (
+    <StoreContext.Provider value={value}>
+      <NowContext.Provider value={now}>{children}</NowContext.Provider>
+    </StoreContext.Provider>
+  )
 }
 
 

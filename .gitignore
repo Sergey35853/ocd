@@ -6,3 +6,6 @@ dist/
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# The app's backup of opencode.jsonc: it belongs to the user's machine, not to the repository.
+*.ocd-backup

@@ -55,6 +55,39 @@ function unwrapEnvelope(body: unknown): unknown {
   return body
 }
 
+/**
+ * The host of a URL, or null when the string is not a URL at all.
+ *
+ * Compared case-insensitively and without the port, because the same service
+ * is reachable on several ports and the port is not part of its identity.
+ */
+function urlHost(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The password that may be sent to `url`.
+ *
+ * The registration file holds the password of the service on this machine.
+ * A manually typed address can point anywhere, and a Basic header carries that
+ * password in the clear — so it only travels to the very service it came from,
+ * or to a loopback address (an SSH tunnel forwards to the same machine).
+ * Everywhere else the server is asked for an address without a password.
+ */
+function passwordFor(url: string, registration: Registration | null): string | undefined {
+  const password = registration?.password
+  if (!password) return undefined
+  const target = urlHost(url)
+  if (!target) return undefined
+  if (target === urlHost(registration?.url ?? "")) return password
+  if (target === "127.0.0.1" || target === "localhost" || target === "::1") return password
+  return undefined
+}
+
 function readRegistration(): Registration | null {
   const file = registrationFile()
   try {
@@ -108,6 +141,15 @@ export class OpenCodeService extends EventEmitter {
 
   private streamAbort: AbortController | null = null
   private streamTask: Promise<void> | null = null
+  /**
+   * Bumped on every start and every stop.
+   *
+   * The running loop checks it and gives up when it no longer matches. An
+   * abort alone is not enough: a stream that is sitting in its backoff sleep
+   * does not see the abort until it wakes up, and without this it would
+   * re-subscribe after the stop — the stream would resurrect itself.
+   */
+  private streamGeneration = 0
   private reconnectDelay = 500
 
   constructor() {
@@ -149,8 +191,10 @@ export class OpenCodeService extends EventEmitter {
     const attempts: Endpoint[] = []
 
     if (this.overrideUrl) {
-      // Password from the shared registration is reused for manual URLs.
-      const password = readRegistration()?.password
+      // Password from the shared registration is reused for manual URLs — but
+      // only where it belongs: see passwordFor.
+      const registration = readRegistration()
+      const password = passwordFor(this.overrideUrl, registration)
       attempts.push({
         url: this.overrideUrl,
         auth: password
@@ -264,9 +308,14 @@ export class OpenCodeService extends EventEmitter {
   private spawnAndWait(binary: string, before: Registration | null): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       let settled = false
+      let tick: ReturnType<typeof setInterval> | null = null
       const done = (value: boolean) => {
         if (settled) return
         settled = true
+        // The poll stops with the answer. A spawn that failed used to leave the
+        // interval running until the deadline, and an interval nobody clears
+        // keeps the process alive for the whole thirty seconds.
+        if (tick) clearInterval(tick)
         resolve(value)
       }
       try {
@@ -283,17 +332,20 @@ export class OpenCodeService extends EventEmitter {
       }
 
       const deadline = Date.now() + 30_000
-      const tick = setInterval(() => {
+      const interval = setInterval(() => {
         const reg = readRegistration()
         const changed = reg !== null && (before === null || reg.id !== before.id || reg.pid !== before.pid)
         if (changed) {
-          clearInterval(tick)
+          clearInterval(interval)
           done(true)
         } else if (Date.now() > deadline) {
-          clearInterval(tick)
+          clearInterval(interval)
           done(false)
         }
       }, 400)
+      tick = interval
+      // The spawn may have failed before the interval existed.
+      if (settled && tick) clearInterval(tick)
     })
   }
 
@@ -415,13 +467,17 @@ export class OpenCodeService extends EventEmitter {
    */
   startEventStream(): void {
     if (this.streamTask) return
-    this.streamTask = this.runStream().finally(() => {
-      this.streamTask = null
+    // A new generation invalidates whatever was running before it.
+    const generation = ++this.streamGeneration
+    this.streamTask = this.runStream(generation).finally(() => {
+      // Only the stream that is still current may clear the handle: a stop
+      // already cleared it, and a newer stream may own it now.
+      if (this.streamGeneration === generation) this.streamTask = null
     })
   }
 
-  private async runStream(): Promise<void> {
-    while (this.endpoint) {
+  private async runStream(generation: number): Promise<void> {
+    while (this.endpoint && this.streamGeneration === generation) {
       // Held locally as well as on the field. `stopEventStream` clears the
       // field while the request is still in flight, and the handler below runs
       // *after* that — so asking the shared field whether it was aborted read
@@ -483,6 +539,9 @@ export class OpenCodeService extends EventEmitter {
       }
       // Back off before re-subscribing so a dead server does not spin.
       await new Promise((r) => setTimeout(r, this.reconnectDelay))
+      // A stop during the sleep must not be followed by another subscription:
+      // the abort above was already consumed by the request that is over.
+      if (this.streamGeneration !== generation) return
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10_000)
       if (!this.endpoint) return
       // Not just the same address again: the server may have restarted onto a
@@ -493,8 +552,15 @@ export class OpenCodeService extends EventEmitter {
   }
 
   stopEventStream(): void {
+    // The generation goes first: it is what stops a stream that is waiting out
+    // its backoff from re-subscribing after the abort.
+    this.streamGeneration++
     this.streamAbort?.abort()
     this.streamAbort = null
+    // The handle goes too. The loop may still be finishing its cleanup, but it
+    // belongs to a generation that is over — leaving the handle behind would
+    // make the next start a no-op, and the events would never come back.
+    this.streamTask = null
   }
 }
 

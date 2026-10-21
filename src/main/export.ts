@@ -291,6 +291,21 @@ export async function exportConversation(
 }
 
 /**
+ * Escape the characters that would otherwise be markup.
+ *
+ * The title is a piece of text the user typed, and the exported document is
+ * opened from disk by a browser: a title carrying a `<` would open a tag
+ * there.
+ */
+function esc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
+/**
  * Build the standalone HTML document for a conversation.
  *
  * Shared by the file exports and by printing, so a printed page and a saved
@@ -298,9 +313,15 @@ export async function exportConversation(
  * someone compared the two.
  */
 export function conversationHtml(payload: ExportPayload): string {
-  return HTML_SHELL.replace(/\{title\}/g, payload.title || "Беседа")
-    .replace(/\{count\}/g, `${payload.messages} сообщ.`)
-    .replace(/\{body\}/g, markdownToHtml(payload.markdown))
+  const values: Record<string, string> = {
+    title: esc(payload.title || "Беседа"),
+    count: `${payload.messages} сообщ.`,
+    body: markdownToHtml(payload.markdown),
+  }
+  // One pass over the template: a replacement that went in first would be
+  // scanned by the next one, and a title holding "{body}" would turn into the
+  // whole conversation.
+  return HTML_SHELL.replace(/\{(title|count|body)\}/g, (_match, key: string) => values[key] ?? "")
 }
 
 /**

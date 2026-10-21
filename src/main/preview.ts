@@ -1,7 +1,7 @@
 import { app, shell } from "electron"
 import { execFile } from "node:child_process"
-import { randomBytes } from "node:crypto"
-import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs"
+import { createHash, randomBytes } from "node:crypto"
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { basename, extname, join } from "node:path"
 import { promisify } from "node:util"
 import { previewKind, previewRoute, type PreparedPreview } from "@shared/preview"
@@ -38,10 +38,21 @@ function pruneOld(dir: string): void {
     return
   }
   for (const entry of entries) {
-    if (!entry.startsWith("preview-") || !entry.endsWith(".html")) continue
     const file = join(dir, entry)
+    if (entry.startsWith("preview-") && entry.endsWith(".html")) {
+      try {
+        if (statSync(file).mtimeMs < cutoff) unlinkSync(file)
+      } catch {
+        /* in use or already gone */
+      }
+      continue
+    }
+    // The converters keep their output in directories of their own, and
+    // nothing else ever removed them: a day of previews left office/, raster/,
+    // visio/ and the LibreOffice profile behind for good.
     try {
-      if (statSync(file).mtimeMs < cutoff) unlinkSync(file)
+      if (!statSync(file).isDirectory()) continue
+      if (statSync(file).mtimeMs < cutoff) rmSync(file, { recursive: true, force: true })
     } catch {
       /* in use or already gone */
     }
@@ -119,8 +130,15 @@ const MAGICK_CANDIDATES = [
   "magick.exe",
 ].filter((candidate): candidate is string => Boolean(candidate))
 
-/** Cached per run: probing the disk on every preview would be wasteful. */
-const toolCache = new Map<string, string | null>()
+/**
+ * Cached per run: probing the disk on every preview would be wasteful.
+ *
+ * Only a hit is remembered. A miss is not a verdict - the tool may simply
+ * have been installed a moment ago - and a remembered miss would take the
+ * first candidate out of the running for good: the second preview would read
+ * "not found" from the cache and stop before it ever reached ffmpeg.
+ */
+const toolCache = new Map<string, string>()
 
 async function resolveTool(candidates: string[], probe: (path: string) => Promise<boolean>): Promise<string | null> {
   for (const candidate of candidates) {
@@ -132,8 +150,9 @@ async function resolveTool(candidates: string[], probe: (path: string) => Promis
     } catch {
       ok = false
     }
-    toolCache.set(candidate, ok ? candidate : null)
-    if (ok) return candidate
+    if (!ok) continue
+    toolCache.set(candidate, candidate)
+    return candidate
   }
   return null
 }
@@ -169,6 +188,14 @@ const findMagick = () =>
 // Same source, same output: skip a conversion that already happened.
 const convertedCache = new Map<string, { mtimeMs: number; out: string }>()
 
+/**
+ * How many conversions are remembered.
+ *
+ * The files themselves are pruned by age; the map only has to be small
+ * enough not to grow for as long as the app is open.
+ */
+const MAX_CONVERTED = 64
+
 function cachedOutput(path: string): string | null {
   const stamp = statSync(path).mtimeMs
   const hit = convertedCache.get(path)
@@ -177,7 +204,29 @@ function cachedOutput(path: string): string | null {
 }
 
 function remember(path: string, out: string): void {
+  // Written again rather than updated, so that the entry moves to the end of
+  // the map: the eviction below then drops the conversion nobody asked for
+  // since, not the one that was merely re-read.
+  convertedCache.delete(path)
   convertedCache.set(path, { mtimeMs: statSync(path).mtimeMs, out })
+  while (convertedCache.size > MAX_CONVERTED) {
+    const oldest = convertedCache.keys().next()
+    if (oldest.done) break
+    convertedCache.delete(oldest.value)
+  }
+}
+
+/**
+ * A directory of its own for every source file.
+ *
+ * The converters name their output after the input, so two files with the
+ * same name in different folders land on the same result: the second one
+ * overwrites the first, and the cache then hands out a document that belongs
+ * to somebody else. The hash of the full path keeps them apart.
+ */
+function sourceDir(kind: string, path: string): string {
+  const hash = createHash("sha256").update(path).digest("hex").slice(0, 16)
+  return join(previewDir(), kind, hash)
 }
 
 async function convertWithSoffice(path: string): Promise<string> {
@@ -187,7 +236,7 @@ async function convertWithSoffice(path: string): Promise<string> {
   const hit = cachedOutput(path)
   if (hit) return hit
 
-  const outDir = join(previewDir(), "office")
+  const outDir = sourceDir("office", path)
   mkdirSync(outDir, { recursive: true })
   // A private profile keeps the conversion from queueing behind — or crashing —
   // a LibreOffice window the user has open.
@@ -312,6 +361,11 @@ async function renderVisio(path: string): Promise<string> {
 export async function preparePreview(path: string): Promise<PreparedPreview> {
   const kind = previewKind(path)
   const route = previewRoute(path)
+
+  // The converters leave their output behind, so this is where the scratch
+  // directories are cleaned up: the previews that are never written as HTML
+  // would otherwise never trigger a cleanup at all.
+  pruneOld(previewDir())
 
   if (!kind || !route) {
     return { url: toFileUrl(path), kind: kind ?? "image", route: "native", error: "unsupported" }

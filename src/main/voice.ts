@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, rmSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -23,6 +23,25 @@ function readPluginConfig(name: string): Record<string, unknown> {
 
 function scratchDir(): string {
   return join(tmpdir(), "ocd-voice")
+}
+
+/**
+ * Remove a scratch file.
+ *
+ * The voice helper works through files in %TEMP%, and nothing ever cleaned
+ * them up: every spoken sentence and every dictation left its text, its
+ * recording and its audio behind. A file that will not delete is not worth
+ * failing a speech over.
+ */
+function removeScratch(...files: Array<string | undefined>): void {
+  for (const file of files) {
+    if (!file) continue
+    try {
+      if (existsSync(file)) rmSync(file, { force: true })
+    } catch {
+      /* still in use, or already gone */
+    }
+  }
 }
 
 export interface VoiceDefaults {
@@ -64,7 +83,6 @@ export class Voice extends EventEmitter {
   private ffplay: string | null = null
   private player: ChildProcess | null = null
   private recorder: ChildProcess | null = null
-  private recorderOut = ""
 
   constructor() {
     super()
@@ -185,30 +203,39 @@ export class Voice extends EventEmitter {
     mkdirSync(dir, { recursive: true })
     writeFileSync(textFile, text, "utf8")
 
-    const result = await this.runJson(
-      [
-        "tts",
-        "--text-file", textFile,
-        "--out", outFile,
-        "--engine", merged.engine,
-        "--voice", merged.voice,
-        "--rate", merged.rate,
-        "--volume", merged.volume,
-        "--pitch", merged.pitch,
-        "--max-chars", String(merged.maxChars),
-      ],
-      120_000,
-    )
+    let spoken: string | undefined
+    try {
+      const result = await this.runJson(
+        [
+          "tts",
+          "--text-file", textFile,
+          "--out", outFile,
+          "--engine", merged.engine,
+          "--voice", merged.voice,
+          "--rate", merged.rate,
+          "--volume", merged.volume,
+          "--pitch", merged.pitch,
+          "--max-chars", String(merged.maxChars),
+        ],
+        120_000,
+      )
 
-    const file = (result.file as string | undefined) ?? outFile
-    if (!result.ok || !existsSync(file)) {
-      return { ok: false, error: (result.error as string) ?? "синтез не удался" }
-    }
-    await this.play(file, options.playbackVolume ?? 100)
-    return {
-      ok: true,
-      engine: (result.engine as string) ?? merged.engine,
-      voice: (result.voice as string) ?? merged.voice,
+      const file = (result.file as string | undefined) ?? outFile
+      spoken = file
+      if (!result.ok || !existsSync(file)) {
+        return { ok: false, error: (result.error as string) ?? "синтез не удался" }
+      }
+      await this.play(file, options.playbackVolume ?? 100)
+      return {
+        ok: true,
+        engine: (result.engine as string) ?? merged.engine,
+        voice: (result.voice as string) ?? merged.voice,
+      }
+    } finally {
+      // The text has been read and the audio has been played: the scratch
+      // files have served their purpose. The audio is only removed after the
+      // playback ended, so the player always finds its file.
+      removeScratch(textFile, outFile, spoken)
     }
   }
 
@@ -280,7 +307,7 @@ export class Voice extends EventEmitter {
       }
 
       const stamp = Date.now()
-      this.recorderOut = join(scratchDir(), `take-${stamp}.wav`)
+      const outFile = join(scratchDir(), `take-${stamp}.wav`)
       const { mkdirSync } = require("node:fs") as typeof import("node:fs")
       mkdirSync(scratchDir(), { recursive: true })
 
@@ -289,7 +316,7 @@ export class Voice extends EventEmitter {
         [
           this.scriptPath(),
           "dictate",
-          "--out", this.recorderOut,
+          "--out", outFile,
           "--device", merged.micDevice,
           "--model", merged.sttModel,
           "--language", merged.sttLanguage,
@@ -312,6 +339,7 @@ export class Voice extends EventEmitter {
       child.on("error", (err) => {
         this.recorder = null
         resolve({ ok: false, error: err.message })
+        removeScratch(outFile)
       })
       child.on("close", () => {
         this.recorder = null
@@ -332,6 +360,9 @@ export class Voice extends EventEmitter {
           }
         }
         resolve(transcript ?? { ok: false, error: "нет расшифровки" })
+        // The helper is gone and the recording has been read: the file has
+        // nothing left to do in %TEMP%.
+        removeScratch(outFile)
       })
     })
   }

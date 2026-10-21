@@ -85,6 +85,10 @@ const trayActions = {
   openSession: openSessionById,
   restartServer: () => void service.restart(),
   reconnect: () => {
+    // The old stream belongs to the old address: it has to go before the new
+    // one starts, or the chat keeps listening to the server it was just
+    // pointed away from.
+    service.stopEventStream()
     void service.connect(getSettings().serverUrlOverride || undefined).then((status) => {
       if (status.connected) service.startEventStream()
     })
@@ -401,6 +405,13 @@ if (!app.requestSingleInstanceLock()) {
         const repaired = repairLegacyLanguageInstruction()
         if (repaired.ok && status.connected) {
           await service.post("/api/location/reload").catch(() => undefined)
+        }
+
+        // Plugins the user asked to keep up to date. The setting was there
+        // from the start and nothing ever read it: the plugins never updated
+        // on their own, whatever the switch said.
+        if (status.connected && getSettings().autoUpdatePlugins) {
+          await service.post("/api/plugin/update").catch(() => undefined)
         }
       })
 

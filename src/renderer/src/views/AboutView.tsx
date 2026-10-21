@@ -26,6 +26,9 @@ const MAX_CONTACT = 200
  */
 export function AboutView({ onBack }: { onBack: () => void }) {
   const store = useStore()
+  // The toast is a stable function of the store; taking it out here says so,
+  // and lets an effect depend on it without depending on the whole store.
+  const { toast } = store
   const t = useT()
   const [versions, setVersions] = useState<{ app?: string; electron?: string; node?: string; chrome?: string }>({})
   const [configPath, setConfigPath] = useState("")
@@ -43,10 +46,15 @@ export function AboutView({ onBack }: { onBack: () => void }) {
   const [sent, setSent] = useState(false)
 
   useEffect(() => {
-    void window.ocd.app.version().then(setVersions)
-    void window.ocd.configFile.path().then(setConfigPath)
+    // The toast is a stable function of the store, so this effect runs once:
+    // depending on the store itself would ask for the version again on every
+    // tick of the conversation.
+    const fail = (err: unknown) =>
+      toast(err instanceof Error ? err.message : String(err), "error")
+    void window.ocd.app.version().then(setVersions).catch(fail)
+    void window.ocd.configFile.path().then(setConfigPath).catch(fail)
     void window.ocd.feedback.configured().then(setCanSend).catch(() => setCanSend(false))
-  }, [])
+  }, [toast])
 
   /**
    * Check, and say what came back here rather than in a toast.

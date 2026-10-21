@@ -93,7 +93,9 @@ export function buildCatalog(
 
 /** Local runtimes first, then alphabetical; that is how anyone looks for one. */
 export function sortCatalog(entries: CatalogEntry[]): CatalogEntry[] {
-  return entries.sort((a, b) => {
+  // A copy: sorting in place would reorder the caller's own list, which is
+  // the server's list of integrations and is used as it was given.
+  return [...entries].sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === "local" ? -1 : 1
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
   })

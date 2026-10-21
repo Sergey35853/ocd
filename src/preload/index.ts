@@ -21,7 +21,6 @@ import type {
   PermissionRequest,
   SearchHit,
   PromptFile,
-  SessionInfo,
   LimitWindow,
   InboxItem,
   PromptDelivery,
@@ -48,15 +47,10 @@ const api = {
   },
   api: {
     info: () => call("api:info"),
-    config: () => call("api:config"),
-    projects: () => call("api:projects"),
-    currentLocation: () => call("api:currentLocation"),
-    locations: () => call("api:locations"),
     providers: (directory?: string) => call("api:providers", directory),
     models: (directory?: string) => call("api:models", directory),
     agents: () => call("api:agents"),
     agent: (id: string) => call("api:agent", id),
-    plugins: () => call("api:plugins"),
     updatePlugins: () => call("api:updatePlugins"),
     mcp: () => call("api:mcp"),
     skills: () => call("api:skills"),
@@ -71,7 +65,6 @@ const api = {
     session: (id: string) => call("api:session", id),
     deleteSession: (id: string) => call("api:deleteSession", id),
     renameSession: (id: string, title: string) => call("api:renameSession", id, title),
-    messages: (sessionId: string) => call("api:messages", sessionId),
     messagePage: (sessionId: string, page?: MessagePageQuery) =>
       call("api:messagePage", sessionId, page),
     prompt: (
@@ -104,19 +97,13 @@ const api = {
     runSessionCommand: (sessionId: string, command: { name: string; text: string }) =>
       call("api:runSessionCommand", sessionId, command),
     permissionRules: (projectID?: string) => call("api:permissionRules", projectID),
-    savePermissionRule: (
-      sessionId: string,
-      rule: { action: string; resources: string[]; save?: string[] },
-    ) => call("api:savePermissionRule", sessionId, rule),
     deletePermissionRule: (id: string) => call("api:deletePermissionRule", id),
     exportSessionFile: (sessionId: string, title: string) =>
       call("app:exportSessionFile", sessionId, title),
     importSessionFile: () => call("app:importSessionFile"),
     findFiles: (query: string, directory?: string) => call("api:findFiles", query, directory),
-    vcsBranch: (directory?: string) => call("api:vcsBranch", directory),
     gitBranch: (directory?: string) => call<string | null>("api:gitBranch", directory),
     gitStatus: (directory?: string) => call("api:gitStatus", directory),
-    vcsStatus: (directory?: string) => call("api:vcsStatus", directory),
     worktrees: () => call("api:worktrees"),
     sessionContext: (sessionId: string) => call("api:sessionContext", sessionId),
     activeSessions: () => call("api:activeSessions"),
@@ -136,22 +123,18 @@ const api = {
     revertStage: (sessionId: string, messageId: string) =>
       call("api:revertStage", sessionId, messageId),
     revertCommit: (sessionId: string) => call("api:revertCommit", sessionId),
-    serverDefaultModel: () => call("api:serverDefaultModel"),
   },
   plugins: {
     list: () => call("plugins:list"),
     search: (query: string) => call("plugins:search", query),
     install: (pkg: string) => call("plugins:install", pkg),
     uninstall: (id: string) => call("plugins:uninstall", id),
-    addLocal: (dir: string) => call("plugins:addLocal", dir),
     revealLocal: (dir: string) => call("plugins:revealLocal", dir),
   },
   configFile: {
     read: () => call("configFile:read"),
     write: (text: string) => call("configFile:write", text),
     reload: () => call("configFile:reload"),
-    setModel: (providerID: string, modelID: string) => call("configFile:setModel", providerID, modelID),
-    setAgent: (agent: string) => call("configFile:setAgent", agent),
     setReplyLanguage: (lang: ReplyLanguage) => call("configFile:setReplyLanguage", lang),
     replyLanguage: () => call<ReplyLanguage>("configFile:replyLanguage"),
     languageCurrent: (lang: ReplyLanguage) => call<boolean>("configFile:languageCurrent", lang),
@@ -220,7 +203,6 @@ const api = {
     minimize: () => call("app:minimize"),
     toggleMaximize: () => call("app:toggleMaximize"),
     close: () => call("app:close"),
-    minimizeToTray: () => call("app:minimizeToTray"),
     setAlwaysOnTop: (value: boolean) => call("app:setAlwaysOnTop", value),
     openExternal: (url: string) => call("app:openExternal", url),
     openPath: (target: string) => call("app:openPath", target),
@@ -234,7 +216,6 @@ const api = {
       language?: string
     }) => call("app:trayState", next),
     showWindow: () => call<boolean>("app:showWindow"),
-    hideWindow: () => call("app:hideWindow"),
     focusComposer: () => call("app:focusComposer"),
     openSessionWindow: (sessionId: string, title?: string | null) =>
       call<boolean>("app:openSessionWindow", sessionId, title ?? null),
@@ -287,9 +268,15 @@ const api = {
   search: {
     /** Build (or refresh) the conversation index; resolves with its size. */
     build: (force?: boolean) => call<{ sessions: number }>("search:build", force === true),
-    query: (text: string, sessions: Array<{ id: string; title?: string; time?: { updated?: number } }>) =>
-      call<SearchHit[]>("search:query", text, sessions as SessionInfo[]),
-    clear: () => call("search:clear"),
+    /**
+     * Search the index.
+     *
+     * The list of sessions is not sent: main knows the server's own list, and
+     * the index is keyed by it — the window does not get to say what is
+     * searched. The parameter is kept so the call sites do not have to change.
+     */
+    query: (text: string, _sessions?: Array<{ id: string; title?: string; time?: { updated?: number } }>) =>
+      call<SearchHit[]>("search:query", text),
   },
   permission: {
     /** Requests the server is blocked on, waiting for an answer. */
@@ -341,7 +328,6 @@ const api = {
     /** Ask main to send the state now (the window may have mounted late). */
     request: () => call("hud:request"),
     toggle: () => call<boolean>("hud:toggle"),
-    close: () => call("hud:close"),
   },
   notice: {
     /** Main pushes a finished reply into the card. */

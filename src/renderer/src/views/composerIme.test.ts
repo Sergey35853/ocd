@@ -81,8 +81,13 @@ describe("the composer with an input method", () => {
     // The whole fix. Pushing every character in is what stopped the composition
     // dead: the first character arrived and none after it ever did. Send is
     // enabled directly instead, so it lights up without a re-render.
+    //
+    // The state is brought up to date too — but only when no word is being
+    // assembled. Without that the state kept the words from before the edit,
+    // and everything that reads it (the send button, "edit and resend") acted
+    // on the old text.
     const sync = bodyOf("const sync = () => {")
-    expect(sync).not.toMatch(/setDraft\(/)
+    expect(sync).toMatch(/if \(!composingRef\.current\) setDraft\(text\)/)
     expect(sync).toMatch(/send\.disabled = !text\.trim\(\)/)
   })
 
@@ -141,5 +146,31 @@ describe("the composer with an input method", () => {
     // to reach it. Without this, a draft restored when switching conversations
     // would live in state and not on screen.
     expect(bodyOf("const applyDraft = useCallback")).toMatch(/node\.value = text/)
+  })
+
+  it("waits for the field to exist before putting the draft into it", () => {
+    // The restore runs in an effect that is declared before the one that builds
+    // the field, so on a fresh window there was no field to write to: the
+    // words stayed in the state, the box looked empty, and Send had nothing to
+    // send. The text waits for the field, and goes in when it is there.
+    const apply = bodyOf("const applyDraft = useCallback")
+    expect(apply).toMatch(/if \(!node\) \{/)
+    expect(apply).toMatch(/pendingDraft\.current = text/)
+
+    const field = bodyOf('const node = document.createElement("textarea")')
+    // The field is one statement, so the whole source is what says whether the
+    // queued draft is put into it.
+    expect(source).toMatch(/pendingDraft\.current !== null/)
+    expect(source).toMatch(/node\.value = queued/)
+    expect(field).toMatch(/document\.createElement\("textarea"\)/)
+  })
+
+  it("sends what is in the field, not what the state last held", () => {
+    // "Edit and resend" took the text from the state, which was still the
+    // original message — so the edit was discarded and the old prompt went out
+    // again.
+    expect(bodyOf("const resendEdited = useCallback")).toMatch(
+      /textareaRef\.current\?\.value \?\? draftRef\.current/,
+    )
   })
 })

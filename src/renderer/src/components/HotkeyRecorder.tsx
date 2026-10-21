@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useT } from "../i18n"
 
 /** Keys Electron's accelerator format never wants, whatever the combination. */
@@ -45,8 +45,34 @@ export function HotkeyRecorder({
   const [draft, setDraft] = useState(value)
   const [status, setStatus] = useState<"idle" | "ok" | "taken">("idle")
 
+  /**
+   * What the listeners below read.
+   *
+   * The draft, the saved value and the callback live in refs on purpose: the
+   * window listeners used to depend on the draft, so every key pressed tore
+   * the subscription down and built it up again — and the commit listener
+   * read a draft that was one keystroke behind.
+   */
+  const draftRef = useRef(value)
+  const valueRef = useRef(value)
+  const onChangeRef = useRef(onChange)
+
   useEffect(() => {
-    if (!recording) setDraft(value)
+    valueRef.current = value
+    onChangeRef.current = onChange
+  }, [value, onChange])
+
+  /** Set the draft, and keep the ref that the listeners read in step. */
+  const setDraftValue = (next: string) => {
+    draftRef.current = next
+    setDraft(next)
+  }
+
+  useEffect(() => {
+    if (!recording) {
+      draftRef.current = value
+      setDraft(value)
+    }
   }, [value, recording])
 
   useEffect(() => {
@@ -59,10 +85,10 @@ export function HotkeyRecorder({
 
       if (event.key === "Escape") {
         setRecording(false)
-        setDraft(value)
+        setDraftValue(valueRef.current)
         return
       }
-      if (event.key === "Enter" && draft) {
+      if (event.key === "Enter" && draftRef.current) {
         event.preventDefault()
         setRecording(false)
         return
@@ -80,23 +106,25 @@ export function HotkeyRecorder({
       // and is still a usable accelerator.
       const key = event.key.length === 1 ? event.key.toUpperCase() : event.key
       if (!key) return
-      setDraft([...mods, key].join("+"))
+      setDraftValue([...mods, key].join("+"))
     }
 
     window.addEventListener("keydown", onKey, true)
     return () => window.removeEventListener("keydown", onKey, true)
-  }, [recording, draft, value])
+  }, [recording])
 
   // Commit as soon as the user leaves the control.
   useEffect(() => {
     if (!recording) return
     const commit = () => {
       setRecording(false)
-      void onChange(draft).then((result) => setStatus(result.ok ? "ok" : "taken"))
+      void onChangeRef.current(draftRef.current).then((result) =>
+        setStatus(result.ok ? "ok" : "taken"),
+      )
     }
     window.addEventListener("pointerdown", commit)
     return () => window.removeEventListener("pointerdown", commit)
-  }, [recording, draft, onChange])
+  }, [recording])
 
   return (
     <div className="hotkey-recorder">
@@ -120,9 +148,9 @@ export function HotkeyRecorder({
           className="linkbtn"
           onClick={() => {
             setRecording(false)
-            setDraft("")
+            setDraftValue("")
             setStatus("idle")
-            void onChange("")
+            void onChange("").catch(() => setStatus("taken"))
           }}
         >
           {t("set.hotkeyClear")}

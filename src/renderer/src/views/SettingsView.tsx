@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useStore } from "../lib/store"
 import { cx } from "../lib/format"
 import { Field, Modal, Switch } from "../components/ui"
@@ -36,6 +36,7 @@ function MicPicker() {
         if (cancelled) return
         setDevices(result.devices)
       })
+      .catch(() => undefined)
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
@@ -60,6 +61,179 @@ function MicPicker() {
         </option>
       ))}
     </select>
+  )
+}
+
+/**
+ * The address of the server.
+ *
+ * Written when the field is left or when the button is pressed, never per
+ * keystroke: every letter of the address used to be a write to the settings
+ * file, a reconnect, a refresh of the catalogue, a refresh of the session
+ * list and — when the half-typed address was no address at all — a toast
+ * about the connection failing. Once per letter.
+ */
+function ServerUrlField({
+  value,
+  onCommit,
+}: {
+  value: string
+  onCommit(next: string): Promise<void> | void
+}) {
+  const t = useT()
+  const [draft, setDraft] = useState(value)
+  const [busy, setBusy] = useState(false)
+  /** What was last handed over, so a blur and a click do not write twice. */
+  const applied = useRef(value)
+
+  // The setting may change under this window: another window, a reload of
+  // the file. The field follows it.
+  useEffect(() => {
+    applied.current = value
+    setDraft(value)
+  }, [value])
+
+  const apply = async () => {
+    const next = draft.trim()
+    if (next === applied.current) return
+    applied.current = next
+    setBusy(true)
+    try {
+      await onCommit(next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="hstack">
+      <input
+        className="input"
+        placeholder="http://127.0.0.1:4096"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void apply()
+        }}
+        onBlur={() => void apply()}
+      />
+      <button
+        type="button"
+        className="btn"
+        disabled={busy || draft.trim() === applied.current}
+        onClick={() => void apply()}
+      >
+        {t("common.save")}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * A slider whose setting is written when the drag is over.
+ *
+ * React's `onChange` for a range input is the `input` event, so every step of
+ * a drag used to write the settings file and redraw the whole page.
+ */
+function DraftRange({
+  value,
+  min,
+  max,
+  step,
+  className,
+  onCommit,
+}: {
+  value: number
+  min: number
+  max: number
+  step: number
+  className?: string
+  onCommit(next: number): void
+}) {
+  const [draft, setDraft] = useState(value)
+  const applied = useRef(value)
+
+  useEffect(() => {
+    applied.current = value
+    setDraft(value)
+  }, [value])
+
+  const commit = () => {
+    if (draft === applied.current) return
+    applied.current = draft
+    onCommit(draft)
+  }
+
+  return (
+    <input
+      className={className}
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={draft}
+      onChange={(event) => setDraft(Number(event.target.value))}
+      onPointerUp={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+    />
+  )
+}
+
+/**
+ * A colour whose setting is written when the picker is closed.
+ *
+ * React's `onChange` for a colour field is the `input` event, and it fires on
+ * every move of the mouse inside the picker. The native `change` fires once,
+ * when the picker is dismissed — that is the moment the colour is chosen.
+ */
+function DraftColor({
+  value,
+  onCommit,
+}: {
+  value: string
+  onCommit(next: string): void
+}) {
+  const [draft, setDraft] = useState(value)
+  const applied = useRef(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const commitRef = useRef(onCommit)
+
+  useEffect(() => {
+    commitRef.current = onCommit
+  }, [onCommit])
+
+  useEffect(() => {
+    applied.current = value
+    setDraft(value)
+  }, [value])
+
+  useEffect(() => {
+    const node = inputRef.current
+    if (!node) return
+    const onNativeChange = () => {
+      const next = node.value
+      if (next === applied.current) return
+      applied.current = next
+      commitRef.current(next)
+    }
+    node.addEventListener("change", onNativeChange)
+    return () => node.removeEventListener("change", onNativeChange)
+  }, [])
+
+  return (
+    <input
+      ref={inputRef}
+      type="color"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        const next = inputRef.current?.value ?? draft
+        if (next === applied.current) return
+        applied.current = next
+        commitRef.current(next)
+      }}
+    />
   )
 }
 
@@ -182,6 +356,10 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
   const store = useStore()
   const t = useT()
   const settings = store.settings
+  // The toast is a stable function of the store; taking it out here lets an
+  // effect depend on it without depending on the whole store — which changes
+  // on every tick of a running conversation.
+  const { toast } = store
   const [editorOpen, setEditorOpen] = useState(false)
   const [draft, setDraft] = useState("")
   const [configPath, setConfigPath] = useState("")
@@ -197,6 +375,28 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     active: false,
     url: null,
   })
+  /**
+   * The voices the engine has.
+   *
+   * The list used to be four names written into the screen, so a machine with
+   * other voices could not reach them. Reading the list costs a call to the
+   * voice engine, which is only there when the voice features are installed —
+   * an empty list is the normal answer, and the four names stay as a fallback.
+   */
+  const [voices, setVoices] = useState<Array<{ id: string; name: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void window.ocd.voice
+      .voices()
+      .then((list) => {
+        if (!cancelled) setVoices(list ?? [])
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     void window.ocd.remote
@@ -231,17 +431,33 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
     density: 16,
   }
 
-  // Sliders fire on every step, so keep the local copy responsive and
-  // push the whole object up in one go.
+  // Sliders fire on every step, so the slider keeps its own copy while the
+  // drag lasts and pushes the whole object up in one go at the end of it.
   const patchBusy = (patch: Partial<BusyAnimationSettings>) => {
     void store.updateSettings({ busyAnimation: { ...busy, ...patch } })
   }
 
   useEffect(() => {
-    void window.ocd.configFile.path().then(setConfigPath)
-  }, [])
+    void window.ocd.configFile
+      .path()
+      .then(setConfigPath)
+      .catch((err: unknown) =>
+        toast(err instanceof Error ? err.message : String(err), "error"),
+      )
+    // The toast is a stable function of the store, so this runs once.
+  }, [toast])
 
+  /**
+   * The first tab is chosen once, when the settings arrive.
+   *
+   * The effect used to run on every change of the settings, so any setting the
+   * user changed threw them back to the first tab — including the change the
+   * tab itself had just made.
+   */
+  const sectionChosen = useRef(false)
   useEffect(() => {
+    if (!settings || sectionChosen.current) return
+    sectionChosen.current = true
     setSection("look")
   }, [settings])
 
@@ -284,13 +500,17 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
       .catch((err: unknown) => store.toast(err instanceof Error ? err.message : String(err), "error"))
 
   const testMic = async () => {
-    const found = await window.ocd.voice.devices()
-    if (found.error) return store.toast(found.error, "error")
-    store.toast(
-      found.devices.length
-        ? t("set.devicesCount", { n: found.devices.length })
-        : t("set.noMics"),
-    )
+    try {
+      const found = await window.ocd.voice.devices()
+      if (found.error) return store.toast(found.error, "error")
+      store.toast(
+        found.devices.length
+          ? t("set.devicesCount", { n: found.devices.length })
+          : t("set.noMics"),
+      )
+    } catch (err) {
+      store.toast(err instanceof Error ? err.message : String(err), "error")
+    }
   }
 
   const exportSettings = async () => {
@@ -381,33 +601,26 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             label={t("set.backdropDensity")}
             hint={`${Math.round(settings.acrylicOpacity * 100)}% · ${t("set.backdropDensityHint")}`}
           >
-            <input
-              type="range"
+            <DraftRange
               min={0.05}
               max={1}
               step={0.01}
               value={settings.acrylicOpacity}
-              onChange={(event) =>
-                void store.updateSettings({ acrylicOpacity: Number(event.target.value) })
-              }
+              onCommit={(value) => void store.updateSettings({ acrylicOpacity: value })}
             />
           </Field>
 
           <Field label={t("set.tintBackdrop")} hint={t("set.tintBackdropHint")}>
-            <input
-              type="color"
+            <DraftColor
               value={settings.acrylicTint}
-              onChange={(event) => void store.updateSettings({ acrylicTint: event.target.value })}
+              onCommit={(value) => void store.updateSettings({ acrylicTint: value })}
             />
           </Field>
 
           <Field label={t("set.accent")} hint={t("set.accentHint")}>
-            <input
-              type="color"
+            <DraftColor
               value={settings.accentColor}
-              onChange={(event) =>
-                void store.updateSettings({ accentColor: event.target.value })
-              }
+              onCommit={(value) => void store.updateSettings({ accentColor: value })}
             />
           </Field>
 
@@ -415,15 +628,12 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             label={t("set.fontScale")}
             hint={`${Math.round(settings.fontScale * 100)}% · ${t("set.fontScaleHint")}`}
           >
-            <input
-              type="range"
+            <DraftRange
               min={0.85}
               max={1.35}
               step={0.05}
               value={settings.fontScale}
-              onChange={(event) =>
-                void store.updateSettings({ fontScale: Number(event.target.value) })
-              }
+              onCommit={(value) => void store.updateSettings({ fontScale: value })}
             />
           </Field>
         </div>
@@ -576,6 +786,19 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
                 value={settings.ttsVoice}
                 onChange={(event) => void store.updateSettings({ ttsVoice: event.target.value })}
               >
+                {/* The voices the engine actually has. The four below are the
+                    fallback for a machine without edge-tts, where the list
+                    cannot be read at all. */}
+                {voices.length
+                  ? voices.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))
+                  : null}
+                {voices.some((item) => item.id === settings.ttsVoice) ? null : (
+                  <option value={settings.ttsVoice}>{settings.ttsVoice}</option>
+                )}
                 <option value="ru-RU-SvetlanaNeural">{t("set.voiceSvetlana")}</option>
                 <option value="ru-RU-DmitryNeural">{t("set.voiceDmitry")}</option>
                 <option value="en-US-JennyNeural">{t("set.voiceJenny")}</option>
@@ -583,42 +806,43 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               </select>
             </Field>
 
+            <Field label={t("set.ttsVolume")} hint={settings.ttsVolume}>
+              <DraftRange
+                min={-50}
+                max={50}
+                step={5}
+                value={Number(settings.ttsVolume.replace("%", "")) || 0}
+                onCommit={(value) => void store.updateSettings({ ttsVolume: `${value}%` })}
+              />
+            </Field>
+
             <Field label={t("set.ttsRate")} hint={settings.ttsRate}>
-              <input
-                type="range"
+              <DraftRange
                 min={-30}
                 max={40}
                 step={2}
                 value={Number(settings.ttsRate.replace("%", "")) || 0}
-                onChange={(event) =>
-                  void store.updateSettings({ ttsRate: `${event.target.value}%` })
-                }
+                onCommit={(value) => void store.updateSettings({ ttsRate: `${value}%` })}
               />
             </Field>
 
             <Field label={t("set.ttsPitch")} hint={settings.ttsPitch}>
-              <input
-                type="range"
+              <DraftRange
                 min={-20}
                 max={20}
                 step={2}
                 value={Number(settings.ttsPitch.replace("Hz", "")) || 0}
-                onChange={(event) =>
-                  void store.updateSettings({ ttsPitch: `${event.target.value}Hz` })
-                }
+                onCommit={(value) => void store.updateSettings({ ttsPitch: `${value}Hz` })}
               />
             </Field>
 
             <Field label={t("set.playbackVolume")} hint={`${settings.playbackVolume}%`}>
-              <input
-                type="range"
+              <DraftRange
                 min={0}
                 max={100}
                 step={5}
                 value={settings.playbackVolume}
-                onChange={(event) =>
-                  void store.updateSettings({ playbackVolume: Number(event.target.value) })
-                }
+                onCommit={(value) => void store.updateSettings({ playbackVolume: value })}
               />
             </Field>
 
@@ -626,15 +850,12 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               label={t("set.ttsMaxChars")}
               hint={t("set.ttsMaxCharsHint", { n: settings.ttsMaxChars })}
             >
-              <input
-                type="range"
+              <DraftRange
                 min={120}
                 max={1500}
                 step={20}
                 value={settings.ttsMaxChars}
-                onChange={(event) =>
-                  void store.updateSettings({ ttsMaxChars: Number(event.target.value) })
-                }
+                onCommit={(value) => void store.updateSettings({ ttsMaxChars: value })}
               />
             </Field>
           </div>
@@ -717,50 +938,46 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           </Field>
 
           <Field label={t("anim.opacity", { n: Math.round(busy.opacity * 100) })}>
-            <input
+            <DraftRange
               className="range"
-              type="range"
               min={0.05}
               max={0.7}
               step={0.01}
               value={busy.opacity}
-              onChange={(event) => patchBusy({ opacity: Number(event.target.value) })}
+              onCommit={(value) => patchBusy({ opacity: value })}
             />
           </Field>
 
           <Field label={t("anim.speed", { n: busy.speed.toFixed(2) })}>
-            <input
+            <DraftRange
               className="range"
-              type="range"
               min={0.3}
               max={2.5}
               step={0.05}
               value={busy.speed}
-              onChange={(event) => patchBusy({ speed: Number(event.target.value) })}
+              onCommit={(value) => patchBusy({ speed: value })}
             />
           </Field>
 
           <Field label={t("anim.hue", { n: busy.hue })} hint={t("anim.hueHint")}>
-            <input
+            <DraftRange
               className="range"
-              type="range"
               min={0}
               max={360}
               step={1}
               value={busy.hue}
-              onChange={(event) => patchBusy({ hue: Number(event.target.value) })}
+              onCommit={(value) => patchBusy({ hue: value })}
             />
           </Field>
 
           <Field label={t("anim.density", { n: busy.density })} hint={t("anim.densityHint")}>
-            <input
+            <DraftRange
               className="range"
-              type="range"
               min={8}
               max={28}
               step={1}
               value={busy.density}
-              onChange={(event) => patchBusy({ density: Number(event.target.value) })}
+              onCommit={(value) => patchBusy({ density: value })}
             />
           </Field>
 
@@ -784,8 +1001,12 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               type="button"
               className="btn"
               onClick={async () => {
-                const picked = await window.ocd.app.pickDirectory()
-                if (picked) await store.setDirectory(picked)
+                try {
+                  const picked = await window.ocd.app.pickDirectory()
+                  if (picked) await store.setDirectory(picked)
+                } catch (err) {
+                  store.toast(err instanceof Error ? err.message : String(err), "error")
+                }
               }}
             >
               <IconFolder size={14} /> {t("set.choose")}
@@ -811,11 +1032,15 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           </Field>
 
           <Field label={t("set.serverUrl")} hint={t("set.serverUrlHint")}>
-            <input
-              className="input"
-              placeholder="http://127.0.0.1:4096"
+            <ServerUrlField
               value={settings.serverUrlOverride}
-              onChange={(event) => void store.updateSettings({ serverUrlOverride: event.target.value })}
+              onCommit={async (next) => {
+                try {
+                  await store.updateSettings({ serverUrlOverride: next })
+                } catch (err) {
+                  store.toast(err instanceof Error ? err.message : String(err), "error")
+                }
+              }}
             />
           </Field>
 
@@ -879,9 +1104,14 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               onChange={(event) => {
                 const lang = event.target.value as ReplyLanguage
                 void store.updateSettings({ replyLanguage: lang })
-                void window.ocd.configFile.setReplyLanguage(lang).then((result) => {
-                  if (!result.ok) store.toast(result.error ?? t("set.writeFailed"), "error")
-                })
+                void window.ocd.configFile
+                  .setReplyLanguage(lang)
+                  .then((result) => {
+                    if (!result.ok) store.toast(result.error ?? t("set.writeFailed"), "error")
+                  })
+                  .catch((err: unknown) =>
+                    store.toast(err instanceof Error ? err.message : String(err), "error"),
+                  )
               }}
             >
               <option value="ru">{t("set.replyRu")}</option>

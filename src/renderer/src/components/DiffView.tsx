@@ -27,6 +27,7 @@ export function DiffView({
   const stats = useMemo(() => diffStats(lines), [lines])
   const shown = expanded || limit <= 0 ? lines : lines.slice(0, limit)
   const hidden = lines.length - shown.length
+  const keys = useMemo(() => rowKeys(lines), [lines])
 
   // An edit that replaced text with itself leaves context rows and nothing else.
   // Rendering them would fill the block with the code the user already has,
@@ -49,8 +50,8 @@ export function DiffView({
       </div>
       <div className="diff-body" tabIndex={0}>
         {shown.map((line, index) => (
-          <div key={`${index}-${line.kind}`} className={cx("diff-line", line.kind)}>
-            <span className="diff-text">{line.text || " "}</span>
+          <div key={keys[index]} className={cx("diff-line", line.kind)}>
+            <span className="diff-text">{line.text || " "}</span>
           </div>
         ))}
         {hidden > 0 ? (
@@ -61,4 +62,22 @@ export function DiffView({
       </div>
     </div>
   )
+}
+
+/**
+ * A key for every row of a diff.
+ *
+ * A row has no id of its own, but it has a place: the line numbers the diff
+ * itself reports. Rows without numbers — the server's own patch carries none
+ * — are keyed by their text, and a text that occurs twice is counted, so the
+ * key of a row does not depend on how many rows came before it.
+ */
+function rowKeys(lines: DiffLine[]): string[] {
+  const seen = new Map<string, number>()
+  return lines.map((line) => {
+    const base = `${line.kind}:${line.oldNo ?? line.newNo ?? line.text}`
+    const count = (seen.get(base) ?? 0) + 1
+    seen.set(base, count)
+    return `${base}:${count}`
+  })
 }

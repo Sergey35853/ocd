@@ -1,4 +1,13 @@
-import { extname } from "node:path"
+import { basename, extname } from "node:path"
+
+/**
+ * The longest name a file may carry.
+ *
+ * Windows allows 255 characters per segment, but the name travels through a
+ * data URL and a chat chip as well, and a name nobody can read is not worth
+ * the bytes.
+ */
+const MAX_NAME = 120
 
 /**
  * What kind of file this is, from its name alone.
@@ -117,6 +126,32 @@ export function samePath(path: string): string {
 }
 
 /**
+ * A name that can only ever be a name.
+ *
+ * The hint comes from a paste or a drop, so it is untrusted: it may carry a
+ * path, a separator, or characters Windows refuses outright. Only the last
+ * segment of it survives, and what is left is stripped down to something a
+ * file can be called - a name with a separator in it is a path, and a name
+ * that walks out of its directory is an arbitrary write.
+ */
+export function safeFileName(nameHint: string, fallback = "file"): string {
+  const last = basename(nameHint.replace(/\\/g, "/")).trim()
+  const cleaned = last
+    .replace(/[<>:"/\\|?*]/g, "_")
+    // Control characters are not printable and Windows refuses them in a
+    // name. The rule that objects is right in general and wrong here: the
+    // point of this line is exactly those characters.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f]/g, "")
+    // A name may not end in a dot or a space on Windows.
+    .replace(/[. ]+$/g, "")
+    .slice(0, MAX_NAME)
+    .replace(/[. ]+$/g, "")
+    .trim()
+  return cleaned || fallback
+}
+
+/**
  * The file name to give something that arrived as bytes.
  *
  * An extension is invented only for an image, and only when the name has none:
@@ -124,10 +159,14 @@ export function samePath(path: string): string {
  * its own and appending to that renames it and tells the model it is something
  * it is not. A dropped `Makefile` is text and must not come back as
  * `Makefile.png`.
+ *
+ * The name is made safe on the way through: it is about to be used as a file
+ * name, and it comes from wherever the paste or the drop came from.
  */
 export function nameForBytes(nameHint: string, mime: string): string {
-  if (extname(nameHint) !== "") return nameHint
-  if (!mime.startsWith("image/")) return nameHint
+  const safe = safeFileName(nameHint, "pasted")
+  if (extname(safe) !== "") return safe
+  if (!mime.startsWith("image/")) return safe
   const ext = mime === "image/jpeg" ? ".jpg" : mime === "image/webp" ? ".webp" : ".png"
-  return `${nameHint}${ext}`
+  return `${safe}${ext}`
 }

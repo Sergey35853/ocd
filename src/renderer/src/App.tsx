@@ -7,6 +7,7 @@ import { askChat } from "./lib/commands"
 import { ToastStack } from "./components/ui"
 import { PermissionPrompt } from "./components/PermissionPrompt"
 import { CommandPalette, type Command } from "./components/CommandPalette"
+import { installClipboardBridge } from "./lib/messageMove"
 import {
   IconChat,
   IconChip,
@@ -78,6 +79,17 @@ const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: stri
 
 function Shell() {
   const store = useStore()
+
+  /**
+   * The store, in a ref.
+   *
+   * The store is a new object on every tick of a running turn, so an effect
+   * that depends on it starts over — and asks the server for everything
+   * again — once a second, for as long as the model writes. The ref holds the
+   * same store without making that a reason to start over.
+   */
+  const storeRef = useRef(store)
+  storeRef.current = store
 
   /**
    * The header's update button.
@@ -228,10 +240,10 @@ function Shell() {
 
   const pickSession = useCallback(
     (sessionId: string) => {
-      store.openSession(sessionId)
+      storeRef.current.openSession(sessionId)
       if (narrow) setSidebarOpen(false)
     },
-    [narrow, store],
+    [narrow],
   )
 
   const filteredSessions = useMemo(() => {
@@ -296,9 +308,9 @@ function Shell() {
   // Every entry point must land on the chat, otherwise creating a session
   // looks like nothing happened when another view was open.
   const createAndOpen = useCallback(async () => {
-    const id = await store.newSession()
+    const id = await storeRef.current.newSession()
     if (id) setView("chat")
-  }, [store])
+  }, [])
 
   const stripRef = useRef<HTMLDivElement>(null)
 
@@ -357,27 +369,57 @@ function Shell() {
     return () => clearInterval(timer)
   }, [])
 
-  // A window opened for one conversation should show exactly that one.
+  /**
+   * The bridge between the "copy to another conversation" button and the
+   * composer of that conversation.
+   *
+   * Put in place here, where the window is assembled: the button lives in the
+   * chat and the composer lives in another one, and neither of them is on
+   * screen while the other is.
+   */
   useEffect(() => {
-    const wanted = sessionFromHash()
-    if (!wanted) return
-    if (store.activeTab === wanted) return
-    void store.openSession(wanted)
-  }, [store])
+    installClipboardBridge()
+  }, [])
+
+  /**
+   * The conversation this window was opened for.
+   *
+   * Read from the hash and kept: the hash of a session window does not
+   * change, and the effect that opens it must not run again because the
+   * store did.
+   */
+  const [hashSession, setHashSession] = useState(sessionFromHash)
+  useEffect(() => {
+    const onHash = () => setHashSession(sessionFromHash())
+    window.addEventListener("hashchange", onHash)
+    return () => window.removeEventListener("hashchange", onHash)
+  }, [])
+
+  // A window opened for one conversation should show exactly that one.
+  //
+  // Only the conversation of the hash is a dependency: the effect used to
+  // depend on the whole store, so it ran again on every tick of a running
+  // turn and opened the wanted conversation over the one the user had just
+  // picked.
+  useEffect(() => {
+    if (!hashSession) return
+    if (storeRef.current.activeTab === hashSession) return
+    void storeRef.current.openSession(hashSession)
+  }, [hashSession])
 
   // Tray entries and the tray language switch arrive as commands.
   useEffect(() => {
     return window.ocd.app.onCommand((command) => {
       if (command.kind === "open-session" && command.sessionId) {
         setView("chat")
-        void store.openSession(command.sessionId)
+        void storeRef.current.openSession(command.sessionId)
         return
       }
       if (command.kind === "set-language" && command.language) {
-        void store.updateSettings({ uiLanguage: command.language as never })
+        void storeRef.current.updateSettings({ uiLanguage: command.language as never })
       }
     })
-  }, [store])
+  }, [])
 
   // Keep the tray menu in step with what the app is doing. Pushed rather than
   // pulled: main has no session list of its own and should not ask for one.
@@ -423,7 +465,7 @@ function Shell() {
         target instanceof HTMLElement
           ? target.closest("input, textarea, [contenteditable]")
           : null
-      const action = actionFor(event, store.settings?.shortcuts)
+      const action = actionFor(event, storeRef.current.settings?.shortcuts)
       if (!action) return
       if (typing && action !== "palette" && action !== "search") return
       event.preventDefault()
@@ -439,16 +481,16 @@ function Shell() {
           searchRef.current?.focus()
           break
         case "closeTab":
-          if (store.activeTab) void store.closeTab(store.activeTab)
+          if (storeRef.current.activeTab) void storeRef.current.closeTab(storeRef.current.activeTab)
           break
         case "nextTab":
         case "prevTab": {
-          const tabs = store.tabs
+          const tabs = storeRef.current.tabs
           if (!tabs.length) break
-          const index = tabs.findIndex((tab) => tab.sessionId === store.activeTab)
+          const index = tabs.findIndex((tab) => tab.sessionId === storeRef.current.activeTab)
           const step = action === "nextTab" ? 1 : -1
           const next = tabs[(index + step + tabs.length) % tabs.length]
-          if (next) store.openSession(next.sessionId)
+          if (next) storeRef.current.openSession(next.sessionId)
           break
         }
         case "settings":
@@ -467,7 +509,7 @@ function Shell() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [createAndOpen, store])
+  }, [createAndOpen])
 
   const commands = useMemo<Command[]>(
     () => [
@@ -483,11 +525,11 @@ function Shell() {
       { id: "chat:compact", label: t("session.compact"), keywords: "сжать контекст compact context", group: "app", run: () => askChat("compact") },
       { id: "chat:terminal", label: t("terminal.open"), keywords: "терминал консоль terminal console", group: "app", run: () => askChat("terminal") },
       { id: "chat:file", label: t("files.title"), keywords: "найти файл file search", group: "app", run: () => askChat("fileSearch") },
-      { id: "chat:move", label: t("session.move"), keywords: "перенести проект move project", group: "app", run: () => askChat("move") },      { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void store.restartService() },
+      { id: "chat:move", label: t("session.move"), keywords: "перенести проект move project", group: "app", run: () => askChat("move") },      { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void storeRef.current.restartService() },
       { id: "sidebar", label: t("chat.toggleSidebar"), keywords: "панель сессий sidebar", group: "app", run: () => setSidebarOpen((value) => !value) },
       { id: "focus", label: t("chat.expand"), keywords: "фокус во весь экран", group: "app", run: () => setExpanded((value) => !value) },
     ],
-    [createAndOpen, goChat, store, t],
+    [createAndOpen, goChat, t],
   )
 
   return (

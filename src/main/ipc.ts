@@ -8,8 +8,6 @@ import { openPty, writePty, closePty } from "./pty"
 import {
   readConfig,
   writeConfig,
-  setConfigModel,
-  setDefaultAgent,
   setReplyLanguage,
   configReplyLanguage,
   configLanguageCurrent,
@@ -20,7 +18,6 @@ import {
   configPath,
 } from "./configFile"
 import {
-  addLocalPlugin,
   installPlugin,
   listPlugins,
   uninstallPlugin,
@@ -48,10 +45,10 @@ import {
   updateEvents,
   updateState,
 } from "./updater"
-import { clearIndex, ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
+import { ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
 import { clear as clearRequestLedger, countRequest, markRateLimited, setLimit, snapshot } from "./limits"
 import { log, readLogTail, logFolder } from "./log"
-import { closeHud, setHudData, toggleHud } from "./hud"
+import { setHudData, toggleHud } from "./hud"
 import { sshTunnel } from "./sshTunnel"
 import { flashTaskbar, notifyFinish, type FinishNotice } from "./notify"
 import { dismissNotice, showFinishNotice } from "./notice"
@@ -80,11 +77,9 @@ import type {
   IntegrationInfo,
   LimitWindow,
   LocalRuntimeStatus,
-  LocationInfo,
   McpServerInfo,
   ModelInfo,
   ModelRef,
-  ProjectInfo,
   FormAnswer,
   PendingForm,
   ProviderInfo,
@@ -269,6 +264,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<ServiceStatus>("service:status", () => service.status())
 
   handle<ServiceStatus>("service:connect", async (serverUrl?: string) => {
+    // The stream belongs to the old address. Whatever the new one turns out
+    // to be, the old subscription has to go first — otherwise the chat keeps
+    // listening to the server it was just pointed away from.
+    service.stopEventStream()
     const result = await service.connect(serverUrl)
     if (result.connected) service.startEventStream()
     return result
@@ -281,24 +280,23 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return result
   })
 
+  /**
+   * The window asks for the server's events.
+   *
+   * The stream lives in main and is already forwarded to every window, so
+   * this only has to make sure it is running — and answer honestly when it is
+   * not, instead of leaving the caller waiting for events that will never
+   * arrive.
+   */
+  handle<{ ok: boolean }>("events:subscribe", () => {
+    if (service.status().connected) service.startEventStream()
+    return { ok: service.status().connected }
+  })
+
   // ---------- api ----------
 
   handle<unknown>("api:info", () => service.get("/api/info"))
-  handle<unknown>("api:config", () => service.get("/api/config"))
 
-  handle<ProjectInfo[]>("api:projects", async () =>
-    unwrap<ProjectInfo>(await service.get("/api/project")),
-  )
-
-  handle<LocationInfo | null>("api:currentLocation", async () => {
-    try {
-      return unwrap<LocationInfo>(await service.get("/api/location"))[0] ?? null
-    } catch {
-      return null
-    }
-  })
-
-  handle<unknown>("api:locations", () => service.get("/api/location"))
 
   handle<ProviderInfo[]>("api:providers", async (directory?: string) =>
     unwrap<ProviderInfo>(await service.get("/api/provider", locationQuery(directory)), "providers"),
@@ -336,8 +334,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  handle<unknown>("api:plugins", () => service.get("/api/plugin"))
-  handle<unknown>("api:updatePlugins", () => service.post("/api/plugin/update"))
+ handle<unknown>("api:updatePlugins", () => service.post("/api/plugin/update"))
 
   handle<McpServerInfo[]>("api:mcp", async () =>
     unwrap<McpServerInfo>(await service.get("/api/mcp"), "servers"),
@@ -377,11 +374,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     service.patch(`/api/session/${id}`, { title }),
   )
 
-  handle<unknown>("api:messages", (sessionId: string) =>
-    service.get(`/api/session/${sessionId}/message`, { limit: 200 }),
-  )
-
-  handle<unknown>(
+ handle<unknown>(
     "api:prompt",
     (
       sessionId: string,
@@ -600,14 +593,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return Array.isArray(list) ? (list as WorktreeInfo[]) : []
   })
 
-  handle<unknown>("api:savePermissionRule", (sessionId: string, rule: { action: string; resources: string[]; save?: string[] }) =>
-    service.post(`/api/session/${sessionId}/permission`, {
-      action: rule.action,
-      resources: rule.resources,
-      ...(rule.save?.length ? { save: rule.save } : {}),
-    }),
-  )
-
+  /**
+   * Forget a permission the server remembered.
+   *
+   * There is no route for making one: the server saves a rule when the user
+   * answers "always", and the app's only business here is to be able to
+   * forget it again.
+   */
   handle<unknown>("api:deletePermissionRule", (id: string) =>
     service.del(`/api/permission/saved/${id}`),
   )
@@ -698,8 +690,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle("plugins:search", (query: string) => searchPlugins(query))
   handle("plugins:install", (pkg: string) => installPlugin(pkg))
   handle("plugins:uninstall", (id: string) => uninstallPlugin(id))
-  handle("plugins:addLocal", (dir: string) => addLocalPlugin(dir))
-  handle("plugins:revealLocal", (dir: string) => {
+ handle("plugins:revealLocal", (dir: string) => {
     shell.showItemInFolder(dir)
   })
 
@@ -708,10 +699,6 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle("configFile:read", () => readConfig())
   handle("configFile:write", (text: string) => writeConfig(text))
   handle("configFile:reload", () => service.post("/api/location/reload"))
-  handle("configFile:setModel", (providerID: string, modelID: string) =>
-    setConfigModel(providerID, modelID),
-  )
-  handle("configFile:setAgent", (agent: string) => setDefaultAgent(agent))
   handle("configFile:setReplyLanguage", (lang: ReplyLanguage) => {
     const result = setReplyLanguage(lang)
     if (!result.ok) throw new Error(result.error ?? "Не удалось записать конфиг")
@@ -957,6 +944,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   // One dictation take at a time; the transcript arrives as an event.
   let dictationRun: Promise<unknown> | null = null
+  /** Bumped on every start and every cancel; see the start handler. */
+  let dictationGeneration = 0
 
   handle("voice:defaults", () => voice.defaults())
   handle("voice:devices", () => voice.devices())
@@ -976,6 +965,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   handle<{ ok: boolean; error?: string }>("voice:startDictation", () => {
     if (dictationRun) return { ok: false, error: "Диктовка уже идёт" }
+    // The generation is what tells a late result from a run nobody wants
+    // any more. Without it the promise of a cancelled recording still lands
+    // in the chat, and its `finally` clears the handle of the *next* run.
+    const generation = ++dictationGeneration
     broadcastVoiceState({ dictation: "recording" })
     dictationRun = voice
       .startDictation(
@@ -987,6 +980,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         },
       )
       .then((result) => {
+        if (generation !== dictationGeneration) return result
         broadcastVoiceState({ dictation: "idle" })
         for (const win of getWindows()) {
           if (!win.isDestroyed()) win.webContents.send("ocd:dictation", result)
@@ -994,21 +988,32 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         return result
       })
       .catch((err: unknown) => {
-        broadcastVoiceState({ dictation: "idle", error: String(err) })
+        if (generation === dictationGeneration) {
+          broadcastVoiceState({ dictation: "idle", error: String(err) })
+        }
         return { ok: false, error: String(err) }
       })
       .finally(() => {
-        dictationRun = null
+        // Only the run that is still current may clear the handle: a cancel
+        // cleared it already, and a newer run may own it now.
+        if (generation === dictationGeneration) dictationRun = null
       })
     return { ok: true }
   })
 
   handle("voice:stopDictation", () => {
+    // Nothing was recording, so there is nothing to transcribe. Saying
+    // "transcribing" anyway left the state stuck there for good: no run
+    // finished, so nobody sent the "idle" back.
+    if (!dictationRun) return
     broadcastVoiceState({ dictation: "transcribing" })
     voice.stopDictation()
   })
 
   handle("voice:cancelDictation", () => {
+    // The generation goes up first: whatever the recording process reports
+    // from here on belongs to a run nobody is waiting for.
+    dictationGeneration++
     voice.cancelDictation()
     dictationRun = null
     broadcastVoiceState({ dictation: "idle" })
@@ -1052,8 +1057,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return true
   })
   handle("app:close", () => getWindow()?.close())
-  handle("app:minimizeToTray", () => getWindow()?.hide())
-  handle("app:setAlwaysOnTop", (value: boolean) => {
+ handle("app:setAlwaysOnTop", (value: boolean) => {
     getWindow()?.setAlwaysOnTop(value, "screen-saver")
     getWindow()?.setVisibleOnAllWorkspaces(value)
   })
@@ -1102,6 +1106,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
     setSettings({ serverUrlOverride: tunnel.url })
     service.setOverride(tunnel.url)
+    // The old stream is still pointed at the local server. It has to go before
+    // the new one is started, and the new one has to be started after — the
+    // stream follows the endpoint, so a tunnel that is adopted without this
+    // leaves the chat listening to the server it just left.
+    service.stopEventStream()
     const status = await service.connect(tunnel.url)
     if (status.connected) service.startEventStream()
 
@@ -1112,6 +1121,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle("remote:disconnect", async () => {
     sshTunnel.close()
     setSettings({ serverUrlOverride: "" })
+    service.stopEventStream()
     const status = await service.connect()
     if (status.connected) service.startEventStream()
   })
@@ -1141,25 +1151,46 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle("hud:push", (state: HudState) => setHudData(state))
 
   handle<boolean>("hud:toggle", () => toggleHud())
-  handle("hud:close", () => closeHud())
 
 // ---------- full-text search ----------
 
+/**
+ * The session list main knows about.
+ *
+ * The search index is keyed by the server's own sessions, so the list that
+ * decides what is searched comes from the server too — not from the window
+ * that happens to be asking.
+ */
+let knownSessions: SessionInfo[] = []
+
+async function fetchSessions(): Promise<SessionInfo[]> {
+  const sessions = unwrap<SessionInfo>(await service.get("/api/session"))
+  return Array.isArray(sessions) ? sessions : []
+}
+
   /** Build the index in the background; resolves when it is usable. */
   handle<{ sessions: number }>("search:build", async (force = false) => {
-    const sessions = unwrap<SessionInfo>(await service.get("/api/session"))
-    pruneIndex(sessions)
-    await ensureIndex(sessions, force)
+    knownSessions = await fetchSessions()
+    pruneIndex(knownSessions)
+    await ensureIndex(knownSessions, force)
     return { sessions: indexSize() }
   })
 
-  handle<SearchHit[]>("search:query", (query: string, sessions: SessionInfo[]) =>
-    search(query, sessions ?? []),
-  )
+  handle<SearchHit[]>("search:query", async (query: string) => {
+    // The list is usually already known from the build. When it is not — the
+    // index was restored from disk and no search ran yet — it is fetched once
+    // and kept, rather than asked for on every keystroke.
+    if (knownSessions.length === 0) {
+      try {
+        knownSessions = await fetchSessions()
+      } catch {
+        /* the index alone still answers, just without fresh titles */
+      }
+    }
+    return search(query, knownSessions)
+  })
 
-  handle("search:clear", () => clearIndex())
-
-  /** Renderer asked for a toast because a turn ended out of sight. */
+ /** Renderer asked for a toast because a turn ended out of sight. */
   handle<boolean>("notify:finish", (notice: FinishNotice) => {
     const owner = getWindow()
     flashTaskbar(owner, notice.failed)
@@ -1369,12 +1400,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return true
   })
 
-  handle("app:hideWindow", () => {
-    getWindow()?.hide()
-    updateTrayState({ visible: false })
-  })
-
-  /** Reveal the window and let the renderer put the caret in the composer. */
+ /** Reveal the window and let the renderer put the caret in the composer. */
   handle("app:focusComposer", () => {
     const win = getWindow()
     if (!win) return

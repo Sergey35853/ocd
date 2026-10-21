@@ -23,10 +23,28 @@ interface IndexEntry {
   messages: number
   /** Lower-cased plain text of the whole conversation. */
   text: string
+  /** Where each message's text begins in `text`, and which message it is. */
+  marks: MessageMark[]
+}
+
+/**
+ * One message inside the indexed text.
+ *
+ * The text of a session is stored as one blob, so a hit cannot say which
+ * message it came from without being told where each message starts.
+ */
+interface MessageMark {
+  /** Character offset in the entry's text. */
+  at: number
+  /**
+   * 1-based number of the message in the transcript, counted in the order the
+   * server handed the messages over.
+   */
+  number: number
 }
 
 interface IndexFile {
-  version: 1
+  version: 2
   sessions: Record<string, IndexEntry>
 }
 
@@ -57,7 +75,9 @@ function load(): IndexFile {
     const file = indexFile()
     if (existsSync(file)) {
       const parsed = JSON.parse(readFileSync(file, "utf8")) as IndexFile
-      if (parsed?.version === 1 && parsed.sessions) {
+      // An index from before the message marks existed cannot say which
+      // message a hit came from, so it is rebuilt rather than believed.
+      if (parsed?.version === 2 && parsed.sessions) {
         cache = parsed
         return cache
       }
@@ -65,7 +85,7 @@ function load(): IndexFile {
   } catch {
     /* a corrupt index is not worth keeping: rebuild instead */
   }
-  cache = { version: 1, sessions: {} }
+  cache = { version: 2, sessions: {} }
   return cache
 }
 
@@ -84,17 +104,55 @@ function save(): void {
   }
 }
 
-/** Plain text of a conversation: message bodies, tool names, no JSON blobs. */
-function conversationText(messages: MessageInfo[]): { text: string; count: number } {
+/**
+ * Plain text of a conversation: message bodies, tool names, no JSON blobs.
+ *
+ * The offset of every message in the joined text is kept alongside it: a hit
+ * has to name the message it came from, and the blob alone cannot say which
+ * one that was. The marks stop at the same place the text does, because
+ * anything past it was never indexed.
+ */
+function conversationText(messages: MessageInfo[]): {
+  text: string
+  count: number
+  marks: MessageMark[]
+} {
   const parts: string[] = []
-  for (const message of messages) {
+  const marks: MessageMark[] = []
+  let offset = 0
+
+  for (const [index, message] of messages.entries()) {
+    const blocks: string[] = []
     for (const part of message.content ?? []) {
       const block = part as MessageContent
-      if (block.type === "text" && typeof block.text === "string") parts.push(block.text)
-      else if (block.type === "tool" && block.tool) parts.push(block.tool)
+      if (block.type === "text" && typeof block.text === "string") blocks.push(block.text)
+      else if (block.type === "tool" && block.tool) blocks.push(block.tool)
+    }
+    const chunk = blocks.join("\n").toLowerCase()
+    if (chunk) {
+      if (offset < MAX_TEXT) marks.push({ at: offset, number: index + 1 })
+      parts.push(chunk)
+      // The separator join() adds between two parts.
+      offset += chunk.length + 1
     }
   }
-  return { text: parts.join("\n").slice(0, MAX_TEXT).toLowerCase(), count: messages.length }
+
+  return { text: parts.join("\n").slice(0, MAX_TEXT), count: messages.length, marks }
+}
+
+/**
+ * The message a character offset falls into.
+ *
+ * Zero when nothing is known about it: the index is a summary, and a hit
+ * without a message number is still a hit.
+ */
+function messageAt(marks: MessageMark[], offset: number): number {
+  let number = 0
+  for (const mark of marks) {
+    if (mark.at > offset) break
+    number = mark.number
+  }
+  return number
 }
 
 /**
@@ -112,8 +170,8 @@ async function indexSession(session: SessionInfo): Promise<void> {
   try {
     const raw = await service.get(`/api/session/${session.id}/message`)
     const messages = Array.isArray(raw) ? (raw as MessageInfo[]) : []
-    const { text, count } = conversationText(messages)
-    store.sessions[session.id] = { title: session.title ?? "", updated, messages: count, text }
+    const { text, count, marks } = conversationText(messages)
+    store.sessions[session.id] = { title: session.title ?? "", updated, messages: count, text, marks }
   } catch {
     // Keep whatever was indexed before rather than dropping the session.
   }
@@ -196,7 +254,7 @@ export function search(query: string, sessions: SessionInfo[]): SearchHit[] {
       sessionId,
       title: session?.title ?? entry.title ?? sessionId,
       snippet: from > 0 ? "…" + slice : slice,
-      messageIndex: 0,
+      messageIndex: messageAt(entry.marks ?? [], start),
       updated: session?.time?.updated ?? entry.updated,
     })
   }
@@ -205,6 +263,6 @@ export function search(query: string, sessions: SessionInfo[]): SearchHit[] {
 }
 
 export function clearIndex(): void {
-  cache = { version: 1, sessions: {} }
+  cache = { version: 2, sessions: {} }
   save()
 }

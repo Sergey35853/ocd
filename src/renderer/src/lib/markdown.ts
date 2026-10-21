@@ -1,6 +1,6 @@
 import MarkdownIt from "markdown-it"
 import type { Token } from "markdown-it"
-import { useMemo } from "react"
+import { useMemo, useRef } from "react"
 import { useT, type DictKey } from "../i18n"
 import { escapeAttr, escapeHtml, highlight, toNumberedLines } from "./highlight"
 
@@ -102,6 +102,20 @@ function tidyBreaks(html: string): string {
 export function useMarkdown(actions: CodeActions = {}) {
   const t = useT()
 
+  /**
+   * The actions are remembered rather than depended on.
+   *
+   * The caller builds its callbacks afresh on every render, and a dependency
+   * on that object tore the whole renderer down each time — a new MarkdownIt,
+   * and the text parsed again with it. The chat redraws on every token of the
+   * answer, so that was the whole history, parsed again and again.
+   *
+   * A ref is the right shape for this: the callbacks are read when a block is
+   * rendered, and the newest ones are the ones that should be used.
+   */
+  const actionsRef = useRef(actions)
+  actionsRef.current = actions
+
   return useMemo(() => {
     const md = new MarkdownIt({
       html: false,
@@ -132,7 +146,7 @@ export function useMarkdown(actions: CodeActions = {}) {
       return codeBlockHtml(
         String(tokens[idx].content),
         info.split(/\s+/)[0] ?? "",
-        actions,
+        actionsRef.current,
         t,
       )
     }
@@ -148,5 +162,5 @@ export function useMarkdown(actions: CodeActions = {}) {
       render: (text: string) => md.render(text, {}),
       inline: (text: string) => md.renderInline(text, {}),
     }
-  }, [actions, t])
+  }, [t])
 }

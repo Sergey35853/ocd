@@ -75,6 +75,7 @@ export function SessionBoard({
   pinnedOpen,
   onTogglePinnedOpen,
   registerPin,
+  unregisterPin,
 }: {
   sessionId: string
   /** Whether the pin list is expanded; only rendered when pins exist. */
@@ -86,6 +87,14 @@ export function SessionBoard({
    * from two places would need two copies of the same localStorage logic.
    */
   registerPin(add: (text: string) => void): void
+  /**
+   * Called when this board goes away, if the host keeps one of its own.
+   *
+   * The writer is replaced with one that does nothing when the host has no
+   * unsubscribe, so a pin button of a conversation that is gone cannot add to
+   * a conversation that is not there any more.
+   */
+  unregisterPin?: () => void
 }) {
   const t = useT()
   const [pins, setPins] = useState<Pin[]>([])
@@ -114,7 +123,14 @@ export function SessionBoard({
   // Hand the writer to whoever renders the messages.
   useEffect(() => {
     registerPin(add)
-  }, [registerPin, add])
+    return () => {
+      // The writer belongs to this board and to this conversation: leaving it
+      // behind would let the pin button of a conversation that is gone add to
+      // the one that is still on screen.
+      unregisterPin?.()
+      registerPin(() => undefined)
+    }
+  }, [registerPin, add, unregisterPin])
 
   const remove = useCallback(
     (id: string) => {
