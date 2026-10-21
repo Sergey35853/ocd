@@ -71,6 +71,29 @@ function mergePermission(
 }
 
 /**
+ * The actions that only read.
+ *
+ * The server names the tool, and the name is a free string: there is no list
+ * of actions in its API. This is the app's own answer to the question "what
+ * does not change anything", and it is deliberately short — a tool that is not
+ * on the list is treated as one that writes, and is refused.
+ */
+const READ_ONLY_ACTIONS = new Set([
+  "read",
+  "glob",
+  "grep",
+  "list",
+  "ls",
+  "webfetch",
+  "websearch",
+])
+
+/** Whether a permission request only asks the agent to look at something. */
+export function isReadOnlyAction(action: string | undefined): boolean {
+  return READ_ONLY_ACTIONS.has((action ?? "").trim().toLowerCase())
+}
+
+/**
  * Whether an event payload really is a permission request.
  *
  * The server's event payloads are untyped on the way in, and both fields here
@@ -928,6 +951,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [toast, pollPermissions],
   )
+
+  /**
+   * The safe mode: the agent may look, but not touch.
+   *
+   * Every request to change something is refused without being asked about,
+   * and the ones that only read are answered at once: a question the user has
+   * already answered by turning the mode on would be a question asked for
+   * nothing.
+   *
+   * The refusals are announced. A turn that stops without a word looks like a
+   * hang, and the user would go looking for the reason in the wrong place.
+   */
+  useEffect(() => {
+    if (!settingsRef.current?.safeMode) return
+    if (!pendingPermissions.length) return
+    for (const request of pendingPermissions) {
+      const readOnly = isReadOnlyAction(request.action)
+      void window.ocd.permission
+        .reply(request.sessionID, request.id, readOnly ? "once" : "reject")
+        .catch(() => undefined)
+      if (!readOnly) {
+        toast(translate("safe.refused", { action: request.action ?? "" }), "info")
+      }
+    }
+    setPendingPermissions([])
+  }, [pendingPermissions, toast])
 
   /** Write one session's waiting questions, keeping the mirror in step. */
   const putForms = useCallback((sessionId: string, next: PendingForm[]) => {

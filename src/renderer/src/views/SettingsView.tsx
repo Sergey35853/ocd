@@ -743,6 +743,13 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               onChange={(value) => void store.updateSettings({ notifyOnFinish: value })}
             />
           </Field>
+
+          <Field label={t("set.safeMode")} hint={t("set.safeModeHint")}>
+            <Switch
+              on={settings.safeMode === true}
+              onChange={(value) => void store.updateSettings({ safeMode: value })}
+            />
+          </Field>
         </div>
       ),
     },

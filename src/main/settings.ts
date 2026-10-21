@@ -23,6 +23,9 @@ const DEFAULTS: AppSettings = {
   // without being asked is rude, so the user opts in from Settings.
   globalHotkey: "",
   autoUpdate: false,
+  // The agent may look, but not touch. Off by default: a refusal the user did
+  // not ask for is worse than a question.
+  safeMode: false,
   fontScale: 1,
   showThinking: true,
   notifyOnFinish: true,
