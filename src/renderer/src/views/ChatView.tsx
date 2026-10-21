@@ -45,6 +45,14 @@ import {
   questionOf,
   type ToolQuestion,
 } from "../lib/questions"
+import {
+  EMPTY_TRANSCRIPT,
+  mergePage,
+  pendingRequest,
+  prependOlder,
+  type PendingRequest,
+  type Transcript,
+} from "../lib/transcript"
 import { UsageMeter } from "../components/UsageMeter"
 import { LimitMeter } from "../components/LimitMeter"
 import { PinButton, SessionBoard } from "../components/SessionBoard"
@@ -926,9 +934,19 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const refreshContext = store.refreshContext
   /** The active interface language, so labels follow the switch. */
   const language = getLanguage()
-  const [messages, setMessages] = useState<MessageInfo[]>([])
+  /**
+   * The conversation on screen, and the one the messages belong to.
+   *
+   * The tab strip keeps several conversations open at once, so the transcript
+   * has to say which conversation it is: a page fetched for one conversation
+   * merged into the messages of another is how a question asked in the first
+   * tab ends up answering in the second.
+   */
+  const [transcript, setTranscript] = useState<Transcript>(EMPTY_TRANSCRIPT)
+  /** The messages of the conversation on screen. */
+  const messages = transcript.items
   /** The just-sent prompt, shown until the server lists it in the history. */
-  const [pendingUser, setPendingUser] = useState<MessageInfo | null>(null)
+  const [pending, setPending] = useState<PendingRequest | null>(null)
   const [title, setTitle] = useState("")
   const [editingTitle, setEditingTitle] = useState(false)
   // The session's own model wins over the global default: a session created
@@ -1197,6 +1215,22 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   // The store keys everything by id, so an absent session is the empty string
   // rather than null; the JSX below guards on truthiness where it matters.
   const sessionId = session?.id ?? ""
+  /**
+   * The prompt on screen — only while it belongs to this conversation.
+   *
+   * A request sent in another tab stays in that tab: the model there never
+   * received it, and showing it here would be a request the user cannot
+   * account for.
+   */
+  const pendingUser = pending && pending.sessionId === sessionId ? pending.message : null
+  /**
+   * The conversation on screen, as of the last render.
+   *
+   * A page that was on its way when the user changed tabs belongs to the tab
+   * they left; this is how a late answer is recognised and dropped.
+   */
+  const shownRef = useRef(sessionId)
+  shownRef.current = sessionId
   /** The agent the session is pinned to, as the server sees it. */
   const sessionAgent = sessionId ? store.sessionAgents[sessionId] : undefined
   /** Stops the running turn; stable, so the transcript stays memoised. */
@@ -1329,19 +1363,19 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
    */
   const load = useCallback(async () => {
     if (!sessionId) {
-      setMessages([])
+      setTranscript(EMPTY_TRANSCRIPT)
       return
     }
     try {
       const page = await window.ocd.api.messagePage(sessionId, { limit: PAGE_SIZE })
+      // The user moved to another tab while the page was on its way: it
+      // belongs to the conversation they left.
+      if (shownRef.current !== sessionId) return
       const fresh = withAttachments(page.messages ?? [])
       // A refresh after a turn must not throw away the older half the user
-      // scrolled up to and read: keep what is above the new page.
-      setMessages((current) => {
-        const freshIds = new Set(fresh.map((message) => message.id))
-        const kept = current.filter((message) => !freshIds.has(message.id))
-        return [...kept, ...fresh]
-      })
+      // scrolled up to and read: keep what is above the new page. A page of
+      // another conversation replaces the transcript instead.
+      setTranscript((current) => mergePage(current, sessionId, fresh))
       // The cursor walks backwards, so the one that matters is the oldest
       // page already loaded — a refresh must not rewind it.
       if (historyRef.current.sessionId !== sessionId) {
@@ -1352,17 +1386,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
       }
 
       // Once the server has the turn, its copy replaces the optimistic one.
-      // Matched on the exact body: the same sentence twice in a row would
-      // otherwise leave a phantom bubble on screen.
-      setPendingUser((current) => {
-        if (!current) return current
-        const landed = fresh.some(
-          (message) => message.type === "user" && message.text === current.text,
-        )
-        return landed ? null : current
-      })
+      setPending((current) => pendingRequest(current, sessionId, fresh))
     } catch {
-      setMessages([])
+      setTranscript({ sessionId, items: [] })
     }
   }, [sessionId, withAttachments])
 
@@ -1396,11 +1422,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
         history.start = true
         setHistoryStart(true)
       }
-      setMessages((current) => {
-        const known = new Set(current.map((message) => message.id))
-        const fresh = older.filter((message) => !known.has(message.id))
-        return fresh.length ? [...fresh, ...current] : current
-      })
+      setTranscript((current) => prependOlder(current, sessionId, older))
       requestAnimationFrame(() => {
         if (!node) return
         node.scrollTop = node.scrollHeight - heightBefore
@@ -2080,12 +2102,17 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     // the turn is over, so waiting for that makes the app look like it
     // swallowed the message.
     if (body) {
-      setPendingUser({
-        id: `pending-${Date.now()}`,
-        type: "user",
-        text: body,
-        time: { created: Date.now() },
-        attachments: attachments.length ? [...attachments] : undefined,
+      setPending({
+        // The conversation it was sent to: a request belongs to the tab it
+        // was written in, and does not follow the user to another one.
+        sessionId,
+        message: {
+          id: `pending-${Date.now()}`,
+          type: "user",
+          text: body,
+          time: { created: Date.now() },
+          attachments: attachments.length ? [...attachments] : undefined,
+        },
       })
       // The server's copy of this turn arrives without attachments, so they are
       // remembered here and re-attached when it lands. Keyed by the prompt body
@@ -2111,7 +2138,7 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             // Sending anyway would be the silent hang this guard exists to
             // prevent, so the words go back into the field instead.
             applyDraft(body)
-            setPendingUser(null)
+            setPending(null)
             store.toast(err instanceof Error ? err.message : String(err), "error")
             return
           }

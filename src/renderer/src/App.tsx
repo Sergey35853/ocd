@@ -746,6 +746,10 @@ function Shell() {
       <main className="main">
         {view === "chat" ? (
           <ChatView
+            // One tab, one chat: the key makes the window keep a separate
+            // transcript, request and preview per conversation, instead of
+            // handing the next tab what the previous one left on screen.
+            key={activeSession?.id ?? "empty"}
             session={activeSession}
             expanded={expanded}
             onToggleExpand={() => setExpanded((value) => !value)}
