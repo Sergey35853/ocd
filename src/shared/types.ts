@@ -661,6 +661,26 @@ export interface NotifyRule {
   enabled: boolean
 }
 
+/**
+ * A conversation that starts by itself.
+ *
+ * The same task every morning, every Monday, every hour: the app opens the
+ * conversation and sends the prompt, so the work is already waiting when the
+ * user sits down.
+ */
+export interface AutoRun {
+  id: string
+  /** The prompt the conversation starts with. */
+  prompt: string
+  /** The agent it runs; empty means the default one. */
+  agent: string
+  /** When it starts, as "HH:MM" in the machine's own time. */
+  time: string
+  /** The weekdays it starts on: 0 is Sunday. Empty means every day. */
+  days: number[]
+  enabled: boolean
+}
+
 export interface AppSettings {
   /** Default directory for new chats/projects. Empty means last used. */
   defaultDirectory: string
@@ -701,6 +721,8 @@ export interface AppSettings {
   notifyOnFinish: boolean
   /** The rules that make the app speak up on its own. */
   notifyRules?: NotifyRule[]
+  /** The conversations that start by themselves. */
+  autoRuns?: AutoRun[]
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */

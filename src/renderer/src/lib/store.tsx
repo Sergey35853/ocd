@@ -36,6 +36,7 @@ import { setLanguage, translate } from "../i18n"
 import { withTurnTime } from "./timing"
 import { cleanText } from "./text"
 import { nextActiveTab, pruneTabs, type OpenTab } from "./tabs"
+import { dueMoment, stampKey } from "./autoRuns"
 
 /** One background command, as the server reports it. */
 export interface ShellRun {
@@ -993,6 +994,48 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [settings?.busySendMode, refreshInbox, toast],
   )
+
+  /**
+   * The conversations that start by themselves.
+   *
+   * The rules live in the settings; the store is the only thing that knows
+   * how to open a conversation and send a prompt. The tick is short and the
+   * check is cheap, and the moment a rule is due is stamped — so a rule fires
+   * once, and not once a minute for the rest of the day.
+   *
+   * The stamp is written before the run: a rule that fails to start must not
+   * try again every twenty seconds.
+   */
+  useEffect(() => {
+    const tick = async () => {
+      const rules = settingsRef.current?.autoRuns ?? []
+      if (!rules.length) return
+      const now = new Date()
+      for (const rule of rules) {
+        const due = dueMoment(rule, now)
+        if (!due) continue
+        const key = stampKey(rule, due)
+        try {
+          if (localStorage.getItem(key)) continue
+          localStorage.setItem(key, "1")
+        } catch {
+          // No storage: the rule would fire again on the next tick. That is
+          // better than not firing at all, and the settings are still the
+          // user's.
+        }
+        try {
+          const id = await newSession()
+          if (!id) continue
+          await send(id, rule.prompt, rule.agent || undefined)
+          toast(translate("auto.ran", { time: rule.time }), "info")
+        } catch (err) {
+          toast(err instanceof Error ? err.message : String(err), "error")
+        }
+      }
+    }
+    const timer = setInterval(() => void tick(), 20_000)
+    return () => clearInterval(timer)
+  }, [newSession, send, toast])
 
   /**
    * Poll for permission requests the stream did not deliver.

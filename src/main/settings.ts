@@ -30,6 +30,7 @@ const DEFAULTS: AppSettings = {
   showThinking: true,
   notifyOnFinish: true,
   notifyRules: [],
+  autoRuns: [],
   showUsage: true,
   showLimits: true,
   // Typing while the model is still answering usually means "wait, also this" —
