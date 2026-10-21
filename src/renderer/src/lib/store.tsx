@@ -131,6 +131,8 @@ interface Store {
   models: ModelInfo[]
   /** What each agent is and what it may do. */
   agentDetails: Record<string, AgentDetails>
+  /** The sessions the server is working on, by id. */
+  activeSessions: Record<string, { type: string }>
   /** The model each conversation is pinned to, per conversation. */
   sessionModels: Record<string, ModelRef | null>
   /** The agent each conversation is pinned to, per conversation. */
@@ -456,6 +458,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
    * asks *before* choosing an agent.
    */
   const [agentDetails, setAgentDetails] = useState<Record<string, AgentDetails>>({})
+  /** The sessions the server is working on, by id. */
+  const [activeSessions, setActiveSessions] = useState<Record<string, { type: string }>>({})
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [commands, setCommands] = useState<CommandInfo[]>([])
   const [mcp, setMcp] = useState<McpServerInfo[]>([])
@@ -1782,6 +1786,27 @@ useEffect(() => {
   return () => clearInterval(timer)
 }, [pollPermissions, status?.connected])
 
+/**
+ * The sessions the server is working on right now.
+ *
+ * A turn started in another window — or in the OpenCode app itself — is
+ * invisible here otherwise: the chat looks idle while the model is writing,
+ * and the list of conversations gives no sign of it.
+ */
+const refreshActiveSessions = useCallback(async () => {
+  try {
+    setActiveSessions(await window.ocd.api.activeSessions())
+  } catch {
+    /* the server is not there; nothing is running */
+  }
+}, [])
+
+useEffect(() => {
+  void refreshActiveSessions()
+  const timer = setInterval(() => void refreshActiveSessions(), 5000)
+  return () => clearInterval(timer)
+}, [refreshActiveSessions, status?.connected])
+
   /**
    * Questions the model asked, polled per open conversation.
    *
@@ -1883,6 +1908,7 @@ useEffect(() => {
       live,
       models,
       agentDetails,
+      activeSessions,
       sessionModels,
       sessionAgents,
       providers,
@@ -1948,6 +1974,7 @@ useEffect(() => {
       live,
       models,
       agentDetails,
+      activeSessions,
       sessionModels,
       sessionAgents,
       providers,

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useStore } from "../lib/store"
 import { cx, truncate } from "../lib/format"
 import { describeAgent, modeLabel } from "../lib/agentDescriptions"
@@ -55,6 +55,21 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
     () => store.mcp.filter((server) => match(`${server.name ?? server.id ?? ""}`)),
     [store.mcp, match],
   )
+  /** The resources the MCP servers publish: files the agent can read. */
+  const [mcpResources, setMcpResources] = useState({ resources: [] as string[], templates: [] as string[] })
+
+  useEffect(() => {
+    let cancelled = false
+    void window.ocd.api
+      .mcpResources()
+      .then((found) => {
+        if (!cancelled) setMcpResources(found)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="view">
@@ -224,6 +239,33 @@ export function CapabilitiesView({ onBack }: { onBack: () => void }) {
               </div>
             ))
           )}
+        </div>
+      ) : null}
+
+      {mcpResources.resources.length || mcpResources.templates.length ? (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="card-head">{t("cap.mcpResources")}</div>
+          <div className="card-body">
+            {mcpResources.resources.map((item) => (
+              <div className="row" key={item}>
+                <div className="grow">
+                  <div className="name mono" style={{ fontSize: 12 }}>
+                    {item}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {mcpResources.templates.map((item) => (
+              <div className="row" key={item}>
+                <div className="grow">
+                  <div className="name mono" style={{ fontSize: 12 }}>
+                    {item}
+                  </div>
+                  <div className="desc">{t("cap.mcpTemplate")}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

@@ -969,6 +969,14 @@ export interface OcdApi {
     vcsStatus(directory?: string): Promise<VcsFileStatus[]>
     /** The worktrees the server keeps. */
     worktrees(): Promise<WorktreeInfo[]>
+    /** The messages the model will read on the next turn. */
+    sessionContext(sessionId: string): Promise<{ count: number; tokens: number }>
+    /** The sessions the server is working on right now. */
+    activeSessions(): Promise<Record<string, { type: string }>>
+    /** The server's own log of a session. */
+    sessionLog(sessionId: string): Promise<string[]>
+    /** The resources the MCP servers publish. */
+    mcpResources(): Promise<{ resources: string[]; templates: string[] }>
     /** The keys the server keeps for the providers. */
     credentials(): Promise<StoredCredential[]>
     /** Makes a stored key the one in use. */
@@ -982,6 +990,13 @@ export interface OcdApi {
     revert(sessionId: string, messageId: string): Promise<{ messageID: string }>
     /** Drops a staged revert that was never committed. */
     revertCancel(sessionId: string): Promise<unknown>
+    /** Stages a rewind and answers with the files it would restore. */
+    revertStage(
+      sessionId: string,
+      messageId: string,
+    ): Promise<{ messageID: string; files: FileDiffInfo[] }>
+    /** Applies a staged rewind. */
+    revertCommit(sessionId: string): Promise<unknown>
     /** Model the server would pick on its own. */
     serverDefaultModel(): Promise<ModelInfo | null>
   }
@@ -1211,9 +1226,11 @@ export interface OcdApi {
   }
   contextMenu: {
     /** Native right-click menu for the composer or the message stream. */
-    show(target: "input" | "stream"): Promise<void>
+    show(target: "input" | "stream", messageId?: string): Promise<void>
     /** Files chosen from the context menu land here. */
     onAttach(cb: (picked: PickedFiles) => void): () => void
+    /** The menu asks for a rewind to a message. */
+    onRevertRequest(cb: (payload: { messageId: string }) => void): () => void
   }
   events: {
     subscribe(): Promise<{ ok: boolean; error?: string }>

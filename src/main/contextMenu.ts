@@ -30,6 +30,7 @@ function sendAttachments(
 export async function showContextMenu(
   win: Electron.BrowserWindow | null,
   target: ContextTarget,
+  messageId?: string,
 ): Promise<void> {
   const isInput = target === "input"
   const hasImage = await clipboardHasImage()
@@ -45,6 +46,18 @@ export async function showContextMenu(
     )
   } else {
     template.push({ role: "copy", label: "Копировать" })
+  }
+
+  // A rewind to a message: the window asks for it, the window shows what it
+  // would cost, and only then is it applied.
+  if (!isInput && messageId) {
+    template.push({ type: "separator" }, {
+      label: "Откатить к этому сообщению…",
+      click: () => {
+        if (!win || win.isDestroyed()) return
+        win.webContents.send("ocd:revert-request", { messageId })
+      },
+    })
   }
 
   template.push({ type: "separator" })

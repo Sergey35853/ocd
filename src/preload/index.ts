@@ -116,6 +116,10 @@ const api = {
     vcsBranch: (directory?: string) => call("api:vcsBranch", directory),
     vcsStatus: (directory?: string) => call("api:vcsStatus", directory),
     worktrees: () => call("api:worktrees"),
+    sessionContext: (sessionId: string) => call("api:sessionContext", sessionId),
+    activeSessions: () => call("api:activeSessions"),
+    sessionLog: (sessionId: string) => call<string[]>("api:sessionLog", sessionId),
+    mcpResources: () => call("api:mcpResources"),
     credentials: () => call("api:credentials"),
     activateCredential: (id: string) => call("api:activateCredential", id),
     deleteCredential: (id: string) => call("api:deleteCredential", id),
@@ -126,6 +130,10 @@ const api = {
     revert: (sessionId: string, messageId: string) =>
       call<{ messageID: string }>("api:revert", sessionId, messageId),
     revertCancel: (sessionId: string) => call("api:revertCancel", sessionId),
+    // Look before the rewind: the server stages it and answers with the files.
+    revertStage: (sessionId: string, messageId: string) =>
+      call("api:revertStage", sessionId, messageId),
+    revertCommit: (sessionId: string) => call("api:revertCommit", sessionId),
     serverDefaultModel: () => call("api:serverDefaultModel"),
   },
   plugins: {
@@ -347,7 +355,14 @@ const api = {
       call("attachments:fromDataUrl", dataUrl, nameHint),
   },
   contextMenu: {
-    show: (target: "input" | "stream") => call("menu:contextMenu", target),
+    show: (target: "input" | "stream", messageId?: string) =>
+      call("menu:contextMenu", target, messageId),
+    /** The menu asks for a rewind to a message. */
+    onRevertRequest: (cb: (payload: { messageId: string }) => void) => {
+      const listener = (_event: unknown, payload: { messageId: string }) => cb(payload)
+      ipcRenderer.on("ocd:revert-request", listener)
+      return () => ipcRenderer.off("ocd:revert-request", listener)
+    },
     onAttach: (cb: (picked: PickedFiles) => void) => {
       const listener = (_event: unknown, payload: PickedFiles) => cb(payload)
       ipcRenderer.on("ocd:attach", listener)

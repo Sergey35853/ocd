@@ -5,7 +5,7 @@ import { useStore } from "../lib/store"
 import { useT } from "../i18n"
 import { IconMore } from "./Icon"
 import { PermissionRules } from "./PermissionRules"
-import { useAnchoredMenu } from "./ui"
+import { Modal, useAnchoredMenu } from "./ui"
 
 /**
  * What can be done to a conversation besides talking to it.
@@ -34,6 +34,8 @@ export function SessionActions({
   const [worktrees, setWorktrees] = useState<WorktreeInfo[]>([])
   /** Whether the list of remembered permission answers is on screen. */
   const [rulesOpen, setRulesOpen] = useState(false)
+  /** The server's own log of this session, when it was asked for. */
+  const [logLines, setLogLines] = useState<string[] | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const box = useAnchoredMenu(open, rootRef, 220, 320, 6)
@@ -213,6 +215,20 @@ export function SessionActions({
           >
             <span className="grow">{t("session.rules")}</span>
           </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
+            onClick={() => {
+              close()
+              void window.ocd.api
+                .sessionLog(sessionId)
+                .then((lines) => setLogLines(lines))
+                .catch(() => setLogLines([]))
+            }}
+          >
+            <span className="grow">{t("session.log")}</span>
+          </button>
         </>
       )}
     </div>
@@ -236,6 +252,17 @@ export function SessionActions({
       {open && box ? createPortal(menu, document.body) : null}
       {rulesOpen ? (
         <PermissionRules projectID={projectID} onClose={() => setRulesOpen(false)} />
+      ) : null}
+      {logLines ? (
+        <Modal title={t("session.log")} onClose={() => setLogLines(null)}>
+          {logLines.length === 0 ? (
+            <p style={{ color: "var(--text-faint)" }}>{t("session.logEmpty")}</p>
+          ) : (
+            <pre className="log-view mono" style={{ margin: 0, maxHeight: "50vh" }}>
+              {logLines.join("\n")}
+            </pre>
+          )}
+        </Modal>
       ) : null}
     </div>
   )

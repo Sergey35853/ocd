@@ -701,7 +701,17 @@ function Shell() {
                       onClick={() => pickSession(session.id)}
                       title={session.location?.directory ?? session.id}
                     >
-                      <span className={cx("bullet", store.busy[session.id] && "live")} />
+                      <span
+                        className={cx(
+                          "bullet",
+                          (store.busy[session.id] || store.activeSessions[session.id]) && "live",
+                        )}
+                        title={
+                          store.activeSessions[session.id]
+                            ? t("session.runningElsewhere")
+                            : undefined
+                        }
+                      />
                       <span className="t">{session.title || t("session.untitled")}</span>
                       <span className="when">{shortAge(session.time?.updated ?? session.time?.created)}</span>
                     </button>

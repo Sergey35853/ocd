@@ -70,6 +70,7 @@ import { repoFiles, searchRepos, type FileGroup, type RepoHit } from "./hfBrowse
 import type {
   AgentInfo,
   AgentDetails,
+  FileDiffInfo,
   AppSettings,
   AttemptStatus,
   CommandInfo,
@@ -429,6 +430,76 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   })
 
   /**
+   * The messages the model will read on the next turn.
+   *
+   * The app counts the context by itself, from the last answer's token
+   * counts; the server knows better. After a compaction, in particular, the
+   * difference is the whole point.
+   */
+  handle<{ count: number; tokens: number }>("api:sessionContext", async (sessionId: string) => {
+    const body = await service.get<{ data?: MessageInfo[] }>(
+      `/api/session/${sessionId}/context`,
+    )
+    const messages = body?.data ?? []
+    let tokens = 0
+    for (const message of messages) {
+      const usage = message.tokens
+      if (!usage) continue
+      tokens += (usage.input ?? 0) + (usage.output ?? 0) + (usage.reasoning ?? 0)
+    }
+    return { count: messages.length, tokens }
+  })
+
+  /**
+   * The sessions the server is working on right now.
+   *
+   * A turn started in another window — or in the OpenCode app itself — is
+   * invisible here otherwise: the chat looks idle while the model is writing.
+   */
+  handle<Record<string, { type: string }>>("api:activeSessions", async () => {
+    const body = await service.get<{ data?: Record<string, { type: string }> }>(
+      "/api/session/active",
+    )
+    return body?.data ?? {}
+  })
+
+  /** The server's own log of a session: what it was doing and why. */
+  handle<string[]>("api:sessionLog", async (sessionId: string) => {
+    try {
+      const body = await service.get<{ data?: unknown }>(
+        `/api/experimental/session/${sessionId}/log`,
+      )
+      const data = body?.data
+      if (Array.isArray(data)) return data.map((line) => String(line))
+      if (typeof data === "string") return data.split(/\r?\n/)
+      return []
+    } catch {
+      return []
+    }
+  })
+
+  /** The resources the MCP servers publish. */
+  handle<{ resources: string[]; templates: string[] }>("api:mcpResources", async () => {
+    try {
+      const body = await service.get<{
+        data?: { resources?: unknown[]; templates?: unknown[] }
+      }>("/api/mcp/resource")
+      const resources = body?.data?.resources ?? []
+      const templates = body?.data?.templates ?? []
+      const names = (list: unknown[]) =>
+        list
+          .map((item) => {
+            if (typeof item === "string") return item
+            const row = item as { uri?: string; name?: string; server?: string }
+            return row.uri ?? row.name ?? row.server ?? ""
+          })
+          .filter(Boolean)
+      return { resources: names(resources), templates: names(templates) }
+    } catch {
+      return { resources: [], templates: [] }
+    }
+  })
+  /**
    * Files of the project, by name.
    *
    * The server walks the tree itself: the app has no index of its own and no
@@ -525,6 +596,33 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   /** Drops a staged revert that was never committed. */
   handle("api:revertCancel", (sessionId: string) => service.del(`/api/session/${sessionId}/revert`))
+
+  /**
+   * Rewind to a message — but only look, do not touch anything yet.
+   *
+   * The server stages the rewind and answers with the files it would restore.
+   * That is what makes the difference between "undo" and "undo, and here is
+   * what it costs": a blind rewind can put a file back the way it was an hour
+   * ago, and the person who asks for it cannot see that.
+   */
+  handle<{ messageID: string; files: FileDiffInfo[] }>(
+    "api:revertStage",
+    async (sessionId: string, messageId: string) => {
+      const staged = await service.post<{ data?: { messageID?: string; files?: FileDiffInfo[] } }>(
+        `/api/session/${sessionId}/revert/stage`,
+        { messageID: messageId },
+      )
+      return {
+        messageID: staged?.data?.messageID ?? messageId,
+        files: staged?.data?.files ?? [],
+      }
+    },
+  )
+
+  /** Apply a staged rewind. */
+  handle<unknown>("api:revertCommit", (sessionId: string) =>
+    service.post(`/api/session/${sessionId}/revert/commit`),
+  )
 
   /**
    * Stop the turn this session is running.
@@ -791,7 +889,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   // ---------- context menu ----------
 
-  handle("menu:contextMenu", (target: ContextTarget) => showContextMenu(getWindow(), target))
+  handle("menu:contextMenu", (target: ContextTarget, messageId?: string) =>
+    showContextMenu(getWindow(), target, messageId),
+  )
 
   // ---------- preview pane ----------
 

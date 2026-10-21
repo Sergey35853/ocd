@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type {
   Attachment,
+  FileDiffInfo,
   FormAnswer,
   MessageContent,
   MessageInfo,
@@ -33,6 +34,7 @@ import { TerminalPanel } from "../components/TerminalPanel"
 import { mentionAt } from "./mention"
 import { actionFor } from "../lib/shortcuts"
 import { onChatCommand } from "../lib/commands"
+import { RevertPreview } from "../components/RevertPreview"
 import { TasksBoard } from "../components/TasksBoard"
 import { ChangesPanel } from "../components/ChangesPanel"
 import { DiffView } from "../components/DiffView"
@@ -760,7 +762,7 @@ function TurnInner({
   }
 
   return (
-    <div>
+    <div data-message-id={message.id}>
       {reasoning.length && showThinking ? (
         /* Folded once the turn is over, so a long chain of thought does not
            push the answer off the screen. The summary keeps the first line of
@@ -1825,6 +1827,27 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   }, [store])
 
   /**
+   * The rewind the menu asked for.
+   *
+   * The message is identified by its id, and what the server would restore is
+   * shown before anything is restored.
+   */
+  const [revertPreview, setRevertPreview] = useState<{
+    messageId: string
+    files: FileDiffInfo[]
+  } | null>(null)
+
+  useEffect(() => {
+    return window.ocd.contextMenu.onRevertRequest(({ messageId }) => {
+      if (!sessionId) return
+      void window.ocd.api
+        .revertStage(sessionId, messageId)
+        .then((staged) => setRevertPreview({ messageId: staged.messageID, files: staged.files }))
+        .catch((err) => store.toast(err instanceof Error ? err.message : String(err), "error"))
+    })
+  }, [sessionId, store])
+
+  /**
    * The keys that belong to the conversation itself.
    *
    * The terminal and the rename are here rather than in the shell: they mean
@@ -2502,7 +2525,13 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
             ref={streamRef}
             onContextMenu={(event) => {
               event.preventDefault()
-              void window.ocd.contextMenu.show("stream")
+              // Which message was clicked: the turns carry their id, and the
+              // menu needs it to offer a rewind to that point.
+              const holder = (event.target as HTMLElement | null)?.closest("[data-message-id]")
+              void window.ocd.contextMenu.show(
+                "stream",
+                holder?.getAttribute("data-message-id") ?? undefined,
+              )
             }}
           >
             <div className="stream-inner" ref={innerRef}>
@@ -2658,6 +2687,33 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
               <TerminalPanel
                 cwd={store.directory || undefined}
                 onClose={() => setTerminalOpen(false)}
+              />
+            ) : null}
+            {revertPreview ? (
+              <RevertPreview
+                files={revertPreview.files}
+                onApply={() => {
+                  const id = sessionId
+                  setRevertPreview(null)
+                  if (!id) return
+                  void window.ocd.api
+                    .revertCommit(id)
+                    .then(() => {
+                      store.toast(t("revert.applied"), "info")
+                      void load()
+                    })
+                    .catch((err) => store.toast(err instanceof Error ? err.message : String(err), "error"))
+                }}
+                onDiscard={() => {
+                  const id = sessionId
+                  setRevertPreview(null)
+                  if (id) void window.ocd.api.revertCancel(id).catch(() => undefined)
+                }}
+                onClose={() => {
+                  const id = sessionId
+                  setRevertPreview(null)
+                  if (id) void window.ocd.api.revertCancel(id).catch(() => undefined)
+                }}
               />
             ) : null}
             {fileSearch ? (
