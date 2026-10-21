@@ -861,5 +861,12 @@ export const zh: Dict = {
   "set.ruleWord": "词语",
   "set.ruleAmount": "金额，$",
   "set.ruleEmpty": "还没有规则",
+  "project.checkpointSave": "保存检查点",
+  "project.checkpointRestore": "还原",
+  "project.checkpointDelete": "移除",
+  "project.checkpointFiles": "文件：{n}",
+  "project.checkpointSaved": "检查点已保存：{n} 个文件",
+  "project.checkpointRestored": "已还原 {n} 个文件",
+  "project.checkpointHint": "改动文件的副本——智能体改错了时的退路。",
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { FileEntry } from "@shared/types"
+import type { Checkpoint, FileEntry } from "@shared/types"
 import { useStore } from "../lib/store"
 import { cx } from "../lib/format"
 import { serverChanges, type FileChange } from "../lib/diff"
@@ -7,7 +7,7 @@ import { useT } from "../i18n"
 import { ViewBack } from "../components/ViewBack"
 import { FileTree } from "../components/FileTree"
 import { DiffView } from "../components/DiffView"
-import { IconChevron, IconEdit, IconFile, IconFolder, IconRefresh } from "../components/Icon"
+import { IconChevron, IconEdit, IconFile, IconFolder, IconRefresh, IconTrash } from "../components/Icon"
 
 /** What the app managed to make of the file it was asked to read. */
 type Verdict = "none" | "loading" | "binary" | "tooBig"
@@ -120,6 +120,14 @@ export function FilesView({ onBack }: { onBack: () => void }) {
   const [changes, setChanges] = useState<FileChange[]>([])
   const [diffLoading, setDiffLoading] = useState(false)
   const [diffOpen, setDiffOpen] = useState<Record<string, boolean>>({})
+  /**
+   * The snapshots of the changed files.
+   *
+   * The way back from a change the agent made wrongly is the copy that was
+   * made before it — and it has to be made before, not after.
+   */
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
+  const [checkpointBusy, setCheckpointBusy] = useState(false)
 
   const loadDiff = useCallback(async () => {
     setDiffLoading(true)
@@ -134,12 +142,64 @@ export function FilesView({ onBack }: { onBack: () => void }) {
     }
   }, [directory, toast])
 
+  const loadCheckpoints = useCallback(async () => {
+    try {
+      setCheckpoints(await window.ocd.app.checkpoints())
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    }
+  }, [toast])
+
+  /** Take a snapshot of what is changed right now. */
+  const saveCheckpoint = useCallback(async () => {
+    setCheckpointBusy(true)
+    try {
+      const made = await window.ocd.app.checkpointSave(directory || undefined)
+      toast(t("project.checkpointSaved", { n: made.files.length }), "info")
+      await loadCheckpoints()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), "error")
+    } finally {
+      setCheckpointBusy(false)
+    }
+  }, [directory, loadCheckpoints, t, toast])
+
+  /** Put the files of a snapshot back. */
+  const restoreCheckpoint = useCallback(
+    async (id: string) => {
+      setCheckpointBusy(true)
+      try {
+        const result = await window.ocd.app.checkpointRestore(id)
+        toast(t("project.checkpointRestored", { n: result.restored }), "info")
+        await loadDiff()
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      } finally {
+        setCheckpointBusy(false)
+      }
+    },
+    [loadDiff, t, toast],
+  )
+
+  const deleteCheckpoint = useCallback(
+    async (id: string) => {
+      try {
+        await window.ocd.app.checkpointDelete(id)
+        await loadCheckpoints()
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      }
+    },
+    [loadCheckpoints, toast],
+  )
+
   // The diff is read when it is asked for, not on every visit: it is a
   // question about the repository, and the answer goes stale on its own.
   useEffect(() => {
     if (mode !== "diff") return
     void loadDiff()
-  }, [mode, loadDiff])
+    void loadCheckpoints()
+  }, [mode, loadDiff, loadCheckpoints])
 
   /** The file whose read is the current one; an older answer is ignored. */
   const wanted = useRef<string | null>(null)
@@ -294,6 +354,15 @@ export function FilesView({ onBack }: { onBack: () => void }) {
               <span className="sub">{t("project.diffHint")}</span>
               <button
                 type="button"
+                className="btn"
+                disabled={checkpointBusy}
+                title={t("project.checkpointHint")}
+                onClick={() => void saveCheckpoint()}
+              >
+                {t("project.checkpointSave")}
+              </button>
+              <button
+                type="button"
                 className="iconbtn tiny"
                 title={t("common.refresh")}
                 disabled={diffLoading}
@@ -303,6 +372,35 @@ export function FilesView({ onBack }: { onBack: () => void }) {
               </button>
             </div>
             <div className="card-body files-content">
+              {checkpoints.length ? (
+                <div className="files-checkpoints">
+                  {checkpoints.map((item) => (
+                    <div key={item.id} className="row" style={{ gap: 6 }}>
+                      <span className="grow">
+                        <span className="mono">{new Date(item.at).toLocaleString()}</span>
+                        {item.branch ? <span className="desc"> · {item.branch}</span> : null}
+                        <span className="desc"> · {t("project.checkpointFiles", { n: item.files.length })}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={checkpointBusy}
+                        onClick={() => void restoreCheckpoint(item.id)}
+                      >
+                        {t("project.checkpointRestore")}
+                      </button>
+                      <button
+                        type="button"
+                        className="iconbtn tiny"
+                        title={t("project.checkpointDelete")}
+                        onClick={() => void deleteCheckpoint(item.id)}
+                      >
+                        <IconTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {diffLoading && changes.length === 0 ? (
                 <div className="files-note">{t("files.loading")}</div>
               ) : changes.length === 0 ? (

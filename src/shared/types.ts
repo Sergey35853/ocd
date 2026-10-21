@@ -616,6 +616,31 @@ export interface ManagedPlugin {
 }
 
 /**
+ * A snapshot of the changed files, taken before something risky happens.
+ *
+ * The way back from a change the agent made wrongly is the copy that was made
+ * before it. The files are read and written through the server, because the
+ * server is the one that knows where the project is.
+ */
+export interface CheckpointFile {
+  /** The path, relative to the project root. */
+  path: string
+  /** How many bytes the copy holds. */
+  size: number
+}
+
+export interface Checkpoint {
+  id: string
+  /** When the snapshot was taken. */
+  at: number
+  /** The project it belongs to. */
+  directory: string
+  /** The branch it was taken on, when the server could say. */
+  branch: string
+  files: CheckpointFile[]
+}
+
+/**
  * A rule that makes the app speak up on its own.
  *
  * The general notification is all or nothing: either every finished turn is
@@ -1290,6 +1315,15 @@ export interface OcdApi {
       content: string
       ext: string
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    // ---- checkpoints: copies of the changed files ----
+    /** The snapshots this machine holds. */
+    checkpoints(): Promise<Checkpoint[]>
+    /** Take a snapshot of the changed files. */
+    checkpointSave(directory?: string): Promise<Checkpoint>
+    /** Put the files of a snapshot back. */
+    checkpointRestore(id: string): Promise<{ restored: number }>
+    /** Forget a snapshot. */
+    checkpointDelete(id: string): Promise<boolean>
     /** Saves every conversation of a project as one file. */
     exportProjectSessions(
       directory?: string,

@@ -895,6 +895,13 @@ export const ru = {
   "set.ruleWord": "Слово",
   "set.ruleAmount": "Сумма, $",
   "set.ruleEmpty": "Правил пока нет",
+  "project.checkpointSave": "Сохранить чекпойнт",
+  "project.checkpointRestore": "Откатить",
+  "project.checkpointDelete": "Убрать",
+  "project.checkpointFiles": "файлов: {n}",
+  "project.checkpointSaved": "Чекпойнт сохранён: файлов {n}",
+  "project.checkpointRestored": "Восстановлено файлов: {n}",
+  "project.checkpointHint": "Снимок изменённых файлов — к нему можно вернуться, если агент сделал не то.",
 } as const
 
 export type DictKey = keyof typeof ru

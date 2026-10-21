@@ -46,6 +46,13 @@ import {
   updateState,
 } from "./updater"
 import { ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
+import {
+  deleteCheckpoint,
+  listCheckpoints,
+  restoreCheckpoint,
+  saveCheckpoint,
+  type Checkpoint,
+} from "./checkpoints"
 import { clear as clearRequestLedger, countRequest, markRateLimited, setLimit, snapshot } from "./limits"
 import { log, readLogTail, logFolder } from "./log"
 import { setHudData, toggleHud } from "./hud"
@@ -1155,6 +1162,22 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle<unknown>("api:mcpDisconnect", (server: string, directory?: string) =>
     service.post(`/api/experimental/mcp/${encodeURIComponent(server)}/disconnect`, undefined, locationQuery(directory)),
   )
+
+  // ---------- checkpoints ----------
+
+  /** The snapshots this machine holds. */
+  handle<Checkpoint[]>("app:checkpoints", () => listCheckpoints())
+
+  /** Take a snapshot of the changed files. */
+  handle<Checkpoint>("app:checkpointSave", (directory?: string) =>
+    saveCheckpoint(directory ?? ""),
+  )
+
+  /** Put the files of a snapshot back. */
+  handle<{ restored: number }>("app:checkpointRestore", (id: string) => restoreCheckpoint(id))
+
+  /** Forget a snapshot. */
+  handle<boolean>("app:checkpointDelete", (id: string) => deleteCheckpoint(id))
 
   // ---------- pairing a device ----------
 

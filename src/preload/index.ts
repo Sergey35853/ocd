@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron"
 import type {
   AppSettings,
   AttemptStatus,
+  Checkpoint,
   FeedbackKind,
   FinishNotice,
   ConfigProviderSummary,
@@ -294,6 +295,15 @@ const api = {
         "app:saveText",
         payload,
       ),
+    // ---- checkpoints: copies of the changed files ----
+    /** The snapshots this machine holds. */
+    checkpoints: () => call<Checkpoint[]>("app:checkpoints"),
+    /** Take a snapshot of the changed files. */
+    checkpointSave: (directory?: string) => call<Checkpoint>("app:checkpointSave", directory),
+    /** Put the files of a snapshot back. */
+    checkpointRestore: (id: string) => call<{ restored: number }>("app:checkpointRestore", id),
+    /** Forget a snapshot. */
+    checkpointDelete: (id: string) => call<boolean>("app:checkpointDelete", id),
     /** Saves every conversation of a project as one file. */
     exportProjectSessions: (directory?: string) =>
       call<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>(

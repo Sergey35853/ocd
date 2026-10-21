@@ -873,5 +873,12 @@ export const de: Dict = {
   "set.ruleWord": "Wort",
   "set.ruleAmount": "Betrag, $",
   "set.ruleEmpty": "Noch keine Regeln",
+  "project.checkpointSave": "Prüfpunkt sichern",
+  "project.checkpointRestore": "Zurücksetzen",
+  "project.checkpointDelete": "Entfernen",
+  "project.checkpointFiles": "Dateien: {n}",
+  "project.checkpointSaved": "Prüfpunkt gesichert: {n} Dateien",
+  "project.checkpointRestored": "{n} Dateien zurückgesetzt",
+  "project.checkpointHint": "Eine Kopie der geänderten Dateien — der Weg zurück, wenn der Agent das Falsche geändert hat.",
 }
 
