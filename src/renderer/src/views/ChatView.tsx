@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type {
   Attachment,
   FormAnswer,
@@ -629,7 +629,7 @@ function ToolBlock({
   )
 }
 
-function Turn({
+function TurnInner({
   message,
   showThinking,
   openPreview,
@@ -640,6 +640,7 @@ function Turn({
   stopTargetId,
   onStop,
   onPin,
+  onSpeak,
   formsByTool,
   turnMs,
 }: {
@@ -658,6 +659,8 @@ function Turn({
   onStop?: () => void
   /** Adds this answer to the conversation's pinned list. */
   onPin?: (text: string) => void
+  /** Reads the answer aloud. */
+  onSpeak?: (text: string) => void
   /**
    * Waiting questions, keyed by the call that asked.
    *
@@ -669,7 +672,6 @@ function Turn({
   /** How long the turn this prompt started took, in ms. */
   turnMs?: number
 }) {
-  const store = useStore()
   const t = useT()
 
   // Hooks first, branches after. `message.type` decides how much of the message
@@ -828,7 +830,7 @@ function Turn({
             className="iconbtn"
             title={t("chat.speak")}
             style={{ width: 24, height: 24 }}
-            onClick={() => void store.speak(text)}
+            onClick={() => onSpeak?.(text)}
           >
             <IconSpeaker size={13} />
           </button>
@@ -843,6 +845,21 @@ function Turn({
     </div>
   )
 }
+
+/**
+ * A turn of the conversation, and nothing that changes while it streams.
+ *
+ * The transcript is the heaviest thing on the screen, and it used to be
+ * redrawn from the top on every piece of text the model produced: the store's
+ * context changed with the running turn, and every turn in the list listened
+ * to it. With a hundred messages that is a hundred trees walked ten times a
+ * second for one growing bubble.
+ *
+ * The memo is only half of the fix — the other half is that the turn does not
+ * take the store: everything it needs comes in as props, and the props do not
+ * change while the answer is being written.
+ */
+const Turn = memo(TurnInner)
 
 /**
  * Copy an answer as plain text.
@@ -891,6 +908,14 @@ interface ChatViewProps {
 export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }: ChatViewProps) {
   const store = useStore()
   const t = useT()
+  /**
+   * Two actions, taken out of the store once.
+   *
+   * The store's own object changes with every running turn; the functions
+   * inside it do not. Taking them out here is what lets the transcript stay
+   * memoised while the model writes.
+   */
+  const { speak: storeSpeak, abort: storeAbort } = store
   /** The store's answer about a conversation, for the header to show. */
   const refreshSessionInfo = store.refreshSessionInfo
   /** The active interface language, so labels follow the switch. */
@@ -1101,6 +1126,15 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
     setPinsOpen(true)
   }, [])
 
+  /**
+   * The two actions a turn needs from the app.
+   *
+   * They are passed in rather than taken from the store on purpose: a turn
+   * that listened to the store would be redrawn on every change of it, and the
+   * store changes ten times a second while the model writes.
+   */
+  const speakText = useCallback((text: string) => void storeSpeak(text), [storeSpeak])
+
   const openPreview = useCallback<OpenPreview>(
     (target) => {
       lastPreview.current = target
@@ -1160,6 +1194,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   const sessionId = session?.id ?? ""
   /** The agent the session is pinned to, as the server sees it. */
   const sessionAgent = sessionId ? store.sessionAgents[sessionId] : undefined
+  /** Stops the running turn; stable, so the transcript stays memoised. */
+  const stopTurn = useCallback(() => void storeAbort(sessionId), [storeAbort, sessionId])
 
   /**
    * Load an earlier prompt back into the composer.
@@ -2449,7 +2485,8 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
                   formsByTool={formsByTool}
                   turnMs={finishedTurns[message.id]}
                   stopTargetId={stopTargetId}
-                  onStop={() => void store.abort(sessionId)}
+                  onStop={stopTurn}
+                  onSpeak={speakText}
                 />
               ))}
 
