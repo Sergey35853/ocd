@@ -402,6 +402,10 @@ const api = {
   diag: {
     report: (payload: { message: string; stack?: string; kind?: string }) =>
       call<boolean>("diag:report", payload),
+    /** The tail of the app's own log. */
+    tail: (lines?: number) => call<string[]>("diag:tail", lines),
+    /** The folder the log lives in. */
+    folder: () => call<string | null>("diag:folder"),
   },
   /**
    * The way back to whoever ships this.

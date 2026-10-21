@@ -48,7 +48,7 @@ import {
 } from "./updater"
 import { clearIndex, ensureIndex, indexSize, pruneIndex, search, type SearchHit } from "./searchIndex"
 import { clear as clearRequestLedger, countRequest, markRateLimited, setLimit, snapshot } from "./limits"
-import { log } from "./log"
+import { log, readLogTail, logFolder } from "./log"
 import { closeHud, setHudData, toggleHud } from "./hud"
 import { sshTunnel } from "./sshTunnel"
 import { flashTaskbar, notifyFinish, type FinishNotice } from "./notify"
@@ -888,6 +888,20 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   })
 
   handle<string>("app:openPath", (target: string) => shell.openPath(target))
+
+  // ---------- the log, read from the app itself ----------
+
+  /**
+   * The tail of the app's own log.
+   *
+   * Everything the app swallows quietly — a failed request, a broken preview —
+   * ends up here. The user asked for a problem, and the answer is in the file:
+   * showing it beats sending them to look for it.
+   */
+  handle<string[]>("diag:tail", (lines?: number) => readLogTail(lines ?? 400))
+
+  /** The folder the log lives in, for the "open the folder" button. */
+  handle<string | null>("diag:folder", () => logFolder())
 
   // ---------- remote (SSH) ----------
 

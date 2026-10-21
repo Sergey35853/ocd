@@ -1811,6 +1811,30 @@ input[type="color"] {
   height: 100%;
 }
 
+/* The app's own log, read from the app. */
+.log-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px 10px;
+}
+.log-filter .input {
+  flex: 1;
+}
+.log-view {
+  margin: 0 24px 24px;
+  padding: 12px 14px;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text-dim);
+  font: 500 11.5px/1.55 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* The list of remembered permission answers. */
 .rule-list {
   list-style: none;

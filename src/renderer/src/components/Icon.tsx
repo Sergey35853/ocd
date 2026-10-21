@@ -151,6 +151,26 @@ export const IconClose = (p: Props) =>
 
 export const IconChevron = (p: Props) => svg(<path d="m9 6 6 6-6 6" />, p)
 
+/** A sheet of paper: the log. */
+export const IconFile = (p: Props) =>
+  svg(
+    <>
+      <path d="M6 3h7l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M13 3v5h5" />
+    </>,
+    p,
+  )
+
+/** Two sheets: copy to the clipboard. */
+export const IconCopy = (p: Props) =>
+  svg(
+    <>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </>,
+    p,
+  )
+
 /** A key: the stored credentials of a provider. */
 export const IconKey = (p: Props) =>
   svg(

@@ -1,5 +1,5 @@
 import { app } from "electron"
-import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 /**
@@ -95,6 +95,35 @@ export const log = {
   error: (message: string, detail?: unknown): void => emit("error", message, detail),
   /** Where the file ended up, once it has been resolved. */
   path: (): string | null => target,
+}
+
+/**
+ * The tail of the log, newest last.
+ *
+ * The log is the only place where the app's failures are written down, and
+ * until now the only way to read it was to find the file by hand. The app can
+ * show it instead: the user asked for a problem, and the answer is here.
+ */
+export function readLogTail(lines = 400): string[] {
+  const file = target
+  if (!file) return []
+  try {
+    if (!existsSync(file)) return []
+    // The file is capped at two megabytes; reading the whole of it is cheap,
+    // and only the tail is kept.
+    const text = readFileSync(file, "utf8")
+    const all = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+    return all.slice(-Math.max(1, lines))
+  } catch {
+    return []
+  }
+}
+
+/** The folder the log lives in, for the "open the folder" button. */
+export function logFolder(): string | null {
+  const file = target
+  if (!file) return null
+  return dirname(file)
 }
 
 /**

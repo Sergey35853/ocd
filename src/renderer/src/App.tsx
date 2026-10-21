@@ -12,6 +12,7 @@ import {
   IconDownload,
   IconGear,
   IconInfo,
+  IconFile,
   IconLayers,
   IconMaximize,
   IconMenu,
@@ -30,9 +31,10 @@ import { ProvidersView } from "./views/ProvidersView"
 import { CapabilitiesView } from "./views/CapabilitiesView"
 import { SettingsView } from "./views/SettingsView"
 import { AboutView } from "./views/AboutView"
+import { LogView } from "./views/LogView"
 import { useT, type DictKey } from "./i18n"
 
-type ViewId = "chat" | "capabilities" | "plugins" | "providers" | "settings" | "about"
+type ViewId = "chat" | "capabilities" | "plugins" | "providers" | "settings" | "about" | "log"
 
 const VIEWS: ViewId[] = ["chat", "capabilities", "plugins", "providers", "settings", "about"]
 
@@ -69,6 +71,7 @@ const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: stri
   { id: "providers", label: "nav.providers", icon: IconChip },
   { id: "settings", label: "nav.settings", icon: IconGear },
   { id: "about", label: "nav.about", icon: IconInfo },
+  { id: "log", label: "nav.log", icon: IconFile },
 ]
 
 function Shell() {
@@ -426,6 +429,7 @@ function Shell() {
       { id: "view:providers", label: t("nav.providers"), keywords: "провайдеры модели", group: "nav", run: () => setView("providers") },
       { id: "view:settings", label: t("nav.settings"), keywords: "настройки опции", group: "nav", run: () => setView("settings") },
       { id: "view:about", label: t("nav.about"), keywords: "о программе версия обновление about version", group: "nav", run: () => setView("about") },
+      { id: "view:log", label: t("nav.log"), keywords: "журнал лог ошибки log errors", group: "app", run: () => setView("log") },
       { id: "hud", label: t("set.hudToggle"), keywords: "панель индикатор hud", group: "app", run: () => void window.ocd.hud.toggle() },
       { id: "restart", label: t("palette.restartServer"), keywords: "перезапустить сервер", group: "app", run: () => void store.restartService() },
       { id: "sidebar", label: t("chat.toggleSidebar"), keywords: "панель сессий sidebar", group: "app", run: () => setSidebarOpen((value) => !value) },
@@ -690,6 +694,7 @@ function Shell() {
         {view === "providers" ? <ProvidersView onBack={goChat} /> : null}
         {view === "settings" ? <SettingsView onBack={goChat} /> : null}
         {view === "about" ? <AboutView onBack={goChat} /> : null}
+      {view === "log" ? <LogView onBack={goChat} /> : null}
       </main>
 
       <PermissionPrompt />

@@ -1246,6 +1246,10 @@ export interface OcdApi {
   /** The renderer's failures, so they land in the same log as main's. */
   diag: {
     report(payload: { message: string; stack?: string; kind?: string }): Promise<boolean>
+    /** The tail of the app's own log. */
+    tail(lines?: number): Promise<string[]>
+    /** The folder the log lives in. */
+    folder(): Promise<string | null>
   }
   /**
    * The way back to whoever ships this.
