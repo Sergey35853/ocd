@@ -1860,7 +1860,9 @@ export function ChatView({ session, expanded, onToggleExpand, onToggleSidebar }:
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      if (target?.closest("input, textarea, [contenteditable]")) return
+      if (target instanceof HTMLElement && target.closest("input, textarea, [contenteditable]")) {
+        return
+      }
       const action = actionFor(event, store.settings?.shortcuts)
       if (action === "terminal") {
         event.preventDefault()

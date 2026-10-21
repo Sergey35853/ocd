@@ -419,7 +419,10 @@ function Shell() {
       const target = event.target as HTMLElement | null
       // A field that is being typed into keeps its own keys: Ctrl+F in a
       // search box should not be taken away from the browser's own meaning.
-      const typing = target?.closest("input, textarea, [contenteditable]")
+      const typing =
+        target instanceof HTMLElement
+          ? target.closest("input, textarea, [contenteditable]")
+          : null
       const action = actionFor(event, store.settings?.shortcuts)
       if (!action) return
       if (typing && action !== "palette" && action !== "search") return
