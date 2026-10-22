@@ -968,6 +968,19 @@ export const ru = {
   "set.verifyCommandHint": "Запускается в каталоге проекта беседы. Пусто — проверка выключена.",
   "verify.passed": "Проверка пройдена",
   "verify.failed": "Проверка не пройдена (код {code})",
+  "arena.title": "Арена моделей",
+  "arena.hint": "Один промпт — несколько моделей. Ответы рядом.",
+  "arena.placeholder": "Например: объясни разницу между let и var",
+  "arena.run": "Запустить",
+  "arena.running": "Идёт…",
+  "arena.pick": "Выберите до {n} моделей",
+  "arena.sendFailed": "Не удалось отправить промпт",
+  "arena.stateQueued": "очередь",
+  "arena.stateRunning": "пишет…",
+  "arena.stateDone": "готово",
+  "arena.stateFailed": "ошибка",
+  "arena.empty": "Пустой ответ модели",
+  "arena.waiting": "Ждём ответа…",
 } as const
 
 export type DictKey = keyof typeof ru

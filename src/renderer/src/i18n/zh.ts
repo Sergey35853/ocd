@@ -934,5 +934,18 @@ export const zh: Dict = {
   "set.verifyCommandHint": "在对话的项目文件夹中运行。留空表示关闭。",
   "verify.passed": "验证通过",
   "verify.failed": "验证失败（代码 {code}）",
+  "arena.title": "模型竞技场",
+  "arena.hint": "一个提示词，多个模型。答案并排显示。",
+  "arena.placeholder": "例如：解释 let 和 var 的区别",
+  "arena.run": "运行",
+  "arena.running": "运行中…",
+  "arena.pick": "最多选择 {n} 个模型",
+  "arena.sendFailed": "无法发送提示词",
+  "arena.stateQueued": "排队",
+  "arena.stateRunning": "书写中…",
+  "arena.stateDone": "完成",
+  "arena.stateFailed": "失败",
+  "arena.empty": "模型没有返回内容",
+  "arena.waiting": "等待回答…",
 }
 

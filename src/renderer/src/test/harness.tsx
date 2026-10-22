@@ -125,6 +125,9 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
     },
     api: {
       sessions: async () => [],
+      createSession: async () => ({ id: "ses_created", title: "" }),
+      deleteSession: async () => undefined,
+      renameSession: async () => undefined,
       models: async () => [],
       providers: async () => [],
       agents: async () => [],
@@ -257,7 +260,7 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
     notice: { onShow: () => () => undefined, dismiss: async () => true },
     pty: { open: async () => ({}), input: async () => undefined, close: async () => undefined, onOutput: () => () => undefined },
     remote: { connect: async () => ({ url: "", port: 0 }), disconnect: async () => undefined, status: async () => ({ active: false, url: null }) },
-    shell: { openTerminal: async () => ({ launcher: "cmd", opened: true }) },
+    shell: { openTerminal: async () => ({ launcher: "cmd", opened: true }), run: async () => ({ exit: 0, stdout: "", stderr: "" }) },
     integration: { list: async () => [], connectKey: async () => ({}), oauthBegin: async () => ({}), oauthStatus: async () => ({}), oauthComplete: async () => ({}), oauthCancel: async () => ({}), probe: async () => ({ online: false }) },
   }
 

@@ -2444,6 +2444,92 @@ input[type="color"] {
   padding: 6px 4px;
 }
 
+/* The model arena: pick the contestants, then read the answers side by side. */
+.arena-prompt {
+  width: 100%;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+.arena-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.arena-chip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.arena-chip:hover {
+  color: var(--text);
+}
+.arena-chip.on {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+  font-weight: 600;
+}
+.arena-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.arena-col {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 8px 10px;
+  min-width: 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+.arena-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.arena-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arena-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-faint);
+  flex: none;
+}
+.arena-badge.running {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+.arena-badge.done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.arena-badge.failed {
+  color: var(--err);
+  border-color: var(--err);
+}
+.arena-error {
+  font-size: 12px;
+  color: var(--err);
+  white-space: pre-wrap;
+}
+
 /* The rules and the auto-runs: a list, and the row that adds one. */
 .rules-list {
   display: flex;

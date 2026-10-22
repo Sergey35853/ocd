@@ -945,5 +945,18 @@ export const fr: Dict = {
   "set.verifyCommandHint": "Exécuté dans le dossier du projet de la conversation. Vide = désactivé.",
   "verify.passed": "Vérification réussie",
   "verify.failed": "Échec de la vérification (code {code})",
+  "arena.title": "Arène des modèles",
+  "arena.hint": "Un prompt, plusieurs modèles. Réponses côte à côte.",
+  "arena.placeholder": "ex. explique la différence entre let et var",
+  "arena.run": "Lancer",
+  "arena.running": "En cours…",
+  "arena.pick": "Choisissez jusqu’à {n} modèles",
+  "arena.sendFailed": "Impossible d’envoyer le prompt",
+  "arena.stateQueued": "en attente",
+  "arena.stateRunning": "écrit…",
+  "arena.stateDone": "terminé",
+  "arena.stateFailed": "échec",
+  "arena.empty": "Le modèle n’a rien renvoyé",
+  "arena.waiting": "En attente de la réponse…",
 }
 

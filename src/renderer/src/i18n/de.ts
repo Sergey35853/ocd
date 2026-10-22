@@ -946,5 +946,18 @@ export const de: Dict = {
   "set.verifyCommandHint": "Wird im Projektordner der Unterhaltung ausgeführt. Leer bedeutet aus.",
   "verify.passed": "Prüfung bestanden",
   "verify.failed": "Prüfung fehlgeschlagen (Code {code})",
+  "arena.title": "Modell-Arena",
+  "arena.hint": "Ein Prompt, mehrere Modelle. Antworten nebeneinander.",
+  "arena.placeholder": "z. B. erkläre den Unterschied zwischen let und var",
+  "arena.run": "Starten",
+  "arena.running": "Läuft…",
+  "arena.pick": "Bis zu {n} Modelle wählen",
+  "arena.sendFailed": "Prompt konnte nicht gesendet werden",
+  "arena.stateQueued": "Wartend",
+  "arena.stateRunning": "schreibt…",
+  "arena.stateDone": "fertig",
+  "arena.stateFailed": "Fehler",
+  "arena.empty": "Das Modell gab nichts zurück",
+  "arena.waiting": "Warte auf die Antwort…",
 }
 

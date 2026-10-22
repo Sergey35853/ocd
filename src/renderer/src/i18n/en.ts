@@ -940,5 +940,18 @@ export const en: Dict = {
   "set.verifyCommandHint": "Run in the conversation's project folder. Empty means off.",
   "verify.passed": "Verify passed",
   "verify.failed": "Verify failed (exit {code})",
+  "arena.title": "Model Arena",
+  "arena.hint": "One prompt, several models. Answers side by side.",
+  "arena.placeholder": "e.g. explain the difference between let and var",
+  "arena.run": "Run",
+  "arena.running": "Running…",
+  "arena.pick": "Pick up to {n} models",
+  "arena.sendFailed": "Could not send the prompt",
+  "arena.stateQueued": "queued",
+  "arena.stateRunning": "writing…",
+  "arena.stateDone": "done",
+  "arena.stateFailed": "failed",
+  "arena.empty": "The model returned nothing",
+  "arena.waiting": "Waiting for the answer…",
 }
 
