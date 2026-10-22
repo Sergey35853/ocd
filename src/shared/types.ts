@@ -731,6 +731,10 @@ export interface AppSettings {
    * deletes work without being turned on would be a rule to fear.
    */
   autoCleanupDays?: number
+  /** Spend ceiling per day, in the same units the server reports. 0 is off. */
+  budgetDaily?: number
+  /** Spend ceiling per month. 0 is off. */
+  budgetMonthly?: number
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */

@@ -928,5 +928,16 @@ export const fr: Dict = {
   "set.autoCleanup": "Nettoyage automatique",
   "set.autoCleanupHint": "Supprimer les conversations non touchées depuis le nombre de jours indiqué. 0 désactive. La conversation ouverte n’est jamais supprimée.",
   "set.autoCleanupDays": "jours (0 = désactivé)",
+  "budget.title": "Budget",
+  "budget.hint": "Dépenses du jour et du mois par rapport à vos plafonds.",
+  "budget.day": "Aujourd’hui",
+  "budget.month": "Ce mois",
+  "budget.noBudget": "Aucun plafond défini — affichage des dépenses uniquement. Définissez-le dans Réglages → Données.",
+  "budget.topModels": "Modèles par coût",
+  "budget.over": "Budget ({period}) dépassé : ${cost} sur ${budget}",
+  "set.budgetDaily": "Budget quotidien",
+  "set.budgetMonthly": "Budget mensuel",
+  "set.budgetHint": "Un plafond de dépenses. 0 désactive. L’avertissement a lieu une fois par période.",
+  "set.budgetUnit": "$ (USD)",
 }
 

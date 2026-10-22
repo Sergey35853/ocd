@@ -951,6 +951,17 @@ export const ru = {
   "set.autoCleanup": "Автоочистка",
   "set.autoCleanupHint": "Удалять беседы, которые не трогали указанное число дней. 0 — выключено. Активная беседа не удаляется.",
   "set.autoCleanupDays": "дней (0 = выкл.)",
+  "budget.title": "Бюджет",
+  "budget.hint": "Сколько потрачено сегодня и за месяц против ваших лимитов.",
+  "budget.day": "Сегодня",
+  "budget.month": "Этот месяц",
+  "budget.noBudget": "Лимит не задан — показываю только траты. Задайте в Настройках → Данные.",
+  "budget.topModels": "Модели по расходам",
+  "budget.over": "Бюджет ({period}) превышен: ${cost} из ${budget}",
+  "set.budgetDaily": "Дневной бюджет",
+  "set.budgetMonthly": "Месячный бюджет",
+  "set.budgetHint": "Потолок трат. 0 — выключено. При превышении приложение предупредит один раз за период.",
+  "set.budgetUnit": "$ (долл.)",
 } as const
 
 export type DictKey = keyof typeof ru

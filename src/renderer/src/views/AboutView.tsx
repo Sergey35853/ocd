@@ -3,6 +3,7 @@ import type { FeedbackKind, SessionStats } from "@shared/types"
 import { useStore } from "../lib/store"
 import { cx } from "../lib/format"
 import { Switch } from "../components/ui"
+import { BudgetCard } from "../components/BudgetCard"
 import { IconCheck, IconDownload, IconLink, IconRefresh, IconSend, IconAlert } from "../components/Icon"
 import { ViewBack } from "../components/ViewBack"
 import { getLanguage, useT } from "../i18n"
@@ -202,6 +203,7 @@ export function AboutView({ onBack }: { onBack: () => void }) {
         card above is about, and a person looking for it comes to this screen
         rather than to a list of preferences.
       */}
+      <BudgetCard />
       <StatsCard />
 
       <div className="card">

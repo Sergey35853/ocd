@@ -817,6 +817,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   /**
+   * Say something when the spend crosses a line the person drew.
+   *
+   * The ceiling lives in the settings; the spend is what the server has counted
+   * for today and for the month. Both are asked of the server rather than
+   * summed here, because the server is the one that knows every conversation.
+   * A period is only ever announced once: the stamp in storage is what keeps a
+   * busy day from turning into a stream of the same warning.
+   */
+  const checkBudget = useCallback(async () => {
+    const daily = settingsRef.current?.budgetDaily ?? 0
+    const monthly = settingsRef.current?.budgetMonthly ?? 0
+    if (!(daily > 0 || monthly > 0)) return
+    const now = Date.now()
+    const today = new Date()
+    const dayKey = today.toISOString().slice(0, 10)
+    const monthKey = today.toISOString().slice(0, 7)
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const periods: Array<{ budget: number; from: number; stamp: string; label: "budget.day" | "budget.month" }> = []
+    if (daily > 0)
+      periods.push({ budget: daily, from: startOfDay.getTime(), stamp: `ocd.budget.alert:${dayKey}`, label: "budget.day" })
+    if (monthly > 0)
+      periods.push({
+        budget: monthly,
+        from: startOfMonth.getTime(),
+        stamp: `ocd.budget.alert:${monthKey}`,
+        label: "budget.month",
+      })
+    for (const period of periods) {
+      try {
+        if (localStorage.getItem(period.stamp)) continue
+        const stats = await window.ocd.api.sessionStats(period.from, now)
+        if (stats.cost < period.budget) continue
+        const body = translate("budget.over", {
+          period: translate(period.label),
+          cost: stats.cost.toFixed(2),
+          budget: period.budget.toFixed(2),
+        })
+        void window.ocd.notify.rule({ title: translate("budget.title"), body }).catch(() => undefined)
+        toast(body, "error")
+        try {
+          localStorage.setItem(period.stamp, "1")
+        } catch {
+          /* no storage: the warning may repeat, which is the safer default */
+        }
+      } catch {
+        /* a server that cannot count simply does not warn */
+      }
+    }
+  }, [toast])
+
+  /**
    * Bring a message into view.
    *
    * The search finds a phrase in a conversation that may not even be open.
@@ -1937,6 +1992,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             void refreshSessions()
             void notifyOutcome(sessionID, event.type === "session.execution.failed")
             checkNotifyRules(sessionID, event.type === "session.execution.failed")
+            void checkBudget()
 
             // The server delivers anything it was holding as the turn ends, so
             // there is nothing to send from here — only to look at what is
@@ -2027,7 +2083,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // flight. It reads both through refs instead, which is why an older copy
     // stays correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules])
+  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules, checkBudget])
 
   // ---------- boot ----------
 

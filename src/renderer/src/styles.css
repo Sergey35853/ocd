@@ -1073,6 +1073,63 @@ select {
   white-space: nowrap;
 }
 
+/* The spend against a ceiling: one row per period, a bar when there is one. */
+.budget-list {
+  display: grid;
+  gap: 12px;
+}
+.budget-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.budget-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+.budget-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.budget-num.over {
+  color: var(--err);
+  font-weight: 600;
+}
+.budget-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.budget-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.budget-fill.over {
+  background: var(--err);
+}
+.budget-block {
+  display: grid;
+  gap: 4px;
+}
+.budget-model {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.budget-model .grow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* One tool and its counters. The icons say what the three numbers mean, so
    the block needs no words of its own. */
 .stats-tool {

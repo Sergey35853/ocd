@@ -1299,6 +1299,38 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               <span className="desc">{t("set.autoCleanupDays")}</span>
             </div>
           </Field>
+          <Field label={t("set.budgetDaily")} hint={t("set.budgetHint")}>
+            <div className="row">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="0.5"
+                style={{ width: 110 }}
+                value={settings.budgetDaily ?? 0}
+                onChange={(event) =>
+                  void store.updateSettings({ budgetDaily: Math.max(0, Number(event.target.value) || 0) })
+                }
+              />
+              <span className="desc">{t("set.budgetUnit")}</span>
+            </div>
+          </Field>
+          <Field label={t("set.budgetMonthly")} hint={t("set.budgetHint")}>
+            <div className="row">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="0.5"
+                style={{ width: 110 }}
+                value={settings.budgetMonthly ?? 0}
+                onChange={(event) =>
+                  void store.updateSettings({ budgetMonthly: Math.max(0, Number(event.target.value) || 0) })
+                }
+              />
+              <span className="desc">{t("set.budgetUnit")}</span>
+            </div>
+          </Field>
         </div>
       ),
     },

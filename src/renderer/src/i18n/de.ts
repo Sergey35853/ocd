@@ -929,5 +929,16 @@ export const de: Dict = {
   "set.autoCleanup": "Automatisches Aufräumen",
   "set.autoCleanupHint": "Unterhaltungen löschen, die seit der angegebenen Anzahl von Tagen nicht berührt wurden. 0 ist aus. Die geöffnete Unterhaltung wird nie entfernt.",
   "set.autoCleanupDays": "Tage (0 = aus)",
+  "budget.title": "Budget",
+  "budget.hint": "Ausgaben heute und diesen Monat gegenüber Ihren Limits.",
+  "budget.day": "Heute",
+  "budget.month": "Dieser Monat",
+  "budget.noBudget": "Kein Limit gesetzt — nur Ausgaben werden gezeigt. Setzen Sie es unter Einstellungen → Daten.",
+  "budget.topModels": "Modelle nach Kosten",
+  "budget.over": "Budget ({period}) überschritten: ${cost} von ${budget}",
+  "set.budgetDaily": "Tagesbudget",
+  "set.budgetMonthly": "Monatsbudget",
+  "set.budgetHint": "Eine Ausgabenobergrenze. 0 ist aus. Die App warnt einmal pro Zeitraum, wenn sie überschritten wird.",
+  "set.budgetUnit": "$ (USD)",
 }
 

@@ -923,5 +923,16 @@ export const en: Dict = {
   "set.autoCleanup": "Auto-cleanup",
   "set.autoCleanupHint": "Delete conversations untouched for the given number of days. 0 is off. The open conversation is never removed.",
   "set.autoCleanupDays": "days (0 = off)",
+  "budget.title": "Budget",
+  "budget.hint": "Spend today and this month against your ceilings.",
+  "budget.day": "Today",
+  "budget.month": "This month",
+  "budget.noBudget": "No ceiling set — showing spend only. Set one in Settings → Data.",
+  "budget.topModels": "Top models by cost",
+  "budget.over": "Budget ({period}) exceeded: ${cost} of ${budget}",
+  "set.budgetDaily": "Daily budget",
+  "set.budgetMonthly": "Monthly budget",
+  "set.budgetHint": "A spend ceiling. 0 is off. The app warns once per period when it is crossed.",
+  "set.budgetUnit": "$ (USD)",
 }
 

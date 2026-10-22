@@ -917,5 +917,16 @@ export const zh: Dict = {
   "set.autoCleanup": "自动清理",
   "set.autoCleanupHint": "删除指定天数内未被触动的对话。0 表示关闭。打开的对话永远不会被删除。",
   "set.autoCleanupDays": "天（0 = 关闭）",
+  "budget.title": "预算",
+  "budget.hint": "今日和本月支出与您的上限对比。",
+  "budget.day": "今天",
+  "budget.month": "本月",
+  "budget.noBudget": "未设置上限——仅显示支出。可在设置 → 数据中设置。",
+  "budget.topModels": "按费用排列的模型",
+  "budget.over": "预算（{period}）已超出：${cost} / ${budget}",
+  "set.budgetDaily": "每日预算",
+  "set.budgetMonthly": "每月预算",
+  "set.budgetHint": "支出上限。0 表示关闭。超出时应用每个周期警告一次。",
+  "set.budgetUnit": "美元（$）",
 }
 
