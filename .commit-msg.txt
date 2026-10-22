@@ -1,0 +1,15 @@
+Исправления после аудита: автозапуск, чекпойнты, переводы, CSS
+
+- Автозапуск: stamp в localStorage теперь ставится после успешного запуска, неудача не блокирует повтор
+- Чекпойнты: пути нормализуются перед encodeURIComponent (Windows \), dirname вместо join(target, ".."), ID через crypto.randomUUID(), checkpointsSize рекурсивен
+- autoRuns: валидация времени (0-23ч, 0-59м), 25:00 больше не перекатывает дату
+- notifyRule: пустое значение cost не срабатывает при любых тратах
+- Типы: убрано | string из AgentPermission.effect / MessageContent.type, удалены мёртвые объявления (minimizeToTray, onWindowEvent, hideWindow, hud.close)
+- ExportMenu: тип busy расширен на "project", ключ export.projectWorking добавлен
+- export.ts: система локали вместо ru-RU, ошибка пустого JSONL через mainText с ключом exportEmpty
+- SessionCompare: роли You/Model через i18n, t в депах useCallback
+- CSS: добавлены standalone .grow, .desc, .mono, .spacer, .sub, .kbd, .port, .files-checkpoints
+- Перевод RU: порядок слов {n} перед существительным, грамматика prov.connectedHint, цельность предложения keyWarningStored/credentialStore, пассивный залог chat.modelGone, другой проект session.move, нейтральные формы склонений (байт(ов), файл(ов), шаг(ов) и т.д.)
+- ChangesPanel.test: ожидание обновлено под новый перевод
+
+283 теста проходят, typecheck чистый, lint 0 ошибок.

@@ -44,11 +44,11 @@ export function SessionCompare({
     for (const message of messages) {
       const body = textOf(message.content ?? []).trim()
       if (!body) continue
-      const role = message.type === "user" ? "Вы" : "Модель"
+      const role = message.type === "user" ? t("cmp.roleUser") : t("cmp.roleModel")
       for (const line of body.split("\n")) lines.push(`${role}: ${line}`)
     }
     return lines.join("\n")
-  }, [])
+  }, [t])
 
   const compare = useCallback(async () => {
     if (!left || !right) return

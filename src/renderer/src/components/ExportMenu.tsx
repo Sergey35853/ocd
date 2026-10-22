@@ -97,7 +97,7 @@ export function ExportMenu({
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState<Format | null>(null)
+  const [busy, setBusy] = useState<Format | "project" | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const box = useAnchoredMenu(open, rootRef, 178, 178, 5)

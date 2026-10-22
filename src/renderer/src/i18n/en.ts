@@ -897,5 +897,8 @@ export const en: Dict = {
   "auto.day4": "Th",
   "auto.day5": "Fr",
   "auto.day6": "Sa",
+  "export.projectWorking": "Preparing project…",
+  "cmp.roleUser": "You",
+  "cmp.roleModel": "Model",
 }
 

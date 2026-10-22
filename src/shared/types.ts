@@ -82,7 +82,7 @@ export interface ProviderInfo {
 export interface AgentPermission {
   action: string
   resource: string
-  effect: "allow" | "ask" | "deny" | string
+  effect: "allow" | "ask" | "deny"
 }
 
 /**
@@ -347,7 +347,7 @@ export interface SessionInfo {
 
 /** One block of an assistant turn. */
 export interface MessageContent {
-  type: "text" | "reasoning" | "tool" | string
+  type: "text" | "reasoning" | "tool"
   text?: string
   /** Tool name. Older servers spelled it `tool`, current ones `name`. */
   tool?: string
@@ -1280,8 +1280,6 @@ export interface OcdApi {
     minimize(): Promise<void>
     toggleMaximize(): Promise<boolean>
     close(): Promise<void>
-    minimizeToTray(): Promise<void>
-    onWindowEvent(cb: (kind: string) => void): () => void
     setAlwaysOnTop(value: boolean): Promise<void>
     openExternal(url: string): Promise<void>
     openPath(target: string): Promise<string>
@@ -1295,7 +1293,6 @@ export interface OcdApi {
       language?: string
     }): Promise<void>
     showWindow(): Promise<boolean>
-    hideWindow(): Promise<void>
     /** Show the window and put the caret in the composer. */
     focusComposer(): Promise<void>
     /** Open one conversation in its own OS window; re-requests focus it. */
@@ -1420,7 +1417,6 @@ export interface OcdApi {
     ): () => void
     request(): Promise<void>
     toggle(): Promise<boolean>
-    close(): Promise<void>
   }
   attachments: {
     /** Native file dialog for images and any other file. */

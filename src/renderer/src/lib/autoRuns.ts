@@ -27,7 +27,19 @@ export const CATCH_UP_MS = 2 * 60 * 60 * 1000
  * be today, or a day or a week ago.
  */
 export function lastDue(rule: AutoRun, now: Date): Date | null {
-  const [hours, minutes] = rule.time.split(":").map((part) => Number(part) || 0)
+  const parts = rule.time.split(":")
+  if (parts.length !== 2) return null
+  const [hours, minutes] = parts.map((part) => Number(part))
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null
+  }
   for (let back = 0; back < 8; back += 1) {
     const day = new Date(now)
     day.setDate(day.getDate() - back)

@@ -891,5 +891,8 @@ export const zh: Dict = {
   "auto.day4": "四",
   "auto.day5": "五",
   "auto.day6": "六",
+  "export.projectWorking": "正在准备项目…",
+  "cmp.roleUser": "你",
+  "cmp.roleModel": "模型",
 }
 

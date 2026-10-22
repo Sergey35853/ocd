@@ -77,6 +77,7 @@ const STRINGS = {
   exportPdf: { ru: "PDF", en: "PDF", de: "PDF", fr: "PDF", zh: "PDF" },
   exportDone: { ru: "Экспорт готов", en: "Export ready", de: "Export bereit", fr: "Export prêt", zh: "导出完成" },
   exportFailed: { ru: "Не удалось экспортировать", en: "Export failed", de: "Export fehlgeschlagen", fr: "Échec de l’export", zh: "导出失败" },
+  exportEmpty: { ru: "В разговоре нет ни одной реплики", en: "The conversation has no messages", de: "Die Unterhaltung hat keine Nachrichten", fr: "La conversation ne contient aucun message", zh: "对话中没有消息" },
 
   // hotkey
   hotkeyRegistered: { ru: "Горячая клавиша включена", en: "Hotkey enabled", de: "Hotkey aktiviert", fr: "Raccourci activé", zh: "快捷键已启用" },

@@ -3,6 +3,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { ExportRecord } from "@shared/types"
+import { getSettings } from "./settings"
+import { mainText, type UiLanguage } from "./i18n"
 
 /** What the renderer hands over: a ready-made Markdown document. */
 export interface ExportPayload {
@@ -27,6 +29,15 @@ const EXT: Record<ExportPayload["format"], string> = {
   html: "html",
   pdf: "pdf",
   jsonl: "jsonl",
+}
+
+/** Язык интерфейса из настроек — для заголовков и сообщений в экспорте. */
+function language(): UiLanguage {
+  try {
+    return getSettings().uiLanguage as UiLanguage
+  } catch {
+    return "en"
+  }
 }
 
 /** Strip characters Windows refuses in a filename. */
@@ -245,8 +256,8 @@ function markdownToHtml(markdown: string): string {
 
 /** Markdown with a title heading, used for the .md export. */
 function markdownDocument(payload: ExportPayload): string {
-  const stamp = new Date().toLocaleString("ru-RU")
-  return `# ${payload.title || "Беседа"}\n\n_OCD — OpenCode Deck · ${payload.messages} сообщ. · ${stamp}_\n\n${payload.markdown.trim()}\n`
+  const stamp = new Date().toLocaleString()
+  return `# ${payload.title || mainText("exportTitle", language())}\n\n_OCD — OpenCode Deck · ${payload.messages} сообщ. · ${stamp}_\n\n${payload.markdown.trim()}\n`
 }
 
 /**
@@ -304,7 +315,7 @@ export async function exportConversation(
 
     if (payload.format === "jsonl") {
       const text = jsonlDocument(payload)
-      if (!text) return { ok: false, error: "В разговоре нет ни одной реплики" }
+      if (!text) return { ok: false, error: mainText("exportEmpty", language()) }
       await writeFile(result.filePath, text, "utf8")
       return { ok: true, path: result.filePath }
     }

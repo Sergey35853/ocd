@@ -96,7 +96,7 @@ describe("DiffView", () => {
 describe("ChangesPanel", () => {
   it("summarises the files and the lines in the header button", () => {
     const html = panel()
-    expect(html).toContain("1 файлов +1 −1")
+    expect(html).toContain("1 файл(ов) +1 −1")
     expect(html).toContain("a.ts")
   })
 

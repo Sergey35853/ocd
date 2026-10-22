@@ -804,7 +804,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           body = translate("notifyRule.keyword", { word: rule.value })
         } else {
           const limit = Number(rule.value)
-          matched = Number.isFinite(limit) && spent >= limit
+          // Пустое значение или ноль — правило не о чём: не уведомляем ни о каком трате.
+          matched = rule.value.trim() !== "" && Number.isFinite(limit) && limit > 0 && spent >= limit
           body = translate("notifyRule.cost", { cost: spent.toFixed(2) })
         }
         if (!matched) continue
@@ -1017,17 +1018,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const key = stampKey(rule, due)
         try {
           if (localStorage.getItem(key)) continue
-          localStorage.setItem(key, "1")
         } catch {
-          // No storage: the rule would fire again on the next tick. That is
-          // better than not firing at all, and the settings are still the
-          // user's.
+          /* no storage: the rule will retry on the next tick */
         }
         try {
           const id = await newSession()
           if (!id) continue
           await send(id, rule.prompt, rule.agent || undefined)
           toast(translate("auto.ran", { time: rule.time }), "info")
+          // Печать ставится только после успешного запуска: неудача не
+          // блокирует правило — оно попробует снова на следующем тике.
+          try { localStorage.setItem(key, "1") } catch { /* no storage */ }
         } catch (err) {
           toast(err instanceof Error ? err.message : String(err), "error")
         }

@@ -1,6 +1,6 @@
 import { app } from "electron"
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { Checkpoint, CheckpointFile } from "@shared/types"
 import { service } from "./service"
 import { log } from "./log"
@@ -111,23 +111,23 @@ async function currentBranch(directory: string): Promise<string> {
  */
 export async function saveCheckpoint(directory: string): Promise<Checkpoint> {
   const files = await changedFiles(directory)
-  const id = `cp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const id = `cp-${crypto.randomUUID()}`
   const payload = payloadPath(id)
   mkdirSync(payload, { recursive: true })
 
   const kept: CheckpointFile[] = []
   for (const file of files) {
     try {
-      const encoded = file
-        .split("/")
-        .map((part) => encodeURIComponent(part))
-        .join("/")
+      // Нормализуем разделители на «/» и кодируем каждый сегмент — на Windows
+      //encodeURIComponent не кодирует «\», а путь в URL должен быть безопасным.
+      const normalized = file.split(/[\\/]/).filter(Boolean)
+      const encoded = normalized.map((part) => encodeURIComponent(part)).join("/")
       const body = await service.get<string>(`/api/fs/read/${encoded}`, {
         ...(directory ? { "location[directory]": directory } : {}),
       })
       const text = typeof body === "string" ? body : String((body as { data?: unknown })?.data ?? "")
-      const target = join(payload, ...file.split(/[\\/]/).filter(Boolean))
-      mkdirSync(join(target, ".."), { recursive: true })
+      const target = join(payload, ...normalized)
+      mkdirSync(dirname(target), { recursive: true })
       writeFileSync(target, text, "utf8")
       kept.push({ path: file, size: Buffer.byteLength(text, "utf8") })
     } catch (err) {
@@ -190,14 +190,14 @@ export function checkpointsSize(): number {
   let total = 0
   try {
     if (!existsSync(root())) return 0
-    for (const entry of readdirSync(root())) {
-      const folder = join(root(), entry)
-      if (!statSync(folder).isDirectory()) continue
-      for (const file of readdirSync(folder)) {
-        const path = join(folder, file)
-        if (statSync(path).isFile()) total += statSync(path).size
+    const walk = (folder: string) => {
+      for (const entry of readdirSync(folder)) {
+        const path = join(folder, entry)
+        if (statSync(path).isDirectory()) walk(path)
+        else total += statSync(path).size
       }
     }
+    walk(root())
   } catch {
     /* the size is decoration */
   }

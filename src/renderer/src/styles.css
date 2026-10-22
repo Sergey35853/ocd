@@ -264,6 +264,10 @@ select {
 .navmenu-item .kbd {
   margin-left: auto;
 }
+.kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+}
 
 /* Busy spinner shown in the chat header. */
 .spinner {
@@ -782,7 +786,14 @@ select {
   color: var(--text-faint);
   font-size: 12px;
 }
+.sub {
+  color: var(--text-faint);
+  font-size: 12px;
+}
 .view-head .spacer {
+  flex: 1;
+}
+.spacer {
   flex: 1;
 }
 
@@ -1347,6 +1358,10 @@ select {
   flex: 1;
   min-width: 0;
 }
+.grow {
+  flex: 1;
+  min-width: 0;
+}
 .row .name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1359,7 +1374,15 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.desc {
+  color: var(--text-faint);
+  font-size: 12px;
+}
 .row .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.mono {
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -2238,6 +2261,10 @@ input[type="color"] {
 }
 .auto-add .time {
   width: 110px;
+  flex: none;
+}
+.port {
+  width: 70px;
   flex: none;
 }
 .auto-days {
@@ -4996,6 +5023,12 @@ select.input {
 }
 .files-content {
   min-height: 180px;
+}
+.files-checkpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 /* The file itself, as the model would read it: wrapped, so a long line does
    not push the window sideways. */
