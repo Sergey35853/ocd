@@ -385,6 +385,15 @@ const api = {
     run: (command: string, cwd?: string, timeoutMs?: number) =>
       call<{ exit: number; stdout: string; stderr: string }>("shell:run", { command, cwd, timeoutMs }),
   },
+  fsWatch: {
+    /**
+     * Watch one project folder for changes. Replaces any previous watch;
+     * `watching: false` means the folder could not be attached.
+     */
+    start: (directory: string) => call<{ watching: boolean }>("fsWatch:start", { directory }),
+    /** Stop watching. */
+    stop: () => call<{ directory: string | null }>("fsWatch:stop"),
+  },
   remote: {
     /** Open an SSH tunnel and adopt the remote OpenCode as the endpoint. */
     connect: (target: { host: string; remotePort: number; localPort?: number; remember?: boolean }) =>

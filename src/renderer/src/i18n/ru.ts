@@ -981,6 +981,16 @@ export const ru = {
   "arena.stateFailed": "ошибка",
   "arena.empty": "Пустой ответ модели",
   "arena.waiting": "Ждём ответа…",
+  "session.watchOn": "Следить за проектом",
+  "session.watchOff": "Остановить слежение",
+  "session.watchHint": "Уведомлять (или отправлять промпт) при изменении файлов проекта.",
+  "set.watchPrompt": "Промпт при изменении файлов",
+  "set.watchPromptHint": "Если задан — отправляется в наблюдаемую беседу при изменении файлов (пока она не занята). Пусто — только уведомление.",
+  "watch.changed": "Изменились файлы проекта ({n})",
+  "watch.started": "Слежение за проектом включено",
+  "watch.stopped": "Слежение остановлено",
+  "watch.noDir": "У этой беседы нет локальной папки",
+  "watch.failed": "Не удалось начать слежение",
 } as const
 
 export type DictKey = keyof typeof ru

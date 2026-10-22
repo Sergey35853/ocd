@@ -36,6 +36,7 @@ const DEFAULTS: AppSettings = {
   budgetMonthly: 0,
   verifyAfterDone: false,
   verifyCommand: "",
+  watchPrompt: "",
   showUsage: true,
   showLimits: true,
   // Typing while the model is still answering usually means "wait, also this" —

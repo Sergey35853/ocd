@@ -274,6 +274,20 @@ export function SessionActions({
             type="button"
             className="item"
             role="menuitem"
+            title={t("session.watchHint")}
+            onClick={() => {
+              close()
+              void store.toggleWatch(sessionId)
+            }}
+          >
+            <span className="grow">
+              {store.watchSessionId === sessionId ? t("session.watchOff") : t("session.watchOn")}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
             title={t("session.backgroundHint")}
             onClick={() => {
               close()

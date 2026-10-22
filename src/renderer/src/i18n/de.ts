@@ -959,5 +959,15 @@ export const de: Dict = {
   "arena.stateFailed": "Fehler",
   "arena.empty": "Das Modell gab nichts zurück",
   "arena.waiting": "Warte auf die Antwort…",
+  "session.watchOn": "Projekt beobachten",
+  "session.watchOff": "Beobachten beenden",
+  "session.watchHint": "Benachrichtigen (oder einen Prompt senden), wenn Projektdateien sich ändern.",
+  "set.watchPrompt": "Prompt bei Dateiänderung",
+  "set.watchPromptHint": "Wenn gesetzt, wird er der beobachteten Unterhaltung bei Änderungen gesendet (wenn sie inaktiv ist). Leer bedeutet nur benachrichtigen.",
+  "watch.changed": "Projektdateien geändert ({n})",
+  "watch.started": "Projekt wird beobachtet",
+  "watch.stopped": "Beobachten gestoppt",
+  "watch.noDir": "Diese Unterhaltung hat keinen lokalen Ordner",
+  "watch.failed": "Beobachten konnte nicht gestartet werden",
 }
 

@@ -947,5 +947,15 @@ export const zh: Dict = {
   "arena.stateFailed": "失败",
   "arena.empty": "模型没有返回内容",
   "arena.waiting": "等待回答…",
+  "session.watchOn": "监视此项目",
+  "session.watchOff": "停止监视",
+  "session.watchHint": "项目文件变更时通知（或发送提示词）。",
+  "set.watchPrompt": "文件变更时的提示词",
+  "set.watchPromptHint": "若设置，文件变更时发送到被监视的对话（空闲时）。留空表示仅通知。",
+  "watch.changed": "项目文件已变更（{n}）",
+  "watch.started": "已开始监视项目",
+  "watch.stopped": "已停止监视",
+  "watch.noDir": "此对话没有本地文件夹",
+  "watch.failed": "无法开始监视",
 }
 

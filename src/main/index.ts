@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { registerIpc, broadcastServiceEvents, startAutoSpeech } from "./ipc"
+import { broadcastFsEvents } from "./fsWatch"
 import { service } from "./service"
 import { setPtyOutput } from "./pty"
 import { voice } from "./voice"
@@ -374,6 +375,9 @@ if (!app.requestSingleInstanceLock()) {
     setTrayActions(trayActions)
     registerIpc(() => mainWindow)
     broadcastServiceEvents(() => BrowserWindow.getAllWindows())
+    // Folder changes are the app's own event, not the server's: they ride the
+    // same channel so the renderer's switch sees them without a second path.
+    broadcastFsEvents(() => BrowserWindow.getAllWindows())
     // The terminal writes through the main process, so the bytes have to be
     // handed to the window from there.
     setPtyOutput((payload) => {

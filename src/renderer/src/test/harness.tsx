@@ -261,6 +261,7 @@ export function installOcdMock(overrides: Record<string, unknown> = {}): OcdMock
     pty: { open: async () => ({}), input: async () => undefined, close: async () => undefined, onOutput: () => () => undefined },
     remote: { connect: async () => ({ url: "", port: 0 }), disconnect: async () => undefined, status: async () => ({ active: false, url: null }) },
     shell: { openTerminal: async () => ({ launcher: "cmd", opened: true }), run: async () => ({ exit: 0, stdout: "", stderr: "" }) },
+    fsWatch: { start: async (_directory?: string) => ({ watching: true }), stop: async () => ({ directory: null }) },
     integration: { list: async () => [], connectKey: async () => ({}), oauthBegin: async () => ({}), oauthStatus: async () => ({}), oauthComplete: async () => ({}), oauthCancel: async () => ({}), probe: async () => ({ online: false }) },
   }
 

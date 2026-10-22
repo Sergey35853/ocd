@@ -134,6 +134,10 @@ interface Store {
   tabs: OpenTab[]
   activeTab: string | null
   busy: Record<string, boolean>
+  /** The conversation whose folder is being watched for changes, if any. */
+  watchSessionId: string | null
+  /** Start or stop watching a conversation's project folder. */
+  toggleWatch(sessionId: string): Promise<void>
   /** When the running turn began, per conversation. */
   turnStart: Record<string, number>
   /** Durations of finished turns, per conversation. */
@@ -501,6 +505,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
   const [activeTab, setActiveTab] = useState<string | null>(() => readPersistedTabs().active)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
+  /** The conversation whose folder is watched; kept in a ref too, for events. */
+  const [watchSessionId, setWatchSessionId] = useState<string | null>(null)
+  const watchSessionRef = useRef<string | null>(null)
+  /** Earliest moment an auto-send may fire again — a guard against a loop. */
+  const watchCooldownRef = useRef(0)
   /** When the running turn began, per conversation. */
   const [turnStart, setTurnStart] = useState<Record<string, number>>({})
   /** Durations of finished turns, per conversation, oldest first. */
@@ -1094,6 +1103,71 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return true
     },
     [settings?.busySendMode, refreshInbox, toast],
+  )
+
+  /**
+   * React to the watched folder changing.
+   *
+   * The default is to say so: the user learns the project moved. When a prompt
+   * is set, the change is sent to the watched conversation instead — but only
+   * while it is idle and no more often than a cooldown. A turn already in
+   * progress must not be interrupted by its own edits, and a prompt that edits
+   * files in response to file changes would otherwise run forever without that
+   * quiet period.
+   */
+  const onFsChanged = useCallback(
+    (data: Record<string, unknown>) => {
+      const sessionId = watchSessionRef.current
+      if (!sessionId) return
+      const files = Array.isArray(data.files) ? data.files.length : 0
+      const prompt = settingsRef.current?.watchPrompt?.trim() ?? ""
+      const idle = !busyRef.current[sessionId]
+      // 8s: a burst settles, and the next reaction is never instant on itself.
+      if (prompt && idle && Date.now() >= watchCooldownRef.current) {
+        watchCooldownRef.current = Date.now() + 8000
+        void send(sessionId, prompt)
+        return
+      }
+      toast(translate("watch.changed", { n: files }), "info")
+    },
+    [send, toast],
+  )
+
+  /** Start (or stop) watching one conversation's project folder. */
+  const toggleWatch = useCallback(
+    async (sessionId: string) => {
+      if (watchSessionRef.current === sessionId) {
+        watchSessionRef.current = null
+        setWatchSessionId(null)
+        try {
+          await window.ocd.fsWatch.stop()
+        } catch {
+          /* already stopped */
+        }
+        toast(translate("watch.stopped"), "info")
+        return
+      }
+      const session = sessionsRef.current.find((item) => item.id === sessionId)
+      const directory = session?.location?.directory || directoryRef.current
+      if (!directory) {
+        toast(translate("watch.noDir"), "error")
+        return
+      }
+      try {
+        const result = await window.ocd.fsWatch.start(directory)
+        if (!result.watching) {
+          toast(translate("watch.failed"), "error")
+          return
+        }
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+        return
+      }
+      watchSessionRef.current = sessionId
+      setWatchSessionId(sessionId)
+      toast(translate("watch.started"), "info")
+    },
+    [toast],
   )
 
   /**
@@ -1846,6 +1920,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = event.data ?? {}
       const sessionID = (data.sessionID as string | undefined) ?? undefined
 
+      // Any event from a session that is still working is proof the turn is
+      // alive, so the stale-busy watchdog must not time it out. Without this a
+      // turn longer than BUSY_TIMEOUT_MS (a long subagent run) lost its busy
+      // flag mid-flight and the busy animation disappeared while work went on.
+      if (sessionID && busyRef.current[sessionID]) {
+        sentAtRef.current[sessionID] = Date.now()
+      }
+
       /** Patch the in-flight turn, creating it if the step event was missed. */
       const patchLive = (patch: (turn: LiveTurn) => LiveTurn) => {
         if (!sessionID) return
@@ -2115,6 +2197,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           void refreshCatalog()
           break
 
+        case "ocd.fsChanged":
+          // The app's own event (a watched folder moved), not the server's.
+          onFsChanged(data)
+          break
+
         default:
           break
       }
@@ -2130,7 +2217,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // flight. It reads both through refs instead, which is why an older copy
     // stays correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules, checkBudget, runVerify])
+  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules, checkBudget, runVerify, onFsChanged])
 
   // ---------- boot ----------
 
@@ -2368,6 +2455,8 @@ useEffect(() => {
       tabs,
       activeTab,
       busy,
+      watchSessionId,
+      toggleWatch,
       turnStart,
       turnLog,
       // A getter, not a snapshot: the store must not be rebuilt by the clock.
@@ -2454,6 +2543,8 @@ useEffect(() => {
       tabs,
       activeTab,
       busy,
+      watchSessionId,
+      toggleWatch,
       usage,
       limits,
       refreshLimits,

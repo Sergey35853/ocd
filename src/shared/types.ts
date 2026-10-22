@@ -746,6 +746,15 @@ export interface AppSettings {
   verifyAfterDone?: boolean
   /** The command to run for that check, e.g. `npm test`. Empty means none. */
   verifyCommand?: string
+  /**
+   * What to say to the watched session when its folder changes.
+   *
+   * Empty (the default) means watch-mode only tells the user the project moved.
+   * A non-empty prompt is auto-sent when files change — useful for "re-run the
+   * tests" workflows, but a prompt that edits files in response to file changes
+   * would loop, so it is off until the person writes one.
+   */
+  watchPrompt?: string
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */
@@ -1404,6 +1413,15 @@ export interface OcdApi {
       cwd?: string,
       timeoutMs?: number,
     ): Promise<{ exit: number; stdout: string; stderr: string }>
+  }
+  fsWatch: {
+    /**
+     * Watch one project folder for changes; the store reacts to the resulting
+     * `ocd.fsChanged` events. Starting replaces any previous watch.
+     */
+    start(directory: string): Promise<{ watching: boolean }>
+    /** Stop watching. */
+    stop(): Promise<{ directory: string | null }>
   }
   permission: {
     /** Requests the server is waiting on for an answer. */

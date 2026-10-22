@@ -958,5 +958,15 @@ export const fr: Dict = {
   "arena.stateFailed": "échec",
   "arena.empty": "Le modèle n’a rien renvoyé",
   "arena.waiting": "En attente de la réponse…",
+  "session.watchOn": "Surveiller le projet",
+  "session.watchOff": "Arrêter la surveillance",
+  "session.watchHint": "Notifier (ou envoyer un prompt) lorsque les fichiers du projet changent.",
+  "set.watchPrompt": "Prompt au changement de fichier",
+  "set.watchPromptHint": "S’il est défini, il est envoyé à la conversation surveillée lors d’un changement (si elle est inactive). Vide = notification uniquement.",
+  "watch.changed": "Fichiers du projet modifiés ({n})",
+  "watch.started": "Surveillance du projet activée",
+  "watch.stopped": "Surveillance arrêtée",
+  "watch.noDir": "Cette conversation n’a pas de dossier local",
+  "watch.failed": "Impossible de démarrer la surveillance",
 }
 

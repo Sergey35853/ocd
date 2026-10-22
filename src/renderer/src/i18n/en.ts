@@ -953,5 +953,15 @@ export const en: Dict = {
   "arena.stateFailed": "failed",
   "arena.empty": "The model returned nothing",
   "arena.waiting": "Waiting for the answer…",
+  "session.watchOn": "Watch this project",
+  "session.watchOff": "Stop watching",
+  "session.watchHint": "Notify (or send a prompt) when project files change.",
+  "set.watchPrompt": "Prompt on file change",
+  "set.watchPromptHint": "If set, it is sent to the watched conversation when files change (while it is idle). Empty means notify only.",
+  "watch.changed": "Project files changed ({n})",
+  "watch.started": "Watching the project",
+  "watch.stopped": "Watch stopped",
+  "watch.noDir": "This conversation has no local folder",
+  "watch.failed": "Could not start watching",
 }
 

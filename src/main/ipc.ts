@@ -60,6 +60,7 @@ import { sshTunnel } from "./sshTunnel"
 import { flashTaskbar, notifyFinish, notifyRule, type FinishNotice } from "./notify"
 import { dismissNotice, showFinishNotice } from "./notice"
 import { openInTerminal, runCommand, type RunResult } from "./terminal"
+import { startWatch, stopWatch, watchedDirectory } from "./fsWatch"
 import { probeRuntime } from "./runtimeProbe"
 import {
   ENGINES,
@@ -1431,6 +1432,22 @@ async function fetchSessions(): Promise<SessionInfo[]> {
     ({ command, cwd, timeoutMs }: { command: string; cwd?: string; timeoutMs?: number }) =>
       runCommand(command, cwd, timeoutMs ?? 120_000),
   )
+
+  /**
+   * Watch one project folder for changes, and stop watching it.
+   *
+   * The watcher lives in main because `fs.watch` belongs to the process that
+   * owns the disk; changes come back as a normal `ocd:event` of type
+   * `ocd.fsChanged`. Starting replaces any previous watch, so the app never
+   * accumulates listeners it forgot to close.
+   */
+  handle<{ watching: boolean }>("fsWatch:start", ({ directory }: { directory: string }) =>
+    startWatch(directory),
+  )
+  handle<{ directory: string | null }>("fsWatch:stop", () => {
+    stopWatch()
+    return { directory: watchedDirectory() }
+  })
 
   /** System print dialog for the current conversation. */
   handle<{ ok: boolean; canceled?: boolean; error?: string }>("print:conversation", async (payload: ExportPayload) =>

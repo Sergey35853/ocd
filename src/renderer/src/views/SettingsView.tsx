@@ -806,6 +806,15 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             </Field>
           ) : null}
 
+          <Field label={t("set.watchPrompt")} hint={t("set.watchPromptHint")}>
+            <input
+              className="input"
+              style={{ width: "100%" }}
+              value={settings.watchPrompt ?? ""}
+              onChange={(event) => void store.updateSettings({ watchPrompt: event.target.value })}
+            />
+          </Field>
+
           <NotifyRules
             rules={settings.notifyRules ?? []}
             onChange={(rules) => void store.updateSettings({ notifyRules: rules })}
