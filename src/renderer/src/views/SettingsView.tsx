@@ -787,6 +787,25 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
             />
           </Field>
 
+          <Field label={t("set.verifyAfterDone")} hint={t("set.verifyAfterDoneHint")}>
+            <Switch
+              on={settings.verifyAfterDone === true}
+              onChange={(value) => void store.updateSettings({ verifyAfterDone: value })}
+            />
+          </Field>
+
+          {settings.verifyAfterDone ? (
+            <Field label={t("set.verifyCommand")} hint={t("set.verifyCommandHint")}>
+              <input
+                className="input"
+                style={{ width: "100%" }}
+                placeholder="npm test"
+                value={settings.verifyCommand ?? ""}
+                onChange={(event) => void store.updateSettings({ verifyCommand: event.target.value })}
+              />
+            </Field>
+          ) : null}
+
           <NotifyRules
             rules={settings.notifyRules ?? []}
             onChange={(rules) => void store.updateSettings({ notifyRules: rules })}

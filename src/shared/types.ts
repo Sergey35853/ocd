@@ -735,6 +735,17 @@ export interface AppSettings {
   budgetDaily?: number
   /** Spend ceiling per month. 0 is off. */
   budgetMonthly?: number
+  /**
+   * Run the verify command automatically after a turn reports success.
+   *
+   * The agent saying "done" is a claim; this is the check on it. Off by
+   * default because a command can cost seconds and touch the network, and
+   * because a rule that runs a shell after every answer without being asked
+   * would be a rule to fear.
+   */
+  verifyAfterDone?: boolean
+  /** The command to run for that check, e.g. `npm test`. Empty means none. */
+  verifyCommand?: string
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */
@@ -1382,6 +1393,17 @@ export interface OcdApi {
      * inside the app. `launcher` names what was used, so the caller can say so.
      */
     openTerminal(command: string, cwd?: string): Promise<{ launcher: string; opened: boolean }>
+    /**
+     * Runs a command once and brings back its verdict — an exit code and both
+     * streams. A failing exit is a result, not a rejection. This is what the
+     * verify-after-done check uses to see whether the agent's claim of "done"
+     * survives the project's own tests.
+     */
+    run(
+      command: string,
+      cwd?: string,
+      timeoutMs?: number,
+    ): Promise<{ exit: number; stdout: string; stderr: string }>
   }
   permission: {
     /** Requests the server is waiting on for an answer. */

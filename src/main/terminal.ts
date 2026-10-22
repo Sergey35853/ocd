@@ -1,5 +1,8 @@
-import { spawn, spawnSync } from "node:child_process"
+import { spawn, spawnSync, execFile } from "node:child_process"
 import { statSync } from "node:fs"
+import { promisify } from "node:util"
+
+const execFileAsync = promisify(execFile)
 
 /** What the button actually managed to launch. */
 export type TerminalLauncher = "wt" | "pwsh" | "powershell" | "cmd"
@@ -66,6 +69,61 @@ export function openInTerminal(command: string, cwd: string | undefined): OpenTe
   })
   child.unref()
   return { launcher: "cmd", opened: true }
+}
+
+/** What a one-shot command answered, for a caller that only wants a verdict. */
+export interface RunResult {
+  /** The process exit code. Non-zero means the command failed. */
+  exit: number
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Run a command once and bring back what it said.
+ *
+ * The point is a verdict, not a terminal: the caller wants to know whether the
+ * command passed and, when it did not, the lines that say why. Both streams are
+ * captured and the exit code is the answer. `cmd /c` parses the string the way
+ * a shell would, so pipelines and `&&` work — the command comes from the user's
+ * own settings, not from a stranger.
+ *
+ * A non-zero exit is a result, not a throw: "the tests failed" is exactly what
+ * the caller asked to learn. Only a command that could not be started at all
+ * rejects, and a timeout is reported as exit 124 so it reads as "did not finish"
+ * rather than as a crash.
+ */
+export async function runCommand(
+  command: string,
+  cwd: string | undefined,
+  timeoutMs: number,
+): Promise<RunResult> {
+  let dir = process.cwd()
+  if (cwd) {
+    try {
+      if (statSync(cwd).isDirectory()) dir = cwd
+    } catch {
+      /* the folder is gone: run where the app itself lives rather than fail */
+    }
+  }
+  try {
+    const { stdout, stderr } = await execFileAsync("cmd.exe", ["/d", "/s", "/c", command], {
+      cwd: dir,
+      timeout: timeoutMs,
+      windowsHide: true,
+      maxBuffer: 8 * 1024 * 1024,
+      encoding: "utf8",
+    })
+    return { exit: 0, stdout: stdout ?? "", stderr: stderr ?? "" }
+  } catch (err) {
+    // execFile rejects on a non-zero exit; the code and streams ride along.
+    const e = err as { code?: number | null; killed?: boolean; stdout?: string; stderr?: string }
+    if (e.killed) return { exit: 124, stdout: e.stdout ?? "", stderr: e.stderr ?? "" }
+    if (typeof e.code === "number") {
+      return { exit: e.code, stdout: e.stdout ?? "", stderr: e.stderr ?? "" }
+    }
+    throw err
+  }
 }
 
 /** Full path of an executable on PATH, or null. */

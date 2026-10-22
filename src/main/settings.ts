@@ -34,6 +34,8 @@ const DEFAULTS: AppSettings = {
   autoCleanupDays: 0,
   budgetDaily: 0,
   budgetMonthly: 0,
+  verifyAfterDone: false,
+  verifyCommand: "",
   showUsage: true,
   showLimits: true,
   // Typing while the model is still answering usually means "wait, also this" —

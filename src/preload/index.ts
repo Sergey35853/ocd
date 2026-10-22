@@ -376,6 +376,14 @@ const api = {
      */
     openTerminal: (command: string, cwd?: string) =>
       call<{ launcher: string; opened: boolean }>("shell:openTerminal", { command, cwd }),
+    /**
+     * Runs a command once and brings back its verdict: an exit code plus both
+     * streams. A failing exit is a result, not an error — only a command that
+     * could not be started at all rejects. This is what the verify-after-done
+     * check uses to decide whether the work the agent claimed actually holds.
+     */
+    run: (command: string, cwd?: string, timeoutMs?: number) =>
+      call<{ exit: number; stdout: string; stderr: string }>("shell:run", { command, cwd, timeoutMs }),
   },
   remote: {
     /** Open an SSH tunnel and adopt the remote OpenCode as the endpoint. */

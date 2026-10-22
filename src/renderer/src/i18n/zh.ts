@@ -928,5 +928,11 @@ export const zh: Dict = {
   "set.budgetMonthly": "每月预算",
   "set.budgetHint": "支出上限。0 表示关闭。超出时应用每个周期警告一次。",
   "set.budgetUnit": "美元（$）",
+  "set.verifyAfterDone": "完成后验证",
+  "set.verifyAfterDoneHint": "成功回合后运行您的命令（测试/构建）并显示结果。",
+  "set.verifyCommand": "验证命令",
+  "set.verifyCommandHint": "在对话的项目文件夹中运行。留空表示关闭。",
+  "verify.passed": "验证通过",
+  "verify.failed": "验证失败（代码 {code}）",
 }
 

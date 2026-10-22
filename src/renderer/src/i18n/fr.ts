@@ -939,5 +939,11 @@ export const fr: Dict = {
   "set.budgetMonthly": "Budget mensuel",
   "set.budgetHint": "Un plafond de dépenses. 0 désactive. L’avertissement a lieu une fois par période.",
   "set.budgetUnit": "$ (USD)",
+  "set.verifyAfterDone": "Vérifier après coup",
+  "set.verifyAfterDoneHint": "Après un tour réussi, exécutez votre commande (tests/build) et affichez le verdict.",
+  "set.verifyCommand": "Commande de vérification",
+  "set.verifyCommandHint": "Exécuté dans le dossier du projet de la conversation. Vide = désactivé.",
+  "verify.passed": "Vérification réussie",
+  "verify.failed": "Échec de la vérification (code {code})",
 }
 

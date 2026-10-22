@@ -940,5 +940,11 @@ export const de: Dict = {
   "set.budgetMonthly": "Monatsbudget",
   "set.budgetHint": "Eine Ausgabenobergrenze. 0 ist aus. Die App warnt einmal pro Zeitraum, wenn sie überschritten wird.",
   "set.budgetUnit": "$ (USD)",
+  "set.verifyAfterDone": "Nach Abschluss prüfen",
+  "set.verifyAfterDoneHint": "Nach einem erfolgreichen Durchlauf wird Ihr Befehl (Tests/Build) ausgeführt und das Ergebnis gezeigt.",
+  "set.verifyCommand": "Prüfbefehl",
+  "set.verifyCommandHint": "Wird im Projektordner der Unterhaltung ausgeführt. Leer bedeutet aus.",
+  "verify.passed": "Prüfung bestanden",
+  "verify.failed": "Prüfung fehlgeschlagen (Code {code})",
 }
 

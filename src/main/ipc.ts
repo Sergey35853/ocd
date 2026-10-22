@@ -59,7 +59,7 @@ import { setHudData, toggleHud } from "./hud"
 import { sshTunnel } from "./sshTunnel"
 import { flashTaskbar, notifyFinish, notifyRule, type FinishNotice } from "./notify"
 import { dismissNotice, showFinishNotice } from "./notice"
-import { openInTerminal } from "./terminal"
+import { openInTerminal, runCommand, type RunResult } from "./terminal"
 import { probeRuntime } from "./runtimeProbe"
 import {
   ENGINES,
@@ -1416,6 +1416,20 @@ async function fetchSessions(): Promise<SessionInfo[]> {
    */
   handle("shell:openTerminal", ({ command, cwd }: { command: string; cwd?: string }) =>
     openInTerminal(command, cwd),
+  )
+
+  /**
+   * Run a command once and bring back its verdict.
+   *
+   * The caller is the verify-after-done check: it wants an exit code and, on
+   * failure, the lines that explain it — not a stream to render. The command
+   * comes from the user's own settings, so there is nothing to sanitise here;
+   * what matters is that a failure is reported, never swallowed.
+   */
+  handle<RunResult>(
+    "shell:run",
+    ({ command, cwd, timeoutMs }: { command: string; cwd?: string; timeoutMs?: number }) =>
+      runCommand(command, cwd, timeoutMs ?? 120_000),
   )
 
   /** System print dialog for the current conversation. */

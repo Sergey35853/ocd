@@ -934,5 +934,11 @@ export const en: Dict = {
   "set.budgetMonthly": "Monthly budget",
   "set.budgetHint": "A spend ceiling. 0 is off. The app warns once per period when it is crossed.",
   "set.budgetUnit": "$ (USD)",
+  "set.verifyAfterDone": "Verify after done",
+  "set.verifyAfterDoneHint": "After a successful turn, run your command (tests/build) and show the verdict.",
+  "set.verifyCommand": "Verify command",
+  "set.verifyCommandHint": "Run in the conversation's project folder. Empty means off.",
+  "verify.passed": "Verify passed",
+  "verify.failed": "Verify failed (exit {code})",
 }
 

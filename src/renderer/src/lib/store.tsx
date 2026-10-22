@@ -871,6 +871,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [toast])
 
+  /** So a fast turn cannot pile verify commands on top of one another. */
+  const verifyingRef = useRef(false)
+
+  /**
+   * Check the agent's "done" against the project's own tests.
+   *
+   * A finished turn is a claim. When the person has asked for it, this runs
+   * their command in the session's folder and reports the verdict: a quiet line
+   * when it passes, the tail of the output when it does not — the exit code and
+   * the last lines are what say why. Only local conversations are checked: a
+   * remote server's folder is not a folder this machine can run in, and
+   * pretending otherwise would be a check that means nothing.
+   */
+  const runVerify = useCallback(
+    async (sessionId: string) => {
+      const current = settingsRef.current
+      const command = current?.verifyCommand?.trim() ?? ""
+      if (!current?.verifyAfterDone || !command) return
+      if (verifyingRef.current) return
+      const session = sessionsRef.current.find((item) => item.id === sessionId)
+      const directory = session?.location?.directory
+      if (!directory) return
+      verifyingRef.current = true
+      try {
+        const result = await window.ocd.shell.run(command, directory, 120_000)
+        if (result.exit === 0) {
+          toast(translate("verify.passed"), "info")
+        } else {
+          const tail = `${result.stdout}\n${result.stderr}`
+            .trim()
+            .split(/\r?\n/)
+            .filter((line) => line.trim())
+            .slice(-6)
+            .join("\n")
+          toast(`${translate("verify.failed", { code: result.exit })}${tail ? `\n${tail}` : ""}`, "error")
+        }
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), "error")
+      } finally {
+        verifyingRef.current = false
+      }
+    },
+    [toast],
+  )
+
   /**
    * Bring a message into view.
    *
@@ -1993,6 +2038,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             void notifyOutcome(sessionID, event.type === "session.execution.failed")
             checkNotifyRules(sessionID, event.type === "session.execution.failed")
             void checkBudget()
+            // A success is the moment worth checking: the agent claims the work * is done, and the project's own tests are what say whether it is.
+            if (event.type !== "session.execution.failed") void runVerify(sessionID)
 
             // The server delivers anything it was holding as the turn ends, so
             // there is nothing to send from here — only to look at what is
@@ -2083,7 +2130,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // flight. It reads both through refs instead, which is why an older copy
     // stays correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules, checkBudget])
+  }, [recordTurnTime, refreshCatalog, refreshSessions, refreshLimits, refreshInbox, checkNotifyRules, checkBudget, runVerify])
 
   // ---------- boot ----------
 

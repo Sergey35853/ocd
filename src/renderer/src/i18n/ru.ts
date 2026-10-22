@@ -962,6 +962,12 @@ export const ru = {
   "set.budgetMonthly": "Месячный бюджет",
   "set.budgetHint": "Потолок трат. 0 — выключено. При превышении приложение предупредит один раз за период.",
   "set.budgetUnit": "$ (долл.)",
+  "set.verifyAfterDone": "Проверять после «готово»",
+  "set.verifyAfterDoneHint": "После успешного хода запускать вашу команду (тесты/сборку) и показывать результат.",
+  "set.verifyCommand": "Команда проверки",
+  "set.verifyCommandHint": "Запускается в каталоге проекта беседы. Пусто — проверка выключена.",
+  "verify.passed": "Проверка пройдена",
+  "verify.failed": "Проверка не пройдена (код {code})",
 } as const
 
 export type DictKey = keyof typeof ru
