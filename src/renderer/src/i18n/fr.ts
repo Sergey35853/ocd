@@ -968,5 +968,11 @@ export const fr: Dict = {
   "watch.stopped": "Surveillance arrêtée",
   "watch.noDir": "Cette conversation n’a pas de dossier local",
   "watch.failed": "Impossible de démarrer la surveillance",
+  "set.backup": "Données locales (pins, notes, tags)",
+  "set.backupHint": "Exporter et restaurer pins, notes, brouillons, modèles et tags — pour les transférer entre machines.",
+  "set.backupDone": "Sauvegarde enregistrée : {path}",
+  "set.backupFailed": "Échec : {error}",
+  "set.backupBad": "Ce n’est pas une sauvegarde OCD",
+  "set.backupRestored": "{n} entrées restaurées",
 }
 

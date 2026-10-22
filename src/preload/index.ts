@@ -298,6 +298,11 @@ const api = {
         "app:saveText",
         payload,
       ),
+    /**
+     * Pick a JSON file and get its parsed contents. `canceled: true` means the
+     * dialog was dismissed — not an error, just nothing to do.
+     */
+    openJson: () => call<{ canceled: boolean; payload?: unknown }>("app:openJson"),
     // ---- checkpoints: copies of the changed files ----
     /** The snapshots this machine holds. */
     checkpoints: () => call<Checkpoint[]>("app:checkpoints"),

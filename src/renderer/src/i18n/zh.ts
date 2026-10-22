@@ -957,5 +957,11 @@ export const zh: Dict = {
   "watch.stopped": "已停止监视",
   "watch.noDir": "此对话没有本地文件夹",
   "watch.failed": "无法开始监视",
+  "set.backup": "本地数据（固定、备注、标签）",
+  "set.backupHint": "导出并恢复固定、备注、草稿、模板和标签，以便在机器之间迁移。",
+  "set.backupDone": "备份已保存：{path}",
+  "set.backupFailed": "失败：{error}",
+  "set.backupBad": "这不是 OCD 备份文件",
+  "set.backupRestored": "已恢复 {n} 条记录",
 }
 

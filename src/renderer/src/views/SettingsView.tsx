@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useStore } from "../lib/store"
 import { cx } from "../lib/format"
+import { applyLocalData, backupJson } from "../lib/localBackup"
 import { Field, Modal, Switch } from "../components/ui"
 import { IconFolder, IconPanel, IconRefresh, IconTerminal } from "../components/Icon"
 import { BusyAnimation } from "../components/BusyAnimation"
@@ -572,6 +573,52 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
         t("set.transferFailed", {
           error: err instanceof Error ? err.message : String(err),
         }),
+        "error",
+      )
+    }
+  }
+
+  /** Carry the local artifacts (pins, notes, tags…) out to a JSON file. */
+  const exportLocalData = async () => {
+    try {
+      const content = backupJson()
+      const result = await window.ocd.app.saveText({ name: "ocd-local-data", content, ext: "json" })
+      if (result.ok && result.path) {
+        store.toast(t("set.backupDone", { path: result.path }), "info")
+      } else if (!result.canceled) {
+        store.toast(t("set.backupFailed", { error: result.error ?? "" }), "error")
+      }
+    } catch (err) {
+      store.toast(
+        t("set.backupFailed", { error: err instanceof Error ? err.message : String(err) }),
+        "error",
+      )
+    }
+  }
+
+  /** Bring a previous backup back — the same keys, written over the current. */
+  const importLocalData = async () => {
+    try {
+      const result = await window.ocd.app.openJson()
+      if (result.canceled) return
+      const count = applyLocalData(result.payload)
+      if (!count) {
+        store.toast(t("set.backupBad"), "error")
+        return
+      }
+      store.toast(t("set.backupRestored", { n: count }), "info")
+      // The in-memory stores (tags, tabs) read these keys once at boot, so a
+      // reload is what makes the restored data actually appear.
+      setTimeout(() => {
+        try {
+          window.location.reload()
+        } catch {
+          /* jsdom has no real window to reload */
+        }
+      }, 400)
+    } catch (err) {
+      store.toast(
+        t("set.backupFailed", { error: err instanceof Error ? err.message : String(err) }),
         "error",
       )
     }
@@ -1306,6 +1353,16 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
                 {t("set.export")}
               </button>
               <button type="button" className="btn" onClick={() => void importSettings()}>
+                {t("set.import")}
+              </button>
+            </div>
+          </Field>
+          <Field label={t("set.backup")} hint={t("set.backupHint")}>
+            <div className="row">
+              <button type="button" className="btn" onClick={() => void exportLocalData()}>
+                {t("set.export")}
+              </button>
+              <button type="button" className="btn" onClick={() => void importLocalData()}>
                 {t("set.import")}
               </button>
             </div>

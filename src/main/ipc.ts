@@ -1836,6 +1836,30 @@ async function fetchSessions(): Promise<SessionInfo[]> {
     )
     return { ok: true, id: created?.data?.id ?? "" }
   })
+
+  /**
+   * Let the user pick a JSON file and hand its contents back.
+   *
+   * The one thing a restore needs that no existing call offers: a dialog that
+   * *returns* the parsed file instead of posting it somewhere. Cancelling is not
+   * an error — the caller just does nothing. A file that is not valid JSON
+   * throws, and the `{ok:false}` envelope carries the reason to the toast.
+   */
+  handle<{ canceled: boolean; payload?: unknown }>("app:openJson", async () => {
+    const win = getWindow()
+    const result = win
+      ? await dialog.showOpenDialog(win, {
+          properties: ["openFile"],
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        })
+      : await dialog.showOpenDialog({
+          properties: ["openFile"],
+          filters: [{ name: "JSON", extensions: ["json"] }],
+        })
+    if (result.canceled || !result.filePaths[0]) return { canceled: true }
+    const text = await readFile(result.filePaths[0], "utf8")
+    return { canceled: false, payload: JSON.parse(text) as unknown }
+  })
 }
 
 /** Forward server events and connection status to every open window. */

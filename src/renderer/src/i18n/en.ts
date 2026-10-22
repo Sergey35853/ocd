@@ -963,5 +963,11 @@ export const en: Dict = {
   "watch.stopped": "Watch stopped",
   "watch.noDir": "This conversation has no local folder",
   "watch.failed": "Could not start watching",
+  "set.backup": "Local data (pins, notes, tags)",
+  "set.backupHint": "Export and restore pins, notes, drafts, templates and tags — to carry them between machines.",
+  "set.backupDone": "Backup saved: {path}",
+  "set.backupFailed": "Failed: {error}",
+  "set.backupBad": "That is not an OCD backup file",
+  "set.backupRestored": "Restored {n} entries",
 }
 

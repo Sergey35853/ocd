@@ -969,5 +969,11 @@ export const de: Dict = {
   "watch.stopped": "Beobachten gestoppt",
   "watch.noDir": "Diese Unterhaltung hat keinen lokalen Ordner",
   "watch.failed": "Beobachten konnte nicht gestartet werden",
+  "set.backup": "Lokale Daten (Pins, Notizen, Tags)",
+  "set.backupHint": "Pins, Notizen, Entwürfe, Vorlagen und Tags exportieren und wiederherstellen — für den Wechsel zwischen Rechnern.",
+  "set.backupDone": "Sicherung gespeichert: {path}",
+  "set.backupFailed": "Fehlgeschlagen: {error}",
+  "set.backupBad": "Das ist keine OCD-Sicherungsdatei",
+  "set.backupRestored": "{n} Einträge wiederhergestellt",
 }
 

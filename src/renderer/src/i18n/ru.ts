@@ -991,6 +991,12 @@ export const ru = {
   "watch.stopped": "Слежение остановлено",
   "watch.noDir": "У этой беседы нет локальной папки",
   "watch.failed": "Не удалось начать слежение",
+  "set.backup": "Локальные данные (пины, заметки, теги)",
+  "set.backupHint": "Экспорт и восстановление пинов, заметок, черновиков, шаблонов и тегов — чтобы перенести их между машинами.",
+  "set.backupDone": "Бэкап сохранён: {path}",
+  "set.backupFailed": "Не удалось: {error}",
+  "set.backupBad": "Это не файл бэкапа OCD",
+  "set.backupRestored": "Восстановлено записей: {n}",
 } as const
 
 export type DictKey = keyof typeof ru

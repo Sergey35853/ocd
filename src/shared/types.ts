@@ -1368,6 +1368,8 @@ export interface OcdApi {
       content: string
       ext: string
     }): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>
+    /** Pick a JSON file and get its parsed contents; canceled when dismissed. */
+    openJson(): Promise<{ canceled: boolean; payload?: unknown }>
     // ---- checkpoints: copies of the changed files ----
     /** The snapshots this machine holds. */
     checkpoints(): Promise<Checkpoint[]>
