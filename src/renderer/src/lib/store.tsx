@@ -1039,6 +1039,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [newSession, send, toast])
 
   /**
+   * The broom: conversations no one has touched in a while.
+   *
+   * Off unless a number of days is set, and even then it only ever removes
+   * conversations that have been idle for longer than that. The active one and
+   * anything still running are left alone — deleting the work in front of
+   * someone is not tidying, it is sabotage. An hour is a long enough tick that
+   * this is never the thing the app appears to be doing.
+   */
+  const cleanupDays = settings?.autoCleanupDays ?? 0
+  useEffect(() => {
+    if (!(cleanupDays > 0)) return
+    const sweep = () => {
+      const cutoff = Date.now() - cleanupDays * 24 * 60 * 60 * 1000
+      const doomed = sessionsRef.current.filter((session) => {
+        const touched = session.time?.updated ?? session.time?.created ?? 0
+        if (!touched || touched > cutoff) return false
+        if (session.id === activeTabRef.current) return false
+        return true
+      })
+      for (const session of doomed) void deleteSession(session.id)
+    }
+    const timer = setInterval(sweep, 60 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [cleanupDays, deleteSession])
+
+  /**
    * Poll for permission requests the stream did not deliver.
    *
    * A modal that only reacts to permission.asked misses requests that were

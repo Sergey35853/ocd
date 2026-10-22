@@ -723,6 +723,14 @@ export interface AppSettings {
   notifyRules?: NotifyRule[]
   /** The conversations that start by themselves. */
   autoRuns?: AutoRun[]
+  /**
+   * Delete conversations untouched for this many days. 0 (or absent) is off.
+   *
+   * The list grows one conversation at a time and never shrinks on its own;
+   * this is the broom, and it is off until someone asks for it — a rule that
+   * deletes work without being turned on would be a rule to fear.
+   */
+  autoCleanupDays?: number
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */

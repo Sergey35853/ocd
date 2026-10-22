@@ -1282,6 +1282,23 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               </button>
             </div>
           </Field>
+          <Field label={t("set.autoCleanup")} hint={t("set.autoCleanupHint")}>
+            <div className="row">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={3650}
+                style={{ width: 110 }}
+                value={settings.autoCleanupDays ?? 0}
+                onChange={(event) => {
+                  const value = Math.max(0, Math.min(3650, Math.round(Number(event.target.value) || 0)))
+                  void store.updateSettings({ autoCleanupDays: value })
+                }}
+              />
+              <span className="desc">{t("set.autoCleanupDays")}</span>
+            </div>
+          </Field>
         </div>
       ),
     },

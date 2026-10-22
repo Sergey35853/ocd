@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SearchHit } from "@shared/types"
 import { StoreProvider, useStore } from "./lib/store"
+import { addTag, readTags, useAllTags, useSessionTags } from "./lib/tags"
 import { cx, groupSessions, shortAge } from "./lib/format"
 import { actionFor } from "./lib/shortcuts"
 import { askChat } from "./lib/commands"
@@ -12,6 +13,7 @@ import { installClipboardBridge } from "./lib/messageMove"
 import {
   IconChat,
   IconChip,
+  IconCheck,
   IconClose,
   IconDownload,
   IconFolder,
@@ -97,6 +99,27 @@ const NAV: Array<{ id: ViewId; label: DictKey; icon: typeof IconChat; kbd?: stri
   { id: "about", label: "nav.about", icon: IconInfo },
   { id: "log", label: "nav.log", icon: IconFile },
 ]
+
+/** The tags of a conversation as small chips; nothing when it has none. */
+function TagChips({ sessionId }: { sessionId: string }) {
+  const tags = useSessionTags(sessionId)
+  if (!tags.length) return null
+  // Three is as many as fit on a row without pushing the age off the edge; the
+  // rest are counted, because a chip that says "+2" is better than a hidden one.
+  const shown = tags.slice(0, 3)
+  return (
+    <span className="sess-tags">
+      {shown.map((tag) => (
+        <span key={tag} className="sess-tag">
+          {tag}
+        </span>
+      ))}
+      {tags.length > shown.length ? (
+        <span className="sess-tag more">+{tags.length - shown.length}</span>
+      ) : null}
+    </span>
+  )
+}
 
 function Shell() {
   const store = useStore()
@@ -206,6 +229,13 @@ function Shell() {
   const [modelFilter, setModelFilter] = useState("")
   const [projectFilter, setProjectFilter] = useState("")
   const [dateFilter, setDateFilter] = useState("")
+  /** Narrow the list to conversations carrying this tag; "" means any. */
+  const [tagFilter, setTagFilter] = useState("")
+  /** Selection mode for acting on many conversations at once. */
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  /** Every tag in use, kept in step with the tag store. */
+  const knownTags = useAllTags()
   const [indexReady, setIndexReady] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   /** The comparison of two conversations, when it is open. */
@@ -346,9 +376,13 @@ function Shell() {
         if (dateFilter === "week" && age > 7 * day) return false
         if (dateFilter === "month" && age > 30 * day) return false
       }
-      if (!modelFilter && !projectFilter) return true
+      if (!modelFilter && !projectFilter && !tagFilter) return true
       const session = store.sessions.find((item) => item.id === hit.sessionId)
       if (!session) return false
+      if (tagFilter) {
+        const tags = readTags(session.id)
+        if (!tags.includes(tagFilter)) return false
+      }
       if (modelFilter) {
         const model = session.model?.id
           ? `${session.model.providerID ?? ""}/${session.model.id}`
@@ -361,21 +395,21 @@ function Shell() {
       }
       return true
     })
-  }, [searchHits, store.sessions, modelFilter, projectFilter, dateFilter])
+  }, [searchHits, store.sessions, modelFilter, projectFilter, dateFilter, tagFilter])
 
   const filteredSessions = useMemo(() => {
     const needle = query.trim().toLowerCase()
     // Sessions already listed above as a body match are not repeated below.
     const shown = new Set(visibleHits.map((hit) => hit.sessionId))
-    const list = needle
-      ? store.sessions.filter(
-          (session) =>
-            !shown.has(session.id) &&
-            `${session.title ?? ""} ${session.id}`.toLowerCase().includes(needle),
-        )
-      : store.sessions.filter((session) => !shown.has(session.id))
+    const byTag = (session: { id: string }) => !tagFilter || readTags(session.id).includes(tagFilter)
+    const list = store.sessions.filter(
+      (session) =>
+        !shown.has(session.id) &&
+        byTag(session) &&
+        (!needle || `${session.title ?? ""} ${session.id}`.toLowerCase().includes(needle)),
+    )
     return groupSessions(list)
-  }, [store.sessions, query, visibleHits])
+  }, [store.sessions, query, visibleHits, tagFilter])
 
   // Build the body index once the session list is on screen, then keep it
   // fresh in the background. Failures are silent: search simply falls back to
@@ -428,6 +462,64 @@ function Shell() {
     const id = await storeRef.current.newSession()
     if (id) setView("chat")
   }, [])
+
+  // ---- acting on many conversations at once ----
+  /** Second click on Delete, so a bulk remove is never one stray press. */
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+  const [bulkTagDraft, setBulkTagDraft] = useState("")
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const exitBulk = useCallback(() => {
+    setBulkMode(false)
+    setSelected(new Set())
+    setBulkConfirm(false)
+    setBulkTagDraft("")
+  }, [])
+
+  /** Everything currently on screen, for "select all". */
+  const selectAllVisible = useCallback(() => {
+    const ids = new Set<string>()
+    for (const group of filteredSessions) for (const item of group.items) ids.add(item.id)
+    for (const hit of visibleHits) ids.add(hit.sessionId)
+    setSelected(ids)
+  }, [filteredSessions, visibleHits])
+
+  const bulkDelete = useCallback(async () => {
+    const ids = [...selected]
+    if (!ids.length) return
+    if (!bulkConfirm) {
+      setBulkConfirm(true)
+      return
+    }
+    for (const id of ids) await storeRef.current.deleteSession(id)
+    storeRef.current.toast(t("bulk.deleted", { n: ids.length }), "info")
+    exitBulk()
+  }, [selected, bulkConfirm, exitBulk, t])
+
+  const bulkMove = useCallback(async () => {
+    const ids = [...selected]
+    if (!ids.length) return
+    const directory = await window.ocd.app.pickDirectory()
+    if (!directory) return
+    for (const id of ids) await storeRef.current.moveSession(id, directory)
+    exitBulk()
+  }, [selected, exitBulk])
+
+  const applyBulkTag = useCallback(() => {
+    const tag = bulkTagDraft.trim()
+    const ids = [...selected]
+    if (!tag || !ids.length) return
+    for (const id of ids) addTag(id, tag)
+    setBulkTagDraft("")
+  }, [selected, bulkTagDraft])
 
   const stripRef = useRef<HTMLDivElement>(null)
 
@@ -862,6 +954,29 @@ function Shell() {
                 <option value="week">{t("session.week")}</option>
                 <option value="month">{t("session.month")}</option>
               </select>
+              {knownTags.length ? (
+                <select
+                  className="input"
+                  value={tagFilter}
+                  title={t("search.filterTag")}
+                  onChange={(event) => setTagFilter(event.target.value)}
+                >
+                  <option value="">{t("search.filterTag")}</option>
+                  {knownTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <button
+                type="button"
+                className={cx("iconbtn", bulkMode && "on")}
+                title={bulkMode ? t("bulk.exit") : t("bulk.enter")}
+                onClick={() => (bulkMode ? exitBulk() : setBulkMode(true))}
+              >
+                <IconCheck size={14} />
+              </button>
               <button
                 type="button"
                 className="iconbtn"
@@ -876,6 +991,54 @@ function Shell() {
         </div>
 
         <div className="side-scroll">
+          {bulkMode ? (
+            <div className="bulk-bar">
+              <span className="bulk-count">{t("bulk.selected", { n: selected.size })}</span>
+              <div className="bulk-actions">
+                <button type="button" className="bulk-btn" onClick={selectAllVisible}>
+                  {t("bulk.selectAll")}
+                </button>
+                <button
+                  type="button"
+                  className={cx("bulk-btn", bulkConfirm && "danger")}
+                  disabled={selected.size === 0}
+                  onClick={() => void bulkDelete()}
+                >
+                  {bulkConfirm ? t("bulk.confirmDelete") : t("bulk.delete")}
+                </button>
+                <button
+                  type="button"
+                  className="bulk-btn"
+                  disabled={selected.size === 0}
+                  onClick={() => void bulkMove()}
+                >
+                  {t("bulk.move")}
+                </button>
+              </div>
+              <div className="bulk-tag">
+                <input
+                  className="input"
+                  value={bulkTagDraft}
+                  placeholder={t("bulk.tagPlaceholder")}
+                  onChange={(event) => setBulkTagDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") applyBulkTag()
+                  }}
+                />
+                <button
+                  type="button"
+                  className="bulk-btn"
+                  disabled={selected.size === 0 || !bulkTagDraft.trim()}
+                  onClick={applyBulkTag}
+                >
+                  {t("bulk.tag")}
+                </button>
+              </div>
+              <button type="button" className="bulk-btn ghost" onClick={exitBulk}>
+                {t("bulk.exit")}
+              </button>
+            </div>
+          ) : null}
           {view !== "chat" ? null : (
             <>
               {visibleHits.length > 0 ? (
@@ -918,22 +1081,33 @@ function Shell() {
                     <button
                       key={session.id}
                       type="button"
-                      className={cx("sess", session.id === store.activeTab && "active")}
-                      onClick={() => pickSession(session.id)}
+                      className={cx(
+                        "sess",
+                        session.id === store.activeTab && "active",
+                        bulkMode && selected.has(session.id) && "picking",
+                      )}
+                      onClick={() => (bulkMode ? toggleSelect(session.id) : pickSession(session.id))}
                       title={session.location?.directory ?? session.id}
                     >
-                      <span
-                        className={cx(
-                          "bullet",
-                          (store.busy[session.id] || store.activeSessions[session.id]) && "live",
-                        )}
-                        title={
-                          store.activeSessions[session.id]
-                            ? t("session.runningElsewhere")
-                            : undefined
-                        }
-                      />
+                      {bulkMode ? (
+                        <span className={cx("tick", selected.has(session.id) && "on")}>
+                          {selected.has(session.id) ? <IconCheck size={11} /> : null}
+                        </span>
+                      ) : (
+                        <span
+                          className={cx(
+                            "bullet",
+                            (store.busy[session.id] || store.activeSessions[session.id]) && "live",
+                          )}
+                          title={
+                            store.activeSessions[session.id]
+                              ? t("session.runningElsewhere")
+                              : undefined
+                          }
+                        />
+                      )}
                       <span className="t">{session.title || t("session.untitled")}</span>
+                      <TagChips sessionId={session.id} />
                       <span className="when">{shortAge(session.time?.updated ?? session.time?.created)}</span>
                     </button>
                   ))}

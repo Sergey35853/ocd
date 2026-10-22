@@ -720,6 +720,147 @@ select {
 .sess .bullet.live {
   background: var(--ok);
 }
+/* Selection mode: the bullet becomes a checkbox and the row says if it is picked. */
+.sess .tick {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 4px;
+  border: 1.5px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg, #fff);
+}
+.sess .tick.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.sess.picking {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+/* Tag chips shown on a session row. */
+.sess .sess-tags {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+.sess .sess-tag {
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-faint);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sess .sess-tag.more {
+  border-style: dashed;
+}
+
+.iconbtn.on {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+/* The bar that acts on many conversations at once. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 6px 8px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.bulk-count {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+}
+.bulk-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.bulk-btn {
+  padding: 4px 9px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.bulk-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+.bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.bulk-btn.danger {
+  color: var(--err);
+  border-color: var(--err);
+}
+.bulk-btn.ghost {
+  background: transparent;
+}
+.bulk-tag {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+  min-width: 120px;
+}
+.bulk-tag .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Tag editor chips (dialog). */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: var(--text-dim);
+}
+.tag-chip.pick {
+  cursor: pointer;
+}
+.tag-chip.pick:hover {
+  color: var(--text);
+  border-color: var(--accent-line);
+}
+.tag-x {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+.tag-x:hover {
+  color: var(--err);
+}
 
 .side-foot {
   display: flex;

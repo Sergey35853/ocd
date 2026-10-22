@@ -7,6 +7,7 @@ import { IconMore } from "./Icon"
 import { PermissionRules } from "./PermissionRules"
 import { SessionEnvironmentDialog } from "./SessionEnvironmentDialog"
 import { SessionInstructionsDialog } from "./SessionInstructionsDialog"
+import { SessionTagsDialog } from "./SessionTagsDialog"
 import { Modal, useAnchoredMenu } from "./ui"
 
 /**
@@ -42,6 +43,8 @@ export function SessionActions({
   const [envOpen, setEnvOpen] = useState(false)
   /** Whether the instructions of the conversation are on screen. */
   const [instructionsOpen, setInstructionsOpen] = useState(false)
+  /** Whether the tags of the conversation are on screen. */
+  const [tagsOpen, setTagsOpen] = useState(false)
   /** The server's own log of this session, when it was asked for. */
   const [logLines, setLogLines] = useState<string[] | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -260,6 +263,17 @@ export function SessionActions({
             type="button"
             className="item"
             role="menuitem"
+            onClick={() => {
+              close()
+              setTagsOpen(true)
+            }}
+          >
+            <span className="grow">{t("session.tags")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
             title={t("session.backgroundHint")}
             onClick={() => {
               close()
@@ -317,6 +331,7 @@ export function SessionActions({
       {instructionsOpen ? (
         <SessionInstructionsDialog sessionId={sessionId} onClose={() => setInstructionsOpen(false)} />
       ) : null}
+      {tagsOpen ? <SessionTagsDialog sessionId={sessionId} onClose={() => setTagsOpen(false)} /> : null}
       {logLines ? (
         <Modal title={t("session.log")} onClose={() => setLogLines(null)}>
           {logLines.length === 0 ? (
