@@ -15,6 +15,23 @@ afterEach(() => {
   cleanup()
 })
 
+/**
+ * Wait for boot to have the settings in hand.
+ *
+ * The rules are read through `settingsRef` at the moment the event arrives,
+ * and boot loads the settings asynchronously: an event that lands before that
+ * render has committed finds no rules at all, and the test then waits a second
+ * for a notification that could not have been raised. `service.status` is the
+ * first call boot makes after the settings are in, and one macrotask after it
+ * lets React commit what it has queued.
+ */
+async function whenSettingsAreIn(ocd: ReturnType<typeof installOcdMock>) {
+  await waitFor(() => expect(ocd.calls["service.status"]).toBeTruthy())
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
 describe("the notification rules", () => {
   it("speaks up when the answer contains the word", async () => {
     const ocd = installOcdMock({
@@ -25,7 +42,7 @@ describe("the notification rules", () => {
       },
     })
     render(<StoreProvider>{null}</StoreProvider>)
-    await waitFor(() => expect(ocd.calls["app.getSettings"]).toBeTruthy())
+    await whenSettingsAreIn(ocd)
 
     await act(async () => {
       ocd.fireEvent({
@@ -56,7 +73,7 @@ describe("the notification rules", () => {
       },
     })
     render(<StoreProvider>{null}</StoreProvider>)
-    await waitFor(() => expect(ocd.calls["app.getSettings"]).toBeTruthy())
+    await whenSettingsAreIn(ocd)
 
     await act(async () => {
       ocd.fireEvent({
@@ -88,7 +105,7 @@ describe("the notification rules", () => {
       },
     })
     render(<StoreProvider>{null}</StoreProvider>)
-    await waitFor(() => expect(ocd.calls["app.getSettings"]).toBeTruthy())
+    await whenSettingsAreIn(ocd)
 
     await act(async () => {
       ocd.fireEvent({
@@ -110,7 +127,7 @@ describe("the notification rules", () => {
       },
     })
     render(<StoreProvider>{null}</StoreProvider>)
-    await waitFor(() => expect(ocd.calls["app.getSettings"]).toBeTruthy())
+    await whenSettingsAreIn(ocd)
 
     await act(async () => {
       ocd.fireEvent({
