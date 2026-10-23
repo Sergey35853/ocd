@@ -1482,6 +1482,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const resume = (inboxRef.current[sessionId]?.length ?? 0) > 0
       try {
         const result = await window.ocd.api.interrupt(sessionId, resume)
+        // Two answers. `false` means there was nothing running to stop, so the
+        // flag was stale and is cleared here. `true` means the server took the
+        // stop and will confirm it with `session.execution.interrupted`, which
+        // the event handler clears — waiting for that confirmation rather than
+        // clearing up front is what keeps the animation honest about a stop
+        // that is still in flight. Before that event was handled, `true` was
+        // the answer that left the session busy forever.
         if (!result?.interrupted) {
           setBusy((current) => (current[sessionId] ? { ...current, [sessionId]: false } : current))
           delete turnStartRef.current[sessionId]
@@ -2126,6 +2133,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             // The server delivers anything it was holding as the turn ends, so
             // there is nothing to send from here — only to look at what is
             // still waiting, which is one round trip after the turn is over.
+            void refreshInbox(sessionID)
+          }
+          break
+
+        // The turn was stopped before it finished. Not a success — there is
+        // nothing to verify against the project's tests — and not a failure,
+        // so the person who pressed Stop does not need telling. But the busy
+        // flag is still theirs to drop, and this is the event that says the
+        // server agreed to the stop. Handled before, `abort` could only clear
+        // the flag when the server answered `interrupted: false`; when it
+        // answered true, the app waited for an event it did not know about and
+        // the session went on looking busy long after it had gone quiet.
+        case "session.execution.interrupted":
+          if (sessionID) {
+            busyRef.current[sessionID] = false
+            setBusy((current) => ({ ...current, [sessionID]: false }))
+            delete sentAtRef.current[sessionID]
+            // A turn stopped by hand is not a duration sample: its length says
+            // how long the user waited before giving up, not how long the work
+            // takes. Mirrors what `abort` already does when it stops locally.
+            delete turnStartRef.current[sessionID]
+            setTurnStart((current) => {
+              const next = { ...current }
+              delete next[sessionID]
+              return next
+            })
+            setLive((current) => {
+              if (!current[sessionID]) return current
+              const next = { ...current }
+              delete next[sessionID]
+              return next
+            })
+            void refreshSessions()
+            void refreshInbox(sessionID)
+          }
+          break
+
+        // The server's own word that a session has nothing running. This is the
+        // backstop for every turn that ended without a handled event — an
+        // interrupt, a superseded turn, a reconnect that swallowed the closing
+        // frame — so a session cannot be left looking busy once the server has
+        // moved on, however the closing event was missed. Guarded by `busy` so
+        // it is a no-op for the common case, and events arrive in order, so a
+        // turn that genuinely is running has already sent `execution.started`
+        // and cannot be overridden by an idle that preceded it.
+        case "session.idle":
+          if (sessionID && busyRef.current[sessionID]) {
+            busyRef.current[sessionID] = false
+            setBusy((current) => ({ ...current, [sessionID]: false }))
+            delete sentAtRef.current[sessionID]
+            setLive((current) => {
+              if (!current[sessionID]) return current
+              const next = { ...current }
+              delete next[sessionID]
+              return next
+            })
             void refreshInbox(sessionID)
           }
           break
