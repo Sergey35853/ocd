@@ -1367,6 +1367,16 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               </button>
             </div>
           </Field>
+          <Field label={t("set.githubToken")} hint={t("set.githubTokenHint")}>
+            <input
+              className="input"
+              type="password"
+              style={{ width: "100%" }}
+              placeholder="ghp_…"
+              value={settings.githubToken ?? ""}
+              onChange={(event) => void store.updateSettings({ githubToken: event.target.value })}
+            />
+          </Field>
           <Field label={t("set.autoCleanup")} hint={t("set.autoCleanupHint")}>
             <div className="row">
               <input

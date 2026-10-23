@@ -997,6 +997,21 @@ export const ru = {
   "set.backupFailed": "Не удалось: {error}",
   "set.backupBad": "Это не файл бэкапа OCD",
   "set.backupRestored": "Восстановлено записей: {n}",
+  "gh.title": "GitHub",
+  "gh.notRepo": "Эта папка не из GitHub-репозитория.",
+  "gh.needToken": "Добавьте токен GitHub в настройках, чтобы увидеть задачи.",
+  "gh.issues": "Задачи",
+  "gh.pulls": "Pull request'ы",
+  "gh.open": "Открыть",
+  "gh.workOnBtn": "В беседу",
+  "gh.workOn": "Работай над #{n}: {title}\n{url}",
+  "gh.close": "Закрыть",
+  "gh.loading": "Загружаем…",
+  "gh.empty": "Открытых нет.",
+  "gh.failed": "GitHub ответил: {error}",
+  "session.github": "GitHub (задачи, PR)",
+  "set.githubToken": "Токен GitHub",
+  "set.githubTokenHint": "Personal access token для списка задач и PR. Хранится в файле настроек.",
 } as const
 
 export type DictKey = keyof typeof ru

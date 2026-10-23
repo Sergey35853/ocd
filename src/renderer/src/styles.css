@@ -1638,6 +1638,15 @@ select {
   color: var(--danger);
   border-color: rgba(255, 107, 129, 0.35);
 }
+/* The quiet button of a pair: it sits next to a filled one and must not
+   compete with it, but still has to look like the thing you can press. */
+.btn.ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+.btn.ghost:hover {
+  color: var(--text);
+}
 .btn:disabled {
   opacity: 0.45;
   cursor: default;
@@ -2528,6 +2537,49 @@ input[type="color"] {
   font-size: 12px;
   color: var(--err);
   white-space: pre-wrap;
+}
+
+/* The GitHub panel: the repository the folder points at, then the two lists
+   of open work hanging off it. */
+.gh-repo {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.gh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.gh-list-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.gh-num {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.gh-row .grow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-row .btn {
+  padding: 4px 9px;
+  font-size: 12px;
 }
 
 /* The rules and the auto-runs: a list, and the row that adds one. */

@@ -555,6 +555,14 @@ export interface WorktreeInfo {
   strategy?: string
 }
 
+/** One GitHub issue or pull request, as the dialog lists it. */
+export interface GhEntry {
+  number: number
+  title: string
+  url: string
+  state: string
+}
+
 /** A command the server runs and keeps alive. */
 export interface PtyInfo {
   id: string
@@ -755,6 +763,14 @@ export interface AppSettings {
    * would loop, so it is off until the person writes one.
    */
   watchPrompt?: string
+  /**
+   * A GitHub personal access token, for the issues/PR list.
+   *
+   * Kept in the settings file like every other secret this app stores (there is
+   * no keychain in use). Empty means the GitHub panel only shows the detected
+   * repository, with a hint to add a token.
+   */
+  githubToken?: string
   /** Show live token/cost figures in the chat header. */
   showUsage: boolean
   /** Show the request-limit meter in the chat header. */
@@ -1427,6 +1443,14 @@ export interface OcdApi {
     start(directory: string): Promise<{ watching: boolean }>
     /** Stop watching. */
     stop(): Promise<{ directory: string | null }>
+  }
+  github: {
+    /** The repository a working copy points at, read offline from `.git`. */
+    repo(directory: string): Promise<{ owner: string; repo: string } | null>
+    /** Open issues (pull requests excluded) for that repository. */
+    issues(directory: string, token: string): Promise<GhEntry[]>
+    /** Open pull requests for that repository. */
+    pulls(directory: string, token: string): Promise<GhEntry[]>
   }
   permission: {
     /** Requests the server is waiting on for an answer. */

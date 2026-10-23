@@ -8,6 +8,7 @@ import { PermissionRules } from "./PermissionRules"
 import { SessionEnvironmentDialog } from "./SessionEnvironmentDialog"
 import { SessionInstructionsDialog } from "./SessionInstructionsDialog"
 import { SessionTagsDialog } from "./SessionTagsDialog"
+import { GitHubDialog } from "./GitHubDialog"
 import { Modal, useAnchoredMenu } from "./ui"
 
 /**
@@ -45,6 +46,8 @@ export function SessionActions({
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   /** Whether the tags of the conversation are on screen. */
   const [tagsOpen, setTagsOpen] = useState(false)
+  /** Whether the repository's open issues and pull requests are on screen. */
+  const [ghOpen, setGhOpen] = useState(false)
   /** The server's own log of this session, when it was asked for. */
   const [logLines, setLogLines] = useState<string[] | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -288,6 +291,17 @@ export function SessionActions({
             type="button"
             className="item"
             role="menuitem"
+            onClick={() => {
+              close()
+              setGhOpen(true)
+            }}
+          >
+            <span className="grow">{t("session.github")}</span>
+          </button>
+          <button
+            type="button"
+            className="item"
+            role="menuitem"
             title={t("session.backgroundHint")}
             onClick={() => {
               close()
@@ -346,6 +360,14 @@ export function SessionActions({
         <SessionInstructionsDialog sessionId={sessionId} onClose={() => setInstructionsOpen(false)} />
       ) : null}
       {tagsOpen ? <SessionTagsDialog sessionId={sessionId} onClose={() => setTagsOpen(false)} /> : null}
+      {ghOpen ? (
+        <GitHubDialog
+          directory={
+            store.sessions.find((item) => item.id === sessionId)?.location?.directory || store.directory
+          }
+          onClose={() => setGhOpen(false)}
+        />
+      ) : null}
       {logLines ? (
         <Modal title={t("session.log")} onClose={() => setLogLines(null)}>
           {logLines.length === 0 ? (

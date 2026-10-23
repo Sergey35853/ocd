@@ -37,6 +37,7 @@ const DEFAULTS: AppSettings = {
   verifyAfterDone: false,
   verifyCommand: "",
   watchPrompt: "",
+  githubToken: "",
   showUsage: true,
   showLimits: true,
   // Typing while the model is still answering usually means "wait, also this" —

@@ -399,6 +399,22 @@ const api = {
     /** Stop watching. */
     stop: () => call<{ directory: string | null }>("fsWatch:stop"),
   },
+  github: {
+    /** The repository a working copy points at, read from its own `.git`. */
+    repo: (directory: string) => call<{ owner: string; repo: string } | null>("github:repo", { directory }),
+    /** Open issues (pull requests excluded) for that repository. */
+    issues: (directory: string, token: string) =>
+      call<{ number: number; title: string; url: string; state: string }[]>("github:issues", {
+        directory,
+        token,
+      }),
+    /** Open pull requests for that repository. */
+    pulls: (directory: string, token: string) =>
+      call<{ number: number; title: string; url: string; state: string }[]>("github:pulls", {
+        directory,
+        token,
+      }),
+  },
   remote: {
     /** Open an SSH tunnel and adopt the remote OpenCode as the endpoint. */
     connect: (target: { host: string; remotePort: number; localPort?: number; remember?: boolean }) =>

@@ -61,6 +61,7 @@ import { flashTaskbar, notifyFinish, notifyRule, type FinishNotice } from "./not
 import { dismissNotice, showFinishNotice } from "./notice"
 import { openInTerminal, runCommand, type RunResult } from "./terminal"
 import { startWatch, stopWatch, watchedDirectory } from "./fsWatch"
+import { githubIssues, githubPulls, githubRepo, type GhItem, type GhRepo } from "./github"
 import { probeRuntime } from "./runtimeProbe"
 import {
   ENGINES,
@@ -1448,6 +1449,24 @@ async function fetchSessions(): Promise<SessionInfo[]> {
     stopWatch()
     return { directory: watchedDirectory() }
   })
+
+  /**
+   * GitHub: the repository comes from the working copy's own `.git/config`
+   * (offline, no process spawned), and the lists come from the REST API with
+   * the person's token. The token stays in main — it is sent as an argument and
+   * never stored on the renderer side beyond the settings file.
+   */
+  handle<GhRepo | null>("github:repo", ({ directory }: { directory: string }) => githubRepo(directory))
+  handle<GhItem[]>(
+    "github:issues",
+    async ({ directory, token }: { directory: string; token: string }) =>
+      githubIssues(directory, token),
+  )
+  handle<GhItem[]>(
+    "github:pulls",
+    async ({ directory, token }: { directory: string; token: string }) =>
+      githubPulls(directory, token),
+  )
 
   /** System print dialog for the current conversation. */
   handle<{ ok: boolean; canceled?: boolean; error?: string }>("print:conversation", async (payload: ExportPayload) =>
